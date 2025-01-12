@@ -1,10 +1,13 @@
 from gi.repository import Gtk, Adw, Gdk
 from .media_view import MediaView
+from .grid_view import GridView
+from .thumbnail_generator import ThumbnailGenerator
 from .media_manager import setup_media_manager, get_media_paths, get_last_media_url
 
 class FuriosGalleryApp(Adw.Application):
     def __init__(self):
         super().__init__(application_id='io.FuriOS.Gallery')
+        self.thumbnails = ThumbnailGenerator()
         setup_media_manager()
         self.albums_box = None
         self.mediaView_box = None
@@ -57,7 +60,7 @@ class FuriosGalleryApp(Adw.Application):
         self.stack_switcher.set_stack(self.stack)
         self.main_box.append(self.stack_switcher)
 
-        self.current_view = self.create_mediaView_box()
+        self.current_view = self.create_media_view_box()
 
         self.main_box.append(self.current_view)
 
@@ -72,7 +75,7 @@ class FuriosGalleryApp(Adw.Application):
 
         self.stack.connect("notify::visible-child", self.switch_view)
 
-    def create_mediaView_box(self):
+    def create_media_view_box(self):
         mediaView_box = MediaView(self)
 
         mediaView_box.widget.set_size_request(420, 700)
@@ -85,6 +88,20 @@ class FuriosGalleryApp(Adw.Application):
 
         return mediaView_box
 
+    def create_grid_view_box(self):
+        mediaGridView_square = GridView(self, self.thumbnails)
+        mediaGridView_square.set_size_request(420, 800)
+        mediaGridView_square.set_halign(Gtk.Align.CENTER)
+        mediaGridView_square.set_valign(Gtk.Align.CENTER)
+        mediaGridView_square.set_hexpand(True)
+        mediaGridView_square.set_vexpand(True)
+
+        if mediaGridView_square.flowbox is not None:
+            self.thumbnails.load_images_in_background(self.media_paths, mediaGridView_square.flowbox)
+
+        mediaGridView_square.set_name("mediaGridView-square")
+        return mediaGridView_square
+
     def switch_view(self, stack, param):
         for child in list(self.current_view):
             self.current_view.remove(child)
@@ -93,8 +110,24 @@ class FuriosGalleryApp(Adw.Application):
         if visible_child_name == "albums_view":
             print("here goes albums")
         elif visible_child_name == "media_view":
-            print("here goes media view")
+            self.mediaView_box = self.create_media_view_box()
+            self.current_view.append(self.mediaView_box)
         elif visible_child_name == "media_grid_view":
-            print("here goes gridView")
+            self.mediaGridView_box = self.create_grid_view_box()
+            self.current_view.append(self.mediaGridView_box)
         else:
             print("Not a possible state")
+
+    def open_media_at_index(self, media_index):
+        self.stack.set_visible_child_name("media_view")
+
+        for child in list(self.current_view):
+            self.current_view.remove(child)
+
+        if not self.mediaView_box:
+            self.mediaView_box = self.create_media_view_box()
+        self.current_view.append(self.mediaView_box)
+
+        new_carousel = self.mediaView_box.create_carousel(media_index)
+        self.mediaView_box.overlay.set_child(new_carousel)
+        self.mediaView_box.carousel = new_carousel
