@@ -24,7 +24,6 @@ def extract_file_date(filepath):
     stat = os.stat(filepath)
     return datetime.fromtimestamp(stat.st_mtime)
 
-
 def setup_media_manager():
     global videos_paths, pictures_paths, media_paths
 
@@ -44,6 +43,26 @@ def setup_media_manager():
 
     picture_file_count = len(pictures_paths)
     video_file_count = len(videos_paths)
+
+def list_albums():
+    pictures_path = Path.home() / 'Pictures'
+    videos_path = Path.home() / 'Videos'
+
+    albums_pictures = {
+        entry.name for entry in os.scandir(pictures_path) if entry.is_dir()
+    }
+
+    albums_videos = {
+        entry.name for entry in os.scandir(videos_path) if entry.is_dir()
+    }
+
+    unique_albums = albums_pictures.union(albums_videos)
+
+    sorted_albums = sorted(unique_albums)
+    sorted_albums.insert(0, "Pictures")
+    sorted_albums.insert(0, "Videos")
+
+    return sorted_albums
 
 def get_album_media_paths(album_name):
     pictures_path = Path.home() / 'Pictures' / album_name
@@ -69,9 +88,33 @@ def get_album_media_paths(album_name):
     picture_file_count = len(pictures_paths)
     video_file_count = len(videos_paths)
 
-    print(f"Picture files: {picture_file_count}, Video files: {video_file_count}")
-
     return media_paths
+
+def get_videos_paths():
+    videos_path = Path.home() / 'Videos'
+    videos_paths = []
+
+    if videos_path.is_dir():
+        videos_paths = sorted(
+            str(file) for file in videos_path.rglob('*.mkv')
+        )
+
+    video_file_count = len(videos_paths)
+
+    return videos_paths
+
+def get_pictures_paths():
+    pictures_path = Path.home() / 'Pictures'
+    pictures_paths = []
+
+    if pictures_path.is_dir():
+        pictures_paths = sorted(
+            str(file) for file in pictures_path.rglob('*.jpg')
+        )
+
+    picture_file_count = len(pictures_paths)
+
+    return pictures_paths
 
 def get_media_paths():
     global media_paths
