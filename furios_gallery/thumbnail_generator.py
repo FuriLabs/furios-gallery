@@ -4,7 +4,8 @@ from PIL import Image
 from gi.repository import Gtk
 
 class ThumbnailGenerator:
-    THUMBNAIL_SIZE = (50, 50)
+    THUMBNAIL_SIZE = (250, 250)
+    DISPLAY_SIZE = (25, 25)
     CACHE_DIR = os.path.expanduser("~/.cache/thumbnail_cache")
 
     def __init__(self):
@@ -56,6 +57,7 @@ class ThumbnailGenerator:
         return thumbnail_path
 
     def update_ui_with_thumbnail(self, flowbox_child, thumbnail_path):
-        thumbnail_image = Gtk.Image.new_from_file(thumbnail_path)
-        thumbnail_image.set_size_request(62, 85)
-        flowbox_child.set_child(thumbnail_image)
+        thumbnail_picture = Gtk.Picture.new_for_filename(str(thumbnail_path))
+        thumbnail_picture.set_content_fit(Gtk.ContentFit.COVER)
+
+        flowbox_child.set_child(thumbnail_picture)

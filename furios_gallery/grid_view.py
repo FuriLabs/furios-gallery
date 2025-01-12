@@ -33,7 +33,9 @@ class GridView(Gtk.Box):
         self.flowbox.set_column_spacing(0)
         self.flowbox.set_row_spacing(0)
         self.flowbox.set_max_children_per_line(6)
+        self.flowbox.set_min_children_per_line(6)
         self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.flowbox.set_homogeneous(True)
 
         scrolled_window.set_child(self.flowbox)
 
@@ -70,6 +72,8 @@ class GridView(Gtk.Box):
     def add_media_to_flowbox(self, media_path, media_index):
         flowbox_child = Gtk.FlowBoxChild()
         flowbox_child.media_index = media_index
+
+        flowbox_child.set_size_request(50, 70)
 
         thumbnail_path = self.thumbnails.generate_thumbnail(media_path)
         if thumbnail_path:
