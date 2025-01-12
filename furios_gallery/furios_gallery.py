@@ -1,4 +1,5 @@
 from gi.repository import Gtk, Adw, Gdk
+from .media_view import MediaView
 from .media_manager import setup_media_manager, get_media_paths, get_last_media_url
 
 class FuriosGalleryApp(Adw.Application):
@@ -56,7 +57,7 @@ class FuriosGalleryApp(Adw.Application):
         self.stack_switcher.set_stack(self.stack)
         self.main_box.append(self.stack_switcher)
 
-        self.current_view = Gtk.Box()
+        self.current_view = self.create_mediaView_box()
 
         self.main_box.append(self.current_view)
 
@@ -70,6 +71,19 @@ class FuriosGalleryApp(Adw.Application):
         self.stack.set_visible_child_name("media_view")
 
         self.stack.connect("notify::visible-child", self.switch_view)
+
+    def create_mediaView_box(self):
+        mediaView_box = MediaView(self)
+
+        mediaView_box.widget.set_size_request(420, 700)
+        mediaView_box.widget.set_halign(Gtk.Align.CENTER)
+        mediaView_box.widget.set_valign(Gtk.Align.CENTER)
+        mediaView_box.widget.set_hexpand(True)
+        mediaView_box.widget.set_vexpand(True)
+
+        mediaView_box.widget.set_name("mediaView-square")
+
+        return mediaView_box
 
     def switch_view(self, stack, param):
         for child in list(self.current_view):
