@@ -1,8 +1,9 @@
 from gi.repository import Gtk, Adw, Gdk
 from .media_view import MediaView
 from .grid_view import GridView
+from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
-from .media_manager import setup_media_manager, get_media_paths, get_last_media_url
+from .media_manager import setup_media_manager, get_media_paths, get_last_media_url, get_pictures_paths, get_videos_paths, get_album_media_paths
 
 class FuriosGalleryApp(Adw.Application):
     def __init__(self):
@@ -102,13 +103,26 @@ class FuriosGalleryApp(Adw.Application):
         mediaGridView_square.set_name("mediaGridView-square")
         return mediaGridView_square
 
+    def create_albums_box(self):
+        albums_square = Albums(self)
+        albums_square.set_size_request(420, 800)
+        albums_square.set_halign(Gtk.Align.CENTER)
+        albums_square.set_valign(Gtk.Align.CENTER)
+        albums_square.set_hexpand(True)
+        albums_square.set_vexpand(True)
+
+        albums_square.set_name("albums-square")
+
+        return albums_square
+
     def switch_view(self, stack, param):
         for child in list(self.current_view):
             self.current_view.remove(child)
 
         visible_child_name = self.stack.get_visible_child_name()
         if visible_child_name == "albums_view":
-            print("here goes albums")
+            self.albums_box = self.create_albums_box()
+            self.current_view.append(self.albums_box)
         elif visible_child_name == "media_view":
             self.mediaView_box = self.create_media_view_box()
             self.current_view.append(self.mediaView_box)
@@ -131,3 +145,24 @@ class FuriosGalleryApp(Adw.Application):
         new_carousel = self.mediaView_box.create_carousel(media_index)
         self.mediaView_box.overlay.set_child(new_carousel)
         self.mediaView_box.carousel = new_carousel
+
+    def open_album(self, album_name):
+        self.albums_box.flowbox.unselect_all()
+        self.media_paths = get_album_media_paths(album_name)
+        self.current_index = len(self.media_paths) - 1
+
+        self.stack.set_visible_child_name("media_grid_view")
+
+    def open_videos_album(self):
+        self.albums_box.flowbox.unselect_all()
+        self.media_paths = get_videos_paths()
+        self.current_index = len(self.media_paths) - 1
+
+        self.stack.set_visible_child_name("media_grid_view")
+
+    def open_pictures_album(self):
+        self.albums_box.flowbox.unselect_all()
+        self.media_paths = get_pictures_paths()
+        self.current_index = len(self.media_paths) - 1
+
+        self.stack.set_visible_child_name("media_grid_view")
