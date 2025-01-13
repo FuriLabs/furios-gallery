@@ -83,16 +83,15 @@ class MediaView(Gtk.Box):
                     video_widget.set_valign(Gtk.Align.CENTER)
                     carousel.append(video_widget)
 
-
     def clear_carousel(self):
         while child:= self.carousel.get_first_child():
             self.carousel.remove(child)
 
     def on_page_changed(self, carousel, index):
         if hasattr(self, "previous_index"):
-            if index > self.previous_index: # Swipe to left
+            if index > self.previous_index:  # Swiping left
                 self.app.current_index -= 1
-            elif index < self.previous_index: # Swipe to right
+            elif index < self.previous_index:  # Swiping right
                 self.app.current_index += 1
         else:
             print("Initializing previous index.")
@@ -101,13 +100,19 @@ class MediaView(Gtk.Box):
         self.previous_index = index
         self.update_label()
 
-        if index == 0 or index == carousel.get_n_pages() - 1:
-            new_center_index = self.app.current_index
+        if index == 0:
+            new_start = self.app.current_index + 1
+            new_end = min(self.app.current_index + 4, len(self.app.media_paths) - 1)
+            for i in range(new_start, new_end + 1):
+                if 0 <= i < len(self.app.media_paths):
+                    self.add_media_to_carousel(i, prepend=True)
 
-            new_carousel = self.create_carousel(self.app.current_index)
-
-            self.overlay.set_child(new_carousel)
-            self.carousel = new_carousel
+        elif index == carousel.get_n_pages() - 1:
+            new_start = self.app.current_index - 1
+            new_end = max(self.app.current_index - 4, 0)
+            for i in range(new_end, new_start + 1):
+                if 0 <= i < len(self.app.media_paths):
+                    self.add_media_to_carousel(i, prepend=False)
 
     def setup_buttons(self):
         buttons_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -135,28 +140,14 @@ class MediaView(Gtk.Box):
         self.overlay.add_overlay(buttons_box)
 
     def update_media_left(self, btn):
-        if self.app.current_index + 1 > len(self.app.media_paths) - 1:
-            self.app.current_index = 0
-        else:
-            self.app.current_index += 1
+        self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) - 1), True)
 
-        self.update_label()
-
-        new_carousel = self.create_carousel(self.app.current_index)
-        self.overlay.set_child(new_carousel)
-        self.carousel = new_carousel
+        self.on_page_changed(self.carousel, int(self.carousel.get_position()) - 1)
 
     def update_media_right(self, btn):
-        if self.app.current_index - 1 < 0:
-            self.app.current_index = len(self.app.media_paths) - 1
-        else:
-            self.app.current_index -= 1
+        self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) + 1), True)
 
-        self.update_label()
-
-        new_carousel = self.create_carousel(self.app.current_index)
-        self.overlay.set_child(new_carousel)
-        self.carousel = new_carousel
+        self.on_page_changed(self.carousel, int(self.carousel.get_position()) + 1)
 
     def add_touch_event_listener(self, widget):
         gesture = Gtk.GestureClick.new()
@@ -167,3 +158,35 @@ class MediaView(Gtk.Box):
         if isinstance(self.carousel.get_first_child(), VideoPlayerWidget):
             video_widget = self.carousel.get_first_child()
             video_widget.on_video_clicked(None)
+
+    def add_media_to_carousel(self, index, prepend=False):
+        media_path = self.app.media_paths[index]
+
+        if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(media_path, 420, 700, True)
+            image = Gtk.Picture.new_for_pixbuf(pixbuf)
+            if prepend:
+                self.carousel.prepend(image)
+            else:
+                self.carousel.append(image)
+
+        elif media_path.endswith(('.mp4', '.mkv', '.avi')):
+            video_widget = VideoPlayerWidget(media_path)
+            video_widget.set_halign(Gtk.Align.CENTER)
+            video_widget.set_valign(Gtk.Align.CENTER)
+            if prepend:
+                self.carousel.prepend(video_widget)
+            else:
+                self.carousel.append(video_widget)
+
+    def remove_excess_items(self, prepend):
+        max_items = 7
+        num_pages = self.carousel.get_n_pages()
+
+        while num_pages > max_items:
+            if prepend:
+                self.carousel.remove(self.carousel.get_nth_page(num_pages - 1))
+            else:
+                self.carousel.remove(self.carousel.get_nth_page(0))
+
+            num_pages = self.carousel.get_n_pages()
