@@ -12,6 +12,31 @@ class Albums(Gtk.Box):
         self.append(self.widget)
 
     def create_widget(self):
+
+        albums_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        albums_box.set_hexpand(True)
+        albums_box.set_vexpand(True)
+        albums_box.set_halign(Gtk.Align.FILL)
+        albums_box.set_valign(Gtk.Align.FILL)
+
+        albums_action = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        albums_action.set_halign(Gtk.Align.FILL)
+        albums_action.set_halign(Gtk.Align.END)
+        albums_action.set_hexpand(True)
+        albums_action.set_margin_start(10)
+        albums_action.set_margin_end(10)
+        albums_action.set_margin_bottom(10)
+
+        create_album_button = Gtk.Button()
+        create_album_button_icon = Gtk.Image.new_from_icon_name("folder-new-symbolic")
+        create_album_button_icon.set_pixel_size(25)
+        create_album_button.set_child(create_album_button_icon)
+        create_album_button.connect("clicked", self.create_album)
+
+        albums_action.append(create_album_button)
+
+        albums_box.append(albums_action)
+
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled_window.set_hexpand(True)
@@ -30,11 +55,13 @@ class Albums(Gtk.Box):
 
         scrolled_window.set_child(self.flowbox)
 
+        albums_box.append(scrolled_window)
+
         self.load_albums()
 
         self.flowbox.connect("selected-children-changed", self.on_child_selected)
 
-        return scrolled_window
+        return albums_box
 
     def load_albums(self):
         albums = list_albums()
@@ -76,3 +103,34 @@ class Albums(Gtk.Box):
                 self.app.open_pictures_album()
             else:
                 self.app.open_album(album_name)
+
+    def create_album(self, button):
+        dialog = Adw.MessageDialog(
+            transient_for=self.get_root(),
+            heading="Create New Album",
+            body="Enter the name of your new album:",
+        )
+
+        entry = Gtk.Entry()
+        entry.set_placeholder_text("Album Name")
+        entry.set_margin_top(10)
+        entry.set_margin_bottom(10)
+        dialog.set_extra_child(entry)
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("create", "Create")
+        dialog.set_response_appearance("create", Adw.ResponseAppearance.SUGGESTED)
+
+        dialog.connect("response", lambda dialog, response: self.on_album_create_response(dialog, response, entry))
+
+        dialog.present()
+
+    def on_album_create_response(self, dialog, response, entry):
+        if response == "create":
+            album_name = entry.get_text().strip()
+            if album_name:
+                print(f"Album created: {album_name}")
+                #TBD: Make the SQL database
+            else:
+                print("Album name cannot be empty")
+        dialog.destroy()
