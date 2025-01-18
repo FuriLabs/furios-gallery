@@ -1,9 +1,10 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf
-from .media_manager import setup_media_manager, get_media_paths, get_last_media_url, get_media_from_index
+from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf
+from .media_manager import get_media_paths
 from .video_player_widget import VideoPlayerWidget
+from .image_viewer_widget import ImageViewerWidget
 
 class MediaView(Gtk.Box):
     def __init__(self, app):
@@ -74,11 +75,15 @@ class MediaView(Gtk.Box):
             if 0 <= i < len(self.app.media_paths):
                 media_path = self.app.media_paths[i]
                 if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-                    pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(media_path, 420, 700, True)
-                    image = Gtk.Picture.new_for_pixbuf(pixbuf)
-                    carousel.append(image)
+                    scrolled_win = Gtk.ScrolledWindow()
+                    zoomable_image = ImageViewerWidget(media_path, self.app.win)
+                    zoomable_image.set_vexpand(True)
+                    zoomable_image.set_hexpand(True)
+                    scrolled_win.set_child(zoomable_image)
+                    zoomable_image.init_gestures()
+                    carousel.append(scrolled_win)
                 elif media_path.endswith(('.mp4', '.mkv', '.avi')):
-                    video_widget =VideoPlayerWidget(media_path)
+                    video_widget = VideoPlayerWidget(media_path)
                     video_widget.set_halign(Gtk.Align.CENTER)
                     video_widget.set_valign(Gtk.Align.CENTER)
                     carousel.append(video_widget)
@@ -94,7 +99,6 @@ class MediaView(Gtk.Box):
             elif index < self.previous_index:  # Swiping right
                 self.app.current_index += 1
         else:
-            print("Initializing previous index.")
             self.previous_index = index
 
         self.previous_index = index
@@ -163,12 +167,17 @@ class MediaView(Gtk.Box):
         media_path = self.app.media_paths[index]
 
         if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(media_path, 420, 700, True)
-            image = Gtk.Picture.new_for_pixbuf(pixbuf)
+            scrolled_win = Gtk.ScrolledWindow()
+            zoomable_image = ImageViewerWidget(media_path, self.app.win)
+            zoomable_image.set_vexpand(True)
+            zoomable_image.set_hexpand(True)
+            scrolled_win.set_child(zoomable_image)
+            zoomable_image.init_gestures()
+
             if prepend:
-                self.carousel.prepend(image)
+                self.carousel.prepend(scrolled_win)
             else:
-                self.carousel.append(image)
+                self.carousel.append(scrolled_win)
 
         elif media_path.endswith(('.mp4', '.mkv', '.avi')):
             video_widget = VideoPlayerWidget(media_path)
