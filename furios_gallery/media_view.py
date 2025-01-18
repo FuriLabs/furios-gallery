@@ -16,7 +16,9 @@ class MediaView(Gtk.Box):
         self.widget = self.create_widget()
         self.append(self.widget)
 
-    def create_widget(self):
+    def create_widget(self, curr_index=None):
+        if curr_index is None:
+            curr_index = self.app.current_index
         self.overlay = Gtk.Overlay()
         self.overlay.set_size_request(390, 700)
         self.overlay.set_halign(Gtk.Align.CENTER)
@@ -34,10 +36,10 @@ class MediaView(Gtk.Box):
         self.media_menu_box = self.create_media_menu_box()
         self.main_box.append(self.media_menu_box)
 
-        self.carousel = self.create_carousel(self.app.current_index)
+        self.carousel = self.create_carousel(curr_index)
         self.main_box.append(self.carousel)
 
-        self.index_label = Gtk.Label(label=f"{self.app.current_index + 1}/{len(self.app.media_paths)}")
+        self.index_label = Gtk.Label(label=f"{curr_index + 1}/{len(self.app.media_paths)}")
         self.index_label.set_halign(Gtk.Align.CENTER)
         self.index_label.set_valign(Gtk.Align.END)
         self.index_label.set_margin_bottom(10)

@@ -142,10 +142,6 @@ class FuriosGalleryApp(Adw.Application):
             self.mediaView_box = self.create_media_view_box()
         self.current_view.append(self.mediaView_box)
 
-        new_carousel = self.mediaView_box.create_carousel(media_index)
-        self.mediaView_box.overlay.set_child(new_carousel)
-        self.mediaView_box.carousel = new_carousel
-
     def open_album(self, album_name):
         self.albums_box.flowbox.unselect_all()
         self.media_paths = get_album_media_paths(album_name)
