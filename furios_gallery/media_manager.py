@@ -1,8 +1,12 @@
 import fnmatch
 from pathlib import Path
 import os
-from PIL import Image
+from PIL import Image, ExifTags
+import datetime
 from datetime import datetime
+import pyinotify
+import pyinotify
+import threading
 
 videos_paths = []
 pictures_paths = []
@@ -131,3 +135,39 @@ def get_last_video_url():
 def get_media_from_index(index):
     global media_paths
     return media_paths[index]
+
+def ordinal(n):
+    if 10 <= n % 100 <= 20:
+        return 'th'
+    return {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
+
+def get_picture_date(image_path):
+    with Image.open(image_path) as img:
+        exif = img._getexif()
+
+        if exif is not None:
+            for tag_id, value in exif.items():
+                tag = ExifTags.TAGS.get(tag_id, tag_id)
+
+                if tag == 'DateTime':
+                    date_obj = datetime.strptime(value, '%Y:%m:%d %H:%M:%S')
+
+                    return date_obj.strftime(f'%b {date_obj.day}{ordinal(date_obj.day)}, %Y')
+
+    return "No date found"
+
+def get_video_date(file_path):
+    try:
+        creation_time = os.path.getctime(file_path)
+        return datetime.datetime.fromtimestamp(creation_time).strftime('%Y-%m-%d %H:%M:%S')
+    except Exception as e:
+        print(f"Error retrieving file metadata: {e}")
+    return "No Date Found"
+
+def get_media_date(file_path):
+    if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+        return get_picture_date(file_path)
+    elif file_path.lower().endswith(('.mp4', '.mkv', '.avi')):
+        return get_video_date(file_path)
+    else:
+        return "No Date Found"

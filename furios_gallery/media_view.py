@@ -1,16 +1,18 @@
-import gi
+import gi, os
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf
 from .media_manager import get_media_paths
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
+from .media_manager import get_media_date, get_media_from_index
 
 class MediaView(Gtk.Box):
     def __init__(self, app):
         super().__init__()
         self.app = app
         self.carousel = None
+        self.previous_index = 0
         self.widget = self.create_widget()
         self.append(self.widget)
 
@@ -29,6 +31,9 @@ class MediaView(Gtk.Box):
         self.main_box.set_hexpand(True)
         self.main_box.set_vexpand(True)
 
+        self.media_menu_box = self.create_media_menu_box()
+        self.main_box.append(self.media_menu_box)
+
         self.carousel = self.create_carousel(self.app.current_index)
         self.main_box.append(self.carousel)
 
@@ -45,6 +50,101 @@ class MediaView(Gtk.Box):
         self.overlay.set_child(self.main_box)
         return self.overlay
 
+    def create_media_menu_box(self):
+        media_menu_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        media_menu_box.set_hexpand(True)
+        media_menu_box.set_halign(Gtk.Align.FILL)
+
+        return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
+        return_to_albums_btn.set_size_request(50,40)
+        return_to_albums_btn.set_halign(Gtk.Align.START)
+        return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
+        media_menu_box.append(return_to_albums_btn)
+
+        self.date_label = Gtk.Label(label=get_media_date(get_media_from_index(self.app.current_index)))
+        self.date_label.set_hexpand(True)
+        self.date_label.set_halign(Gtk.Align.FILL)
+        media_menu_box.append(self.date_label)
+
+        delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
+        delete_media_btn.set_size_request(50,40)
+        delete_media_btn.set_halign(Gtk.Align.END)
+        delete_media_btn.connect("clicked", self.open_delete_popup)
+        media_menu_box.append(delete_media_btn)
+
+        more_info_menu = Gtk.Button(icon_name="view-more-symbolic")
+        more_info_menu.set_size_request(50,40)
+        more_info_menu.set_halign(Gtk.Align.END)
+        more_info_menu.connect("clicked", self.open_menu_popup)
+        media_menu_box.append(more_info_menu)
+
+        return media_menu_box
+
+    def open_menu_popup(self, btn):
+        return
+        #TBD: Make read metadata here
+
+    def on_return_to_albums_view(self, btn):
+        self.app.stack.set_visible_child_name("albums_view")
+
+    def open_delete_popup(self, btn):
+        dialog = Adw.MessageDialog(
+            transient_for=self.get_root(),
+            heading="Delete File?",
+            body="This will permanently delete the file from your system"
+        )
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("delete", "Delete")
+        dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+
+        dialog.connect("response", lambda dialog, response: self.on_delete_media(dialog, response))
+
+        dialog.present()
+
+    def on_delete_media(self, dialog, response):
+        if response == "delete":
+            try:
+                file_url = get_media_from_index(self.app.current_index)
+                colon_index = file_url.find(':')
+                if colon_index != -1:
+                    file_path = file_url[colon_index + 1:]
+                else:
+                    file_path = file_url
+
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    print(f"File deleted: {file_path}")
+
+                    self.update_carousel()
+                    return True
+                else:
+                    print(f"File not found: {file_path}")
+                    return False
+            except Exception as e:
+                print(f"Error deleting file: {e}")
+                return False
+        dialog.destroy()
+
+    def update_carousel(self):
+        if 0 <= self.app.current_index < len(self.app.media_paths):
+            current_page = self.carousel.get_nth_page(self.carousel.get_position())
+            if current_page:
+                self.carousel.remove(current_page)
+
+            del self.app.media_paths[self.app.current_index]
+
+            if self.app.current_index >= len(self.app.media_paths):
+                self.app.current_index = max(0, len(self.app.media_paths) - 1)
+
+            self.clear_carousel()
+            self.populate_carousel(self.carousel, self.app.current_index)
+
+            self.update_label()
+            self.update_date_label()
+        else:
+            print("Error: Current index is out of range.")
+
     def update_label(self):
         if hasattr(self, "index_label") and self.index_label.get_parent():
             self.overlay.remove_overlay(self.index_label)
@@ -55,6 +155,11 @@ class MediaView(Gtk.Box):
         self.index_label.set_margin_bottom(10)
 
         self.overlay.add_overlay(self.index_label)
+
+    def update_date_label(self):
+        new_date = get_media_date(get_media_from_index(self.app.current_index))
+        print(new_date)
+        self.date_label.set_text(new_date)
 
     def create_carousel(self, curr_index):
         carousel = Adw.Carousel()
@@ -76,6 +181,7 @@ class MediaView(Gtk.Box):
                 media_path = self.app.media_paths[i]
                 if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
                     scrolled_win = Gtk.ScrolledWindow()
+                    scrolled_win.set_size_request(420, 800)
                     zoomable_image = ImageViewerWidget(media_path, self.app.win)
                     zoomable_image.set_vexpand(True)
                     zoomable_image.set_hexpand(True)
@@ -93,13 +199,14 @@ class MediaView(Gtk.Box):
             self.carousel.remove(child)
 
     def on_page_changed(self, carousel, index):
-        if hasattr(self, "previous_index"):
-            if index > self.previous_index:  # Swiping left
-                self.app.current_index -= 1
-            elif index < self.previous_index:  # Swiping right
-                self.app.current_index += 1
-        else:
-            self.previous_index = index
+        self.update_date_label()
+
+        if index > self.previous_index:  # Swiping left
+            self.app.current_index -= 1
+        elif index < self.previous_index:  # Swiping right
+            self.app.current_index += 1
+
+        print(f"curr app index: {self.app.current_index}")
 
         self.previous_index = index
         self.update_label()
@@ -144,14 +251,18 @@ class MediaView(Gtk.Box):
         self.overlay.add_overlay(buttons_box)
 
     def update_media_left(self, btn):
-        self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) - 1), True)
-
-        self.on_page_changed(self.carousel, int(self.carousel.get_position()) - 1)
+        if (self.app.current_index + 1 <= len(self.app.media_paths) - 1):
+            self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) - 1), True)
+            self.on_page_changed(self.carousel, int(self.carousel.get_position()) - 1)
+        else:
+            print("no more prior things")
 
     def update_media_right(self, btn):
-        self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) + 1), True)
-
-        self.on_page_changed(self.carousel, int(self.carousel.get_position()) + 1)
+        if (self.app.current_index + 1 > 0):
+            self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) + 1), True)
+            self.on_page_changed(self.carousel, int(self.carousel.get_position()) + 1)
+        else:
+            print("no more after things")
 
     def add_touch_event_listener(self, widget):
         gesture = Gtk.GestureClick.new()
