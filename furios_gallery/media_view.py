@@ -6,7 +6,6 @@ from .media_manager import get_media_paths
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
 from .media_manager import get_media_date, get_media_from_index
-
 class MediaView(Gtk.Box):
     def __init__(self, app):
         super().__init__()
@@ -87,7 +86,7 @@ class MediaView(Gtk.Box):
         #TBD: Make read metadata here
 
     def on_return_to_albums_view(self, btn):
-        self.app.stack.set_visible_child_name("albums_view")
+        self.app.switch_to_view(self.app.create_albums_box)
 
     def open_delete_popup(self, btn):
         dialog = Adw.MessageDialog(
