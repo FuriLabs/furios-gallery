@@ -1,0 +1,18 @@
+Source: furios-gallery
+Maintainer: Joaquin Philco <joaquin@furilabs.com>
+Section: misc
+Priority: optional
+Build-Depends: debhelper-compat (= 13),
+               dh-python,
+               python3
+Standards-Version: 4.5.1
+Vcs-Browser: https://github.com/Joas329/furios-gallery
+Vcs-Git: https://github.com/Joas329/furios-gallery.git
+
+Package: furios-gallery
+Architecture: all
+Pre-Depends: ${misc:Pre-Depends}
+Depends: ${misc:Depends},
+         python3,
+         python3-pyinotify
+Description: Media gallery application for FuriOS

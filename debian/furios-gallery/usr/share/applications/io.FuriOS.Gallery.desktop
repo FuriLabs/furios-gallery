@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Gallery
+Exec=io.FuriOS.Gallery
+Icon=io.FuriOS.Gallery
+Terminal=false
+Categories=Utility;Graphics;
+StartupNotify=true
+Keywords=gallery;furios;images;photos;

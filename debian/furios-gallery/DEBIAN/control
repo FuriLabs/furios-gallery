@@ -1,0 +1,9 @@
+Package: furios-gallery
+Version: 1.0
+Architecture: all
+Maintainer: Joaquin Philco <joaquin@furilabs.com>
+Installed-Size: 70
+Depends: python3, python3-pyinotify
+Section: misc
+Priority: optional
+Description: Media gallery application for FuriOS
