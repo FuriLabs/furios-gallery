@@ -2,14 +2,31 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf
-from .media_manager import list_albums
+from .media_manager import list_albums, get_album_media_paths
+from .thumbnail_generator import ThumbnailGenerator
 
 class Albums(Gtk.Box):
     def __init__(self, app):
         super().__init__()
         self.app = app
+        self.thumbnail_generator = ThumbnailGenerator()
+        self.setup_css()
         self.widget = self.create_widget()
         self.append(self.widget)
+
+    def setup_css(self):
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(b"""
+        .rounded-image {
+            border-radius: 20px;
+        }
+        .missing-image {
+            border-radius: 20px;
+            background-color: #333;
+        }
+        """)
+        display = Gdk.Display.get_default()
+        Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
     def create_widget(self):
 
@@ -23,8 +40,8 @@ class Albums(Gtk.Box):
         albums_action.set_halign(Gtk.Align.FILL)
         albums_action.set_halign(Gtk.Align.END)
         albums_action.set_hexpand(True)
-        albums_action.set_margin_start(10)
-        albums_action.set_margin_end(10)
+        albums_action.set_margin_start(0)
+        albums_action.set_margin_end(0)
         albums_action.set_margin_bottom(10)
 
         create_album_button = Gtk.Button()
@@ -45,10 +62,12 @@ class Albums(Gtk.Box):
         scrolled_window.set_valign(Gtk.Align.FILL)
 
         self.flowbox = Gtk.FlowBox()
+        self.flowbox.set_homogeneous(True)
         self.flowbox.set_valign(Gtk.Align.START)
         self.flowbox.set_column_spacing(0)
         self.flowbox.set_row_spacing(0)
         self.flowbox.set_max_children_per_line(3)
+        self.flowbox.set_min_children_per_line(3)
         self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.flowbox.set_hexpand(False)
         self.flowbox.set_vexpand(True)
@@ -66,7 +85,7 @@ class Albums(Gtk.Box):
     def load_albums(self):
         albums = list_albums()
 
-        for index, album in enumerate(albums):
+        for album in albums:
             flowbox_child = Gtk.FlowBoxChild()
 
             flowbox_child.album_name = album
@@ -76,20 +95,47 @@ class Albums(Gtk.Box):
             album_box.set_halign(Gtk.Align.CENTER)
             album_box.set_valign(Gtk.Align.CENTER)
 
-            icon = Gtk.Image.new_from_icon_name("folder-symbolic")
-            icon.set_property("icon-size", Gtk.IconSize.LARGE)
+            album_paths = get_album_media_paths(album)
+            if album_paths:
+                last_media_url = album_paths[-1]
+                if last_media_url.endswith(('.mp4', '.mkv', '.avi')):
+                    thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
+                    if thumbnail_path:
+                        image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
+                        picture = Gtk.Picture.new_for_pixbuf(image)
+                        picture.set_css_classes(["rounded-image"])
+                else:
+                    image = GdkPixbuf.Pixbuf.new_from_file_at_scale(last_media_url, width=400, height=400, preserve_aspect_ratio=False)
+                    picture = Gtk.Picture.new_for_pixbuf(image)
+                    picture.set_css_classes(["rounded-image"])
+            else:
+                picture = Gtk.Box()
+                picture.set_size_request(130, 135)
+                picture.set_css_classes(["missing-image"])
+
+                picture_content = Gtk.Image.new_from_icon_name("folder-symbolic")
+                picture_content.set_pixel_size(70)
+
+                icon_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                icon_box.set_halign(Gtk.Align.CENTER)
+                icon_box.set_valign(Gtk.Align.CENTER)
+                icon_box.set_hexpand(True)
+                icon_box.set_vexpand(True)
+                icon_box.append(picture_content)
+
+                picture.append(icon_box)
 
             label = Gtk.Label(label=album)
+            label.set_wrap(False)
             label.set_max_width_chars(20)
-            label.set_halign(Gtk.Align.CENTER)
 
-            album_box.append(icon)
+            album_box.append(picture)
             album_box.append(label)
 
             flowbox_child.set_child(album_box)
-
             self.flowbox.append(flowbox_child)
 
+        self.show()
     def on_child_selected(self, flowbox):
         selected_children = flowbox.get_selected_children()
         if selected_children:

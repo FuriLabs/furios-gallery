@@ -79,18 +79,17 @@ def get_album_media_paths(album_name):
         pictures_paths = sorted(
             [str(pictures_path / filename) for filename in os.listdir(pictures_path) if fnmatch.fnmatch(filename, '*.jpg')]
         )
+    elif pictures_path == Path.home() / 'Pictures' / 'Pictures':
+        pictures_paths = get_pictures_paths()
 
     if videos_path.is_dir():
         videos_paths = sorted(
             [str(videos_path / filename) for filename in os.listdir(videos_path) if fnmatch.fnmatch(filename, '*.mkv')]
         )
+    elif videos_path == Path.home() / 'Videos' / 'Videos':
+        videos_paths = get_videos_paths()
 
-    media_paths = pictures_paths + videos_paths
-
-    media_paths = sorted(media_paths, key=extract_file_date)
-
-    picture_file_count = len(pictures_paths)
-    video_file_count = len(videos_paths)
+    media_paths = sorted(pictures_paths + videos_paths, key=lambda path: os.path.getmtime(path))
 
     return media_paths
 
