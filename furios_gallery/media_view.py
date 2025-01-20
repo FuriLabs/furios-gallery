@@ -6,6 +6,7 @@ from .media_manager import get_media_paths
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
 from .media_manager import get_media_date, get_media_from_index
+
 class MediaView(Gtk.Box):
     def __init__(self, app):
         super().__init__()
@@ -186,6 +187,7 @@ class MediaView(Gtk.Box):
                     zoomable_image = ImageViewerWidget(media_path, self.app.win)
                     zoomable_image.set_vexpand(True)
                     zoomable_image.set_hexpand(True)
+                    zoomable_image.set_valign(Gtk.Align.CENTER)
                     scrolled_win.set_child(zoomable_image)
                     zoomable_image.init_gestures()
                     carousel.append(scrolled_win)
