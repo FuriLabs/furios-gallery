@@ -65,6 +65,7 @@ def list_albums():
     sorted_albums = sorted(unique_albums)
     sorted_albums.insert(0, "Pictures")
     sorted_albums.insert(0, "Videos")
+    sorted_albums.insert(0, "Recents")
 
     return sorted_albums
 
@@ -79,14 +80,14 @@ def get_album_media_paths(album_name):
         pictures_paths = sorted(
             [str(pictures_path / filename) for filename in os.listdir(pictures_path) if fnmatch.fnmatch(filename, '*.jpg')]
         )
-    elif pictures_path == Path.home() / 'Pictures' / 'Pictures':
+    elif pictures_path.name == 'Pictures' or pictures_path.name == 'Recents':
         pictures_paths = get_pictures_paths()
 
     if videos_path.is_dir():
         videos_paths = sorted(
             [str(videos_path / filename) for filename in os.listdir(videos_path) if fnmatch.fnmatch(filename, '*.mkv')]
         )
-    elif videos_path == Path.home() / 'Videos' / 'Videos':
+    elif videos_path.name == 'Videos' or pictures_path.name == 'Recents':
         videos_paths = get_videos_paths()
 
     media_paths = sorted(pictures_paths + videos_paths, key=lambda path: os.path.getmtime(path))
