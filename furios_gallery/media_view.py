@@ -10,7 +10,7 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
-from .media_manager import get_file_creation_date
+from .media_manager import get_file_creation_date, delete_from_albums
 
 class MediaView(Gtk.Box):
     def __init__(self, app):
@@ -137,6 +137,7 @@ class MediaView(Gtk.Box):
         if response == "delete":
             try:
                 file_url = self.app.media_paths[self.app.current_index]
+                delete_from_albums(self.app.conn, file_url)
                 colon_index = file_url.find(':')
                 if colon_index != -1:
                     file_path = file_url[colon_index + 1:]
