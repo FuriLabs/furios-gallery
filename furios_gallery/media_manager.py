@@ -205,3 +205,26 @@ def get_album_media_paths(conn, album_name):
     except Exception as e:
         print(f"Error retrieving media paths for album {album_name}: {e}")
         return []
+
+def delete_from_albums(conn, file_path):
+    try:
+        cur = conn.cursor()
+
+        cur.execute("SELECT file_id FROM files WHERE file_path = ?", (file_path,))
+        file_id = cur.fetchone()
+
+        if file_id:
+            file_id = file_id[0]
+
+            cur.execute("DELETE FROM file_albums WHERE file_id = ?", (file_id,))
+
+            cur.execute("DELETE FROM files WHERE file_id = ?", (file_id,))
+
+            conn.commit()
+            print(f"Successfully deleted all entries for {file_path}")
+        else:
+            print("No entry found for the given file path.")
+
+    except Exception as e:
+        conn.rollback()
+        print(f"An error occurred: {e}")
