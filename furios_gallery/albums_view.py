@@ -8,7 +8,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf
-from .media_manager import list_albums, get_album_media_paths
+from .media_manager import list_albums, get_album_media_paths, list_database_albums
 from .thumbnail_generator import ThumbnailGenerator
 
 class Albums(Gtk.Box):
@@ -46,9 +46,9 @@ class Albums(Gtk.Box):
         albums_box.set_halign(Gtk.Align.FILL)
         albums_box.set_valign(Gtk.Align.FILL)
 
-        albums_action = self.album_menu_box()
+        self.album_menu_box = self.album_menu_box()
 
-        albums_box.append(albums_action)
+        albums_box.append(self.album_menu_box)
 
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -93,10 +93,87 @@ class Albums(Gtk.Box):
 
         album_menu_box.append(create_album_button)
 
+        delete_album_btn = Gtk.Button(icon_name="user-trash-symbolic")
+        delete_album_btn.set_halign(Gtk.Align.END)
+        delete_album_btn.connect("clicked", self.open_delete_popup)
+        delete_album_btn.set_css_classes(["delete-btn"])
+        delete_album_btn.set_margin_start(5)
+        album_menu_box.append(delete_album_btn)
+
         return album_menu_box
 
+    def open_delete_popup(self, btn):
+        self.flowbox.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
+
+        self.selected_files_label = Gtk.Label(label="Select albums")
+        self.selected_files_label.set_hexpand(True)
+        self.selected_files_label.set_halign(Gtk.Align.FILL)
+        self.album_menu_box.append(self.selected_files_label)
+
+        self.cancel_btn = Gtk.Button(label="Cancel")
+        self.cancel_btn.set_margin_end(15)
+        self.cancel_btn.connect("clicked", self.on_cancel_btn)
+        self.album_menu_box.append(self.cancel_btn)
+
+        self.delete_confirm_btn = Gtk.Button(label="Delete")
+        self.delete_confirm_btn.connect("clicked", self.on_delete_confirmation)
+        self.album_menu_box.append(self.delete_confirm_btn)
+
+    def on_cancel_btn(self, btn):
+        self.flowbox.unselect_all()
+        self.album_menu_box.remove(self.selected_files_label)
+        self.album_menu_box.remove(self.cancel_btn)
+        self.album_menu_box.remove(self.delete_confirm_btn)
+        self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+
+    def on_delete_confirmation(self, btn):
+        dialog = Adw.MessageDialog(
+            transient_for=self.get_root(),
+            heading="Delete Album?",
+            body=f"This will permanently delete the selected albums from your system"
+        )
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("delete", "Delete")
+        dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+
+        dialog.connect("response", lambda dialog, response: self.on_delete_media(dialog, response))
+
+        dialog.present()
+
+    def on_delete_media(self, dialog, response):
+        if response == "delete":
+            selected_children = self.flowbox.get_selected_children()
+            for child in selected_children:
+                album_name = child.album_name
+
+                try:
+                    sql = "DELETE FROM albums WHERE album_name = ?"
+                    cur = self.app.conn.cursor()
+                    cur.execute(sql, (album_name,))
+                    self.app.conn.commit()
+                    print(f"Album deleted: {album_name}")
+                except Exception as e:
+                    print(f"Error deleting album '{album_name}': {e}")
+
+                self.flowbox.remove(child)
+        else:
+            self.flowbox.unselect_all()
+            self.grid_view_menu.remove(self.selected_files_label)
+            self.grid_view_menu.remove(self.cancel_btn)
+            self.grid_view_menu.remove(self.delete_confirm_btn)
+            self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+
+        dialog.destroy()
+
+        self.album_menu_box.remove(self.selected_files_label)
+        self.album_menu_box.remove(self.cancel_btn)
+        self.album_menu_box.remove(self.delete_confirm_btn)
+        self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+
+
     def load_albums(self):
-        albums = list_albums()
+        albums = list_database_albums(self.app.conn)
 
         for album in albums:
             flowbox_child = Gtk.FlowBoxChild()
@@ -148,19 +225,20 @@ class Albums(Gtk.Box):
             self.flowbox.append(flowbox_child)
 
         self.show()
-    def on_child_selected(self, flowbox):
-        selected_children = flowbox.get_selected_children()
-        if selected_children:
-            selected_child = selected_children[0]
-            album_name = selected_child.album_name
-            print(f"Selected album: {album_name}")
 
-            if album_name == "Videos":
-                self.app.open_videos_album()
-            elif album_name == "Pictures":
-                self.app.open_pictures_album()
-            else:
-                self.app.open_album(album_name)
+    def on_child_selected(self, flowbox):
+        if self.flowbox.get_selection_mode() == Gtk.SelectionMode.SINGLE:
+            selected_children = flowbox.get_selected_children()
+            if selected_children:
+                selected_child = selected_children[0]
+                album_name = selected_child.album_name
+
+                if album_name == "Videos":
+                    self.app.open_videos_album()
+                elif album_name == "Pictures":
+                    self.app.open_pictures_album()
+                else:
+                    self.app.open_album(album_name)
 
     def create_album(self, button):
         dialog = Adw.MessageDialog(
@@ -187,8 +265,46 @@ class Albums(Gtk.Box):
         if response == "create":
             album_name = entry.get_text().strip()
             if album_name:
-                print(f"Album created: {album_name}")
-                #TBD: Make the SQL database
+                try:
+                    check_sql = "SELECT album_name FROM albums WHERE album_name = ?"
+                    cur = self.app.conn.cursor()
+                    cur.execute(check_sql, (album_name,))
+                    if cur.fetchone() is None:
+                        insert_sql = "INSERT INTO albums (album_name) VALUES (?)"
+                        cur.execute(insert_sql, (album_name,))
+                        self.app.conn.commit()
+                        print(f"Successfully added album '{album_name}' to the database.")
+
+                        flowbox_child = Gtk.FlowBoxChild()
+                        flowbox_child.album_name = album_name
+                        album_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                        album_box.set_spacing(8)
+                        album_box.set_halign(Gtk.Align.CENTER)
+                        album_box.set_valign(Gtk.Align.CENTER)
+
+                        picture = Gtk.Box()
+                        picture.set_css_classes(["missing-image"])
+                        picture_content = Gtk.Image.new_from_icon_name("folder-symbolic")
+                        picture_content.set_pixel_size(70)
+                        icon_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+                        icon_box.set_hexpand(True)
+                        icon_box.set_vexpand(True)
+                        icon_box.set_halign(Gtk.Align.FILL)
+                        icon_box.set_valign(Gtk.Align.FILL)
+                        icon_box.append(picture_content)
+                        picture.append(icon_box)
+                        label = Gtk.Label(label=album_name)
+                        label.set_wrap(False)
+                        label.set_max_width_chars(20)
+                        album_box.append(picture)
+                        album_box.append(label)
+                        flowbox_child.set_child(album_box)
+                        self.flowbox.append(flowbox_child)
+
+                    else:
+                        print(f"Album '{album_name}' already exists in the database.")
+                except Exception as e:
+                    print(f"Failed to create album '{album_name}': {e}")
             else:
                 print("Album name cannot be empty")
         dialog.destroy()
