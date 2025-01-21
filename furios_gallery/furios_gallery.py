@@ -46,8 +46,6 @@ class FuriosGalleryApp(Adw.Application):
 
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.win.set_content(self.main_box)
-        menu_label = Gtk.Label(label="Gallery")
-        self.main_box.append(menu_label)
 
         self.current_view = self.create_albums_box()
         self.main_box.append(self.current_view)
@@ -58,7 +56,7 @@ class FuriosGalleryApp(Adw.Application):
         media_view_box = MediaView(self)
         media_view_box.widget.set_size_request(420, 700)
         media_view_box.widget.set_halign(Gtk.Align.CENTER)
-        media_view_box.widget.set_valign(Gtk.Align.CENTER)
+        media_view_box.widget.set_valign(Gtk.Align.START)
         media_view_box.widget.set_hexpand(True)
         media_view_box.widget.set_vexpand(True)
         media_view_box.widget.set_name("mediaView-square")
@@ -68,7 +66,7 @@ class FuriosGalleryApp(Adw.Application):
         media_grid_view_box = GridView(self, self.thumbnails)
         media_grid_view_box.set_size_request(420, 800)
         media_grid_view_box.set_halign(Gtk.Align.CENTER)
-        media_grid_view_box.set_valign(Gtk.Align.CENTER)
+        media_grid_view_box.set_valign(Gtk.Align.START)
         media_grid_view_box.set_hexpand(True)
         media_grid_view_box.set_vexpand(True)
 
@@ -82,7 +80,7 @@ class FuriosGalleryApp(Adw.Application):
         albums_box = Albums(self)
         albums_box.set_size_request(420, 800)
         albums_box.set_halign(Gtk.Align.CENTER)
-        albums_box.set_valign(Gtk.Align.CENTER)
+        albums_box.set_valign(Gtk.Align.START)
         albums_box.set_hexpand(True)
         albums_box.set_vexpand(True)
         albums_box.set_name("albums-square")
