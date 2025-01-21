@@ -5,15 +5,21 @@
 # Joaquin Philco <joaquin@furilabs.com>
 
 from gi.repository import Gtk, Adw, Gdk
+from os.path import expanduser
 from .media_view import MediaView
 from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
-from .media_manager import setup_media_manager, get_media_paths, get_last_media_url, get_pictures_paths, get_videos_paths, get_album_media_paths
-
+from .media_manager import setup_media_manager, get_media_paths, get_pictures_paths, get_videos_paths, get_album_media_paths, create_tables, create_connection, insert_file, populate_database
 class FuriosGalleryApp(Adw.Application):
     def __init__(self):
         super().__init__(application_id='io.FuriOS.Gallery')
+
+        self.conn = create_connection(expanduser("~/.local/furios-gallery-albums.db"))
+
+        if self.conn is not None:
+            create_tables(self.conn)
+
         self.thumbnails = ThumbnailGenerator()
         setup_media_manager()
         self.media_paths = get_media_paths()
