@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2025 Furi Labs
+#
+# Authors:
+# Joaquin Philco <joaquin@furilabs.com>
+
 import gi
 import os
 import time

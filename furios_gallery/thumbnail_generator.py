@@ -1,3 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2025 Furi Labs
+#
+# Authors:
+# Joaquin Philco <joaquin@furilabs.com>
+
 import os
 import subprocess
 from PIL import Image
