@@ -61,9 +61,9 @@ class VideoPlayerWidget(Gtk.Box):
         self.overlay.add_overlay(self.video_click_button)
 
         self.control_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.control_box.set_margin_bottom(80)
-        self.control_box.set_size_request(420, 40)
-        self.control_box.set_halign(Gtk.Align.CENTER)
+        self.control_box.set_margin_bottom(50)
+        self.control_box.set_hexpand(True)
+        self.control_box.set_halign(Gtk.Align.FILL)
         self.control_box.add_css_class("control-box")
         self.control_box.set_valign(Gtk.Align.END)
         self.overlay.add_overlay(self.control_box)

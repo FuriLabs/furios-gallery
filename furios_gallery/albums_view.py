@@ -53,13 +53,13 @@ class Albums(Gtk.Box):
         scrolled_window.set_valign(Gtk.Align.FILL)
 
         self.flowbox = Gtk.FlowBox()
-        self.flowbox.set_homogeneous(True)
         self.flowbox.set_valign(Gtk.Align.START)
         self.flowbox.set_column_spacing(0)
         self.flowbox.set_row_spacing(0)
         self.flowbox.set_max_children_per_line(3)
         self.flowbox.set_min_children_per_line(3)
         self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.flowbox.set_homogeneous(True)
         self.flowbox.set_hexpand(False)
         self.flowbox.set_vexpand(True)
 
@@ -117,17 +117,16 @@ class Albums(Gtk.Box):
                     picture.set_css_classes(["rounded-image"])
             else:
                 picture = Gtk.Box()
-                picture.set_size_request(130, 135)
                 picture.set_css_classes(["missing-image"])
 
                 picture_content = Gtk.Image.new_from_icon_name("folder-symbolic")
                 picture_content.set_pixel_size(70)
 
                 icon_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-                icon_box.set_halign(Gtk.Align.CENTER)
-                icon_box.set_valign(Gtk.Align.CENTER)
                 icon_box.set_hexpand(True)
                 icon_box.set_vexpand(True)
+                icon_box.set_halign(Gtk.Align.FILL)
+                icon_box.set_valign(Gtk.Align.FILL)
                 icon_box.append(picture_content)
 
                 picture.append(icon_box)

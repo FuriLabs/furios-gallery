@@ -27,6 +27,9 @@ class MediaView(Gtk.Box):
         .delete-btn {
             padding: 5px;
         }
+        .test {
+            background-color: #239;
+        }
         """)
         display = Gdk.Display.get_default()
         Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
@@ -36,16 +39,14 @@ class MediaView(Gtk.Box):
             curr_index = self.app.current_index
 
         self.overlay = Gtk.Overlay()
-        self.overlay.set_size_request(390, 700)
-        self.overlay.set_halign(Gtk.Align.CENTER)
-        self.overlay.set_valign(Gtk.Align.START)
+        self.overlay.set_halign(Gtk.Align.FILL)
+        self.overlay.set_valign(Gtk.Align.FILL)
         self.overlay.set_hexpand(True)
         self.overlay.set_vexpand(True)
 
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.main_box.set_size_request(390, 700)
-        self.main_box.set_halign(Gtk.Align.CENTER)
-        self.main_box.set_valign(Gtk.Align.START)
+        self.main_box.set_halign(Gtk.Align.FILL)
+        self.main_box.set_valign(Gtk.Align.FILL)
         self.main_box.set_hexpand(True)
         self.main_box.set_vexpand(True)
 
@@ -53,6 +54,10 @@ class MediaView(Gtk.Box):
         self.main_box.append(self.media_menu_box)
 
         self.carousel = self.create_carousel(curr_index)
+        self.carousel.set_valign(Gtk.Align.FILL)
+        self.carousel.set_halign(Gtk.Align.FILL)
+        self.carousel.set_vexpand(True)
+        self.carousel.set_hexpand(True)
         self.main_box.append(self.carousel)
 
         self.index_label = Gtk.Label(label=f"{curr_index + 1}/{len(self.app.media_paths)}")
@@ -201,7 +206,10 @@ class MediaView(Gtk.Box):
                 media_path = self.app.media_paths[i]
                 if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
                     scrolled_win = Gtk.ScrolledWindow()
-                    scrolled_win.set_size_request(420, 800)
+                    scrolled_win.set_hexpand(True)
+                    scrolled_win.set_vexpand(True)
+                    scrolled_win.set_halign(Gtk.Align.FILL)
+                    scrolled_win.set_valign(Gtk.Align.FILL)
                     zoomable_image = ImageViewerWidget(media_path, self.app.win)
                     zoomable_image.set_vexpand(True)
                     zoomable_image.set_hexpand(True)
@@ -246,11 +254,10 @@ class MediaView(Gtk.Box):
 
     def setup_buttons(self):
         buttons_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        buttons_box.set_halign(Gtk.Align.CENTER)
+        buttons_box.set_halign(Gtk.Align.FILL)
         buttons_box.set_valign(Gtk.Align.CENTER)
         buttons_box.set_hexpand(True)
         buttons_box.set_vexpand(True)
-        buttons_box.set_size_request(40, 80)
 
         left_button = Gtk.Button(icon_name="go-previous-symbolic")
         left_button.connect('clicked', self.update_media_left)
@@ -258,7 +265,7 @@ class MediaView(Gtk.Box):
         buttons_box.append(left_button)
 
         spacer = Gtk.Box()
-        spacer.set_size_request(300, 80)
+        spacer.set_halign(Gtk.Align.FILL)
         spacer.set_hexpand(True)
         buttons_box.append(spacer)
 

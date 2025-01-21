@@ -7,7 +7,7 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 class ImageViewerWidget(Gtk.Widget):
     def __init__(self, path, win, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+        self.pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, win.get_width(), win.get_height(), True)
         self.texture = Gdk.Texture.new_for_pixbuf(self.pixbuf)
         self.scale = 1.0
 

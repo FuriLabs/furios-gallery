@@ -20,7 +20,7 @@ class GridView(Gtk.Box):
         css_provider.load_from_data(b"""
         .grid-menu-box {
             background-color: #333;
-            padding: 15px; /* Increase padding inside the box */
+            padding: 15px;
         }
         .delete-btn {
             padding: 5px;
@@ -83,13 +83,13 @@ class GridView(Gtk.Box):
         grid_menu_box.set_css_classes(["grid-menu-box"])
 
         return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
-        return_to_albums_btn.set_size_request(50,40)
+        # return_to_albums_btn.set_size_request(50,40)
         return_to_albums_btn.set_halign(Gtk.Align.START)
         return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
         grid_menu_box.append(return_to_albums_btn)
 
         delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
-        delete_media_btn.set_size_request(50,40)
+        # delete_media_btn.set_size_request(50,40)
         delete_media_btn.set_halign(Gtk.Align.END)
         delete_media_btn.connect("clicked", self.open_delete_popup)
         delete_media_btn.set_css_classes(["delete-btn"])
@@ -110,6 +110,7 @@ class GridView(Gtk.Box):
         self.grid_view_menu.append(self.selected_files_label)
 
         self.cancel_btn = Gtk.Button(label="Cancel")
+        self.cancel_btn.set_margin_end(15)
         self.cancel_btn.connect("clicked", self.on_cancel_btn)
         self.grid_view_menu.append(self.cancel_btn)
 
