@@ -8,10 +8,9 @@ import gi, os
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf
-from .media_manager import get_media_paths
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
-from .media_manager import  get_media_from_index, get_file_creation_date
+from .media_manager import get_file_creation_date
 
 class MediaView(Gtk.Box):
     def __init__(self, app):
@@ -91,7 +90,7 @@ class MediaView(Gtk.Box):
         return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
         media_menu_box.append(return_to_albums_btn)
 
-        self.date_label = Gtk.Label(label=get_file_creation_date(get_media_from_index(curr_index)))
+        self.date_label = Gtk.Label(label=get_file_creation_date(self.app.media_paths[curr_index]))
         self.date_label.set_hexpand(True)
         self.date_label.set_halign(Gtk.Align.FILL)
         media_menu_box.append(self.date_label)
@@ -137,7 +136,7 @@ class MediaView(Gtk.Box):
     def on_delete_media(self, dialog, response):
         if response == "delete":
             try:
-                file_url = get_media_from_index(self.app.current_index)
+                file_url = self.app.media_paths[self.app.current_index]
                 colon_index = file_url.find(':')
                 if colon_index != -1:
                     file_path = file_url[colon_index + 1:]
@@ -189,7 +188,7 @@ class MediaView(Gtk.Box):
         self.overlay.add_overlay(self.index_label)
 
     def update_date_label(self):
-        new_date = get_file_creation_date(get_media_from_index(self.app.current_index))
+        new_date = get_file_creation_date(self.app.media_paths[self.app.current_index])
         self.date_label.set_text(new_date)
 
     def create_carousel(self, curr_index):

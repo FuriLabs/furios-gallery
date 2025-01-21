@@ -10,7 +10,8 @@ from .media_view import MediaView
 from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
-from .media_manager import setup_media_manager, get_media_paths, get_pictures_paths, get_videos_paths, get_album_media_paths, create_tables, create_connection, insert_file, populate_database
+from .media_manager import get_album_database_paths, get_album_media_paths, get_album_media_paths, create_tables, create_connection, insert_file, populate_database
+
 class FuriosGalleryApp(Adw.Application):
     def __init__(self):
         super().__init__(application_id='io.FuriOS.Gallery')
@@ -21,9 +22,8 @@ class FuriosGalleryApp(Adw.Application):
             create_tables(self.conn)
 
         self.thumbnails = ThumbnailGenerator()
-        setup_media_manager()
-        self.media_paths = get_media_paths()
-        self.current_index = len(get_media_paths()) - 1
+        self.media_paths = get_album_database_paths(self.conn, "Recents")
+        self.current_index = len(self.media_paths) - 1
         self.current_view = None
 
     def do_activate(self):
@@ -106,16 +106,6 @@ class FuriosGalleryApp(Adw.Application):
         self.switch_to_view(self.create_media_view_box)
 
     def open_album(self, album_name):
-        self.media_paths = get_album_media_paths(album_name)
-        self.current_index = len(self.media_paths) - 1
-        self.switch_to_view(self.create_grid_view_box)
-
-    def open_videos_album(self):
-        self.media_paths = get_videos_paths()
-        self.current_index = len(self.media_paths) - 1
-        self.switch_to_view(self.create_grid_view_box)
-
-    def open_pictures_album(self):
-        self.media_paths = get_pictures_paths()
+        self.media_paths = get_album_database_paths(self.conn, album_name)
         self.current_index = len(self.media_paths) - 1
         self.switch_to_view(self.create_grid_view_box)

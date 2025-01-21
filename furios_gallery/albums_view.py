@@ -8,7 +8,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf
-from .media_manager import list_albums, get_album_media_paths, list_database_albums
+from .media_manager import get_album_database_paths, list_database_albums, get_album_media_paths
 from .thumbnail_generator import ThumbnailGenerator
 
 class Albums(Gtk.Box):
@@ -185,9 +185,10 @@ class Albums(Gtk.Box):
             album_box.set_halign(Gtk.Align.CENTER)
             album_box.set_valign(Gtk.Align.CENTER)
 
-            album_paths = get_album_media_paths(album)
+            album_paths = get_album_media_paths(self.app.conn, album)
             if album_paths:
                 last_media_url = album_paths[-1]
+                print(last_media_url)
                 if last_media_url.endswith(('.mp4', '.mkv', '.avi')):
                     thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
                     if thumbnail_path:
@@ -234,9 +235,9 @@ class Albums(Gtk.Box):
                 album_name = selected_child.album_name
 
                 if album_name == "Videos":
-                    self.app.open_videos_album()
+                    self.app.open_album("Videos")
                 elif album_name == "Pictures":
-                    self.app.open_pictures_album()
+                    self.app.open_album("Pictures")
                 else:
                     self.app.open_album(album_name)
 
