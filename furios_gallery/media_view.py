@@ -13,8 +13,23 @@ class MediaView(Gtk.Box):
         self.app = app
         self.carousel = None
         self.previous_index = 0
+        self.setup_css()
         self.widget = self.create_widget()
         self.append(self.widget)
+
+    def setup_css(self):
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(b"""
+        .media-menu-box {
+            background-color: #333;
+            padding: 15px; /* Increase padding inside the box */
+        }
+        .delete-btn {
+            padding: 5px;
+        }
+        """)
+        display = Gdk.Display.get_default()
+        Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
     def create_widget(self, curr_index=None):
         if curr_index is None:
@@ -23,14 +38,14 @@ class MediaView(Gtk.Box):
         self.overlay = Gtk.Overlay()
         self.overlay.set_size_request(390, 700)
         self.overlay.set_halign(Gtk.Align.CENTER)
-        self.overlay.set_valign(Gtk.Align.CENTER)
+        self.overlay.set_valign(Gtk.Align.START)
         self.overlay.set_hexpand(True)
         self.overlay.set_vexpand(True)
 
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.main_box.set_size_request(390, 700)
         self.main_box.set_halign(Gtk.Align.CENTER)
-        self.main_box.set_valign(Gtk.Align.CENTER)
+        self.main_box.set_valign(Gtk.Align.START)
         self.main_box.set_hexpand(True)
         self.main_box.set_vexpand(True)
 
@@ -57,6 +72,7 @@ class MediaView(Gtk.Box):
         media_menu_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         media_menu_box.set_hexpand(True)
         media_menu_box.set_halign(Gtk.Align.FILL)
+        media_menu_box.set_css_classes(["media-menu-box"])
 
         return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
         return_to_albums_btn.set_size_request(50,40)
@@ -70,7 +86,9 @@ class MediaView(Gtk.Box):
         media_menu_box.append(self.date_label)
 
         delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
+        delete_media_btn.set_margin_end(5)
         delete_media_btn.set_size_request(50,40)
+        delete_media_btn.set_css_classes(["delete-btn"])
         delete_media_btn.set_halign(Gtk.Align.END)
         delete_media_btn.connect("clicked", self.open_delete_popup)
         media_menu_box.append(delete_media_btn)
