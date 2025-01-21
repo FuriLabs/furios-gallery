@@ -84,8 +84,10 @@ def get_album_media_paths(album_name):
 
     if pictures_path.is_dir():
         pictures_paths = sorted(
-            [str(pictures_path / filename) for filename in os.listdir(pictures_path) if fnmatch.fnmatch(filename, '*.jpg')]
+            [str(pictures_path / filename) for filename in os.listdir(pictures_path)
+            if fnmatch.fnmatch(filename, '*.jpg') or fnmatch.fnmatch(filename, '*.png')]
         )
+
     elif pictures_path.name == 'Pictures' or pictures_path.name == 'Recents':
         pictures_paths = get_pictures_paths()
 

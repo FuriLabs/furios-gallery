@@ -32,6 +32,8 @@ class ThumbnailGenerator:
         if not os.path.exists(thumbnail_path):
             with Image.open(image_path) as img:
                 img.thumbnail(self.THUMBNAIL_SIZE)
+                if img.mode == 'RGBA':
+                    img = img.convert('RGB')
                 img.save(thumbnail_path, format="JPEG")
         return thumbnail_path
 
