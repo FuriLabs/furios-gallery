@@ -5,7 +5,7 @@ from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf
 from .media_manager import get_media_paths
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
-from .media_manager import get_media_date, get_media_from_index
+from .media_manager import  get_media_from_index, get_file_creation_date
 
 class MediaView(Gtk.Box):
     def __init__(self, app):
@@ -19,6 +19,7 @@ class MediaView(Gtk.Box):
     def create_widget(self, curr_index=None):
         if curr_index is None:
             curr_index = self.app.current_index
+
         self.overlay = Gtk.Overlay()
         self.overlay.set_size_request(390, 700)
         self.overlay.set_halign(Gtk.Align.CENTER)
@@ -33,7 +34,7 @@ class MediaView(Gtk.Box):
         self.main_box.set_hexpand(True)
         self.main_box.set_vexpand(True)
 
-        self.media_menu_box = self.create_media_menu_box()
+        self.media_menu_box = self.create_media_menu_box(curr_index)
         self.main_box.append(self.media_menu_box)
 
         self.carousel = self.create_carousel(curr_index)
@@ -52,7 +53,7 @@ class MediaView(Gtk.Box):
         self.overlay.set_child(self.main_box)
         return self.overlay
 
-    def create_media_menu_box(self):
+    def create_media_menu_box(self,curr_index):
         media_menu_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         media_menu_box.set_hexpand(True)
         media_menu_box.set_halign(Gtk.Align.FILL)
@@ -63,7 +64,7 @@ class MediaView(Gtk.Box):
         return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
         media_menu_box.append(return_to_albums_btn)
 
-        self.date_label = Gtk.Label(label=get_media_date(get_media_from_index(self.app.current_index)))
+        self.date_label = Gtk.Label(label=get_file_creation_date(get_media_from_index(curr_index)))
         self.date_label.set_hexpand(True)
         self.date_label.set_halign(Gtk.Align.FILL)
         media_menu_box.append(self.date_label)
@@ -159,8 +160,7 @@ class MediaView(Gtk.Box):
         self.overlay.add_overlay(self.index_label)
 
     def update_date_label(self):
-        new_date = get_media_date(get_media_from_index(self.app.current_index))
-        print(new_date)
+        new_date = get_file_creation_date(get_media_from_index(self.app.current_index))
         self.date_label.set_text(new_date)
 
     def create_carousel(self, curr_index):
@@ -208,8 +208,6 @@ class MediaView(Gtk.Box):
             self.app.current_index -= 1
         elif index < self.previous_index:  # Swiping right
             self.app.current_index += 1
-
-        print(f"curr app index: {self.app.current_index}")
 
         self.previous_index = index
         self.update_label()
