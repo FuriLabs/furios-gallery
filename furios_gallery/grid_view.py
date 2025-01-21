@@ -1,5 +1,5 @@
 import asyncio, gi, os
-from gi.repository import Gtk, GLib, Adw
+from gi.repository import Gtk, GLib, Adw, Gdk
 
 class GridView(Gtk.Box):
     def __init__(self, app, thumbnails, items_per_load=200):
@@ -7,12 +7,27 @@ class GridView(Gtk.Box):
         self.app = app
         self.thumbnails = thumbnails
         self.items_per_load = items_per_load
+        self.setup_css()
         self.flowbox = None
 
         self.placeholder = Gtk.Label(label="Loading...")
         self.append(self.placeholder)
 
         asyncio.create_task(self.setup_widget())
+
+    def setup_css(self):
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(b"""
+        .grid-menu-box {
+            background-color: #333;
+            padding: 15px; /* Increase padding inside the box */
+        }
+        .delete-btn {
+            padding: 5px;
+        }
+        """)
+        display = Gdk.Display.get_default()
+        Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
     async def setup_widget(self):
         self.widget = await self.create_widget()
@@ -30,6 +45,7 @@ class GridView(Gtk.Box):
         self.main_grid_box.set_valign(Gtk.Align.FILL)
 
         self.grid_view_menu = self.create_grid_view_menu()
+        self.grid_view_menu.set_valign(Gtk.Align.START)
         self.main_grid_box.append(self.grid_view_menu)
 
         scrolled_window = Gtk.ScrolledWindow()
@@ -63,6 +79,8 @@ class GridView(Gtk.Box):
         grid_menu_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         grid_menu_box.set_hexpand(True)
         grid_menu_box.set_halign(Gtk.Align.FILL)
+        grid_menu_box.set_valign(Gtk.Align.START)
+        grid_menu_box.set_css_classes(["grid-menu-box"])
 
         return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
         return_to_albums_btn.set_size_request(50,40)
@@ -74,6 +92,8 @@ class GridView(Gtk.Box):
         delete_media_btn.set_size_request(50,40)
         delete_media_btn.set_halign(Gtk.Align.END)
         delete_media_btn.connect("clicked", self.open_delete_popup)
+        delete_media_btn.set_css_classes(["delete-btn"])
+        delete_media_btn.set_margin_start(5)
         grid_menu_box.append(delete_media_btn)
 
         return grid_menu_box
