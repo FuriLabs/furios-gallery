@@ -20,6 +20,10 @@ class Albums(Gtk.Box):
         .rounded-image {
             border-radius: 20px;
         }
+        .album-menu-box {
+            background-color: #333;
+            padding: 15px;
+        }
         .missing-image {
             border-radius: 20px;
             background-color: #333;
@@ -36,21 +40,7 @@ class Albums(Gtk.Box):
         albums_box.set_halign(Gtk.Align.FILL)
         albums_box.set_valign(Gtk.Align.FILL)
 
-        albums_action = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        albums_action.set_halign(Gtk.Align.FILL)
-        albums_action.set_halign(Gtk.Align.END)
-        albums_action.set_hexpand(True)
-        albums_action.set_margin_start(0)
-        albums_action.set_margin_end(0)
-        albums_action.set_margin_bottom(10)
-
-        create_album_button = Gtk.Button()
-        create_album_button_icon = Gtk.Image.new_from_icon_name("folder-new-symbolic")
-        create_album_button_icon.set_pixel_size(25)
-        create_album_button.set_child(create_album_button_icon)
-        create_album_button.connect("clicked", self.create_album)
-
-        albums_action.append(create_album_button)
+        albums_action = self.album_menu_box()
 
         albums_box.append(albums_action)
 
@@ -58,6 +48,7 @@ class Albums(Gtk.Box):
         scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled_window.set_hexpand(True)
         scrolled_window.set_vexpand(True)
+        scrolled_window.set_margin_top(20)
         scrolled_window.set_halign(Gtk.Align.FILL)
         scrolled_window.set_valign(Gtk.Align.FILL)
 
@@ -81,6 +72,22 @@ class Albums(Gtk.Box):
         self.flowbox.connect("selected-children-changed", self.on_child_selected)
 
         return albums_box
+
+    def album_menu_box(self):
+        album_menu_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        album_menu_box.set_hexpand(True)
+        album_menu_box.set_halign(Gtk.Align.FILL)
+        album_menu_box.set_css_classes(["album-menu-box"])
+
+        create_album_button = Gtk.Button()
+        create_album_button_icon = Gtk.Image.new_from_icon_name("folder-new-symbolic")
+        create_album_button_icon.set_pixel_size(25)
+        create_album_button.set_child(create_album_button_icon)
+        create_album_button.connect("clicked", self.create_album)
+
+        album_menu_box.append(create_album_button)
+
+        return album_menu_box
 
     def load_albums(self):
         albums = list_albums()
