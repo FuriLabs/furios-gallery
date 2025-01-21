@@ -30,11 +30,18 @@ class ThumbnailGenerator:
     def _generate_image_thumbnail(self, image_path):
         thumbnail_path = os.path.join(self.CACHE_DIR, f"{os.path.basename(image_path)}_thumbnail.jpg")
         if not os.path.exists(thumbnail_path):
-            with Image.open(image_path) as img:
-                img.thumbnail(self.THUMBNAIL_SIZE)
-                if img.mode == 'RGBA':
-                    img = img.convert('RGB')
-                img.save(thumbnail_path, format="JPEG")
+            if not os.path.exists(image_path):
+                print(f"File does not exist: {image_path}")
+                return None
+            try:
+                with Image.open(image_path) as img:
+                    img.thumbnail(self.THUMBNAIL_SIZE)
+                    if img.mode == 'RGBA':
+                        img = img.convert('RGB')
+                    img.save(thumbnail_path, format="JPEG")
+            except IOError as e:
+                print(f"Failed to open or process image {image_path}: {e}")
+                return None
         return thumbnail_path
 
     def _generate_video_thumbnail(self, video_path):
