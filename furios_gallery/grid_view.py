@@ -6,6 +6,7 @@
 
 import asyncio, gi, os
 from gi.repository import Gtk, GLib, Adw, Gdk
+from .media_manager import delete_from_albums
 
 class GridView(Gtk.Box):
     def __init__(self, app, thumbnails, items_per_load=200):
@@ -89,13 +90,13 @@ class GridView(Gtk.Box):
         grid_menu_box.set_css_classes(["grid-menu-box"])
 
         return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
-        # return_to_albums_btn.set_size_request(50,40)
+        return_to_albums_btn.set_size_request(50,40)
         return_to_albums_btn.set_halign(Gtk.Align.START)
         return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
         grid_menu_box.append(return_to_albums_btn)
 
         delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
-        # delete_media_btn.set_size_request(50,40)
+        delete_media_btn.set_size_request(50,40)
         delete_media_btn.set_halign(Gtk.Align.END)
         delete_media_btn.connect("clicked", self.open_delete_popup)
         delete_media_btn.set_css_classes(["delete-btn"])
@@ -152,6 +153,7 @@ class GridView(Gtk.Box):
             for child in selected_children:
                 media_index = child.media_index
                 media_path = self.app.media_paths[media_index]
+                delete_from_albums(self.app.conn, media_path)
 
                 try:
                     if os.path.exists(media_path):
