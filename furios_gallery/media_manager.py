@@ -162,7 +162,19 @@ def list_database_albums(conn):
         cursor = conn.cursor()
         cursor.execute("SELECT album_name FROM albums")
         albums = cursor.fetchall()
-        return [album[0] for album in albums]
+        albums = [album[0] for album in albums]
+
+        priority_order = ['Recents', 'Pictures', 'Videos', 'Screenshots']
+
+        def album_sort_key(album):
+            try:
+                return priority_order.index(album)
+            except ValueError:
+                return len(priority_order) + ord(album[0].lower()) - ord('a')
+
+        albums.sort(key=lambda album: (album not in priority_order, album_sort_key(album) if album not in priority_order else priority_order.index(album)))
+
+        return albums
     except Exception as e:
         print(f"Error fetching albums: {e}")
         return []
