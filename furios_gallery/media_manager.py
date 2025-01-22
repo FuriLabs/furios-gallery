@@ -189,9 +189,16 @@ def get_album_database_paths(conn, album_name):
     """, (album_name,))
 
     file_paths = [row[0] for row in cur.fetchall()]
+    valid_paths = []
 
-    sorted_paths = sorted(file_paths, key=lambda path: os.path.getmtime(path))
+    for path in file_paths:
+        if os.path.exists(path):
+            valid_paths.append(path)
+        else:
+            print(f"File not found, removing from database: {path}")
+            delete_from_albums(conn, path)
 
+    sorted_paths = sorted(valid_paths, key=lambda path: os.path.getmtime(path))
     return sorted_paths
 
 def get_album_media_paths(conn, album_name):
@@ -206,7 +213,13 @@ def get_album_media_paths(conn, album_name):
         cur.execute(query, (album_name,))
         rows = cur.fetchall()
 
-        media_paths = [row[0] for row in rows]
+        media_paths = []
+        for row in rows:
+            if os.path.exists(row[0]):
+                media_paths.append(row[0])
+            else:
+                print(f"File not found, removing from database: {row[0]}")
+                delete_from_albums(conn, row[0])
 
         if album_name.lower() in ['pictures', 'recents']:
             media_paths.extend(get_album_database_paths(conn, "Pictures"))
