@@ -5,7 +5,7 @@ Priority: optional
 Build-Depends: debhelper-compat (= 13),
                dh-python,
                python3
-Standards-Version: 4.5.1
+Standards-Version: 4.7.0
 Vcs-Browser: https://github.com/Joas329/furios-gallery
 Vcs-Git: https://github.com/Joas329/furios-gallery.git
 
