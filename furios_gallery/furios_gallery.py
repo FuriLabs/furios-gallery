@@ -6,6 +6,7 @@
 
 from gi.repository import Gtk, Adw, Gdk
 from os.path import expanduser
+from pathlib import Path
 from .media_view import MediaView
 from .grid_view import GridView
 from .albums_view import Albums
@@ -16,8 +17,10 @@ class FuriosGalleryApp(Adw.Application):
     def __init__(self):
         super().__init__(application_id='io.FuriOS.Gallery')
 
-        self.conn = create_connection(expanduser("~/.local/furios-gallery-albums.db"))
+        app_dir = Path(expanduser("~/.local/share/io.FuriOS.Gallery"))
+        app_dir.mkdir(parents=True, exist_ok=True)
 
+        self.conn = create_connection(str(app_dir / "gallery-albums.db"))
         if self.conn is not None:
             create_tables(self.conn)
 
