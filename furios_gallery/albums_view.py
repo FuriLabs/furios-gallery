@@ -233,6 +233,7 @@ class Albums(Gtk.Box):
             if selected_children:
                 selected_child = selected_children[0]
                 album_name = selected_child.album_name
+                self.app.current_album = album_name
 
                 if album_name == "Videos":
                     self.app.open_album("Videos")

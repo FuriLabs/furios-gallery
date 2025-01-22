@@ -22,6 +22,7 @@ class FuriosGalleryApp(Adw.Application):
             create_tables(self.conn)
 
         self.thumbnails = ThumbnailGenerator()
+        self.current_album = ""
         self.media_paths = get_album_database_paths(self.conn, "Recents")
         self.current_index = len(self.media_paths) - 1
         self.current_view = None

@@ -228,3 +228,42 @@ def delete_from_albums(conn, file_path):
     except Exception as e:
         conn.rollback()
         print(f"An error occurred: {e}")
+
+def delete_file_from_album(conn, file_path, album_name):
+    if album_name != "Recents" and album_name != "Videos" and album_name != "Pictures":
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT file_id FROM files WHERE file_path = ?", (file_path,))
+            file_id = cur.fetchone()
+            cur.execute("SELECT album_id FROM albums WHERE album_name = ?", (album_name,))
+            album_id = cur.fetchone()
+
+            if file_id and album_id:
+                cur.execute("DELETE FROM file_albums WHERE file_id = ? AND album_id = ?", (file_id[0], album_id[0]))
+                conn.commit()
+                print(f"Successfully removed {file_path} from {album_name}")
+            else:
+                print("File or album does not exist")
+        except Exception as e:
+            print(f"Error when trying to remove file from album: {e}")
+            conn.rollback()
+    else:
+        print("Cant delete from default albums")
+
+def add_file_to_album(conn, file_path, album_name):
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT file_id FROM files WHERE file_path = ?", (file_path,))
+        file_id = cur.fetchone()
+        cur.execute("SELECT album_id FROM albums WHERE album_name = ?", (album_name,))
+        album_id = cur.fetchone()
+
+        if file_id and album_id:
+            cur.execute("INSERT INTO file_albums (file_id, album_id) VALUES (?, ?)", (file_id[0], album_id[0]))
+            conn.commit()
+            print(f"Successfully added {file_path} to {album_name}")
+        else:
+            print("File or album does not exist, make sure both are created before linking them.")
+    except Exception as e:
+        print(f"Error when trying to add file to album: {e}")
+        conn.rollback()

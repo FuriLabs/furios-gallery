@@ -10,7 +10,7 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
-from .media_manager import get_file_creation_date, delete_from_albums
+from .media_manager import get_file_creation_date, delete_from_albums, delete_file_from_album, list_database_albums, add_file_to_album
 
 class MediaView(Gtk.Box):
     def __init__(self, app):
@@ -112,13 +112,93 @@ class MediaView(Gtk.Box):
         return media_menu_box
 
     def open_menu_popup(self, btn):
-        return
-        #TBD: Make read metadata here
+        dialog = Adw.MessageDialog(
+            transient_for=self.get_root()
+        )
+
+        media_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        media_options.set_margin_start(10)
+        media_options.set_hexpand(True)
+        media_options.set_vexpand(True)
+        media_options.set_margin_end(10)
+
+        add_album_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        add_to_album_btn = Gtk.Button(label="Add to album")
+        add_to_album_btn.set_margin_top(10)
+        add_to_album_btn.set_margin_bottom(5)
+        add_to_album_btn.connect("clicked", self.add_to_album, add_album_box, dialog)
+        add_album_box.append(add_to_album_btn)
+        media_options.append(add_album_box)
+
+        remove_from_album_btn = Gtk.Button(label="Remove from album")
+        remove_from_album_btn.set_margin_top(5)
+        remove_from_album_btn.set_margin_bottom(5)
+        remove_from_album_btn.connect("clicked", self.delete_from_album, dialog)
+        media_options.append(remove_from_album_btn)
+
+        close_media_options_btn = Gtk.Button(label="Cancel")
+        close_media_options_btn.set_margin_top(5)
+        close_media_options_btn.set_margin_bottom(10)
+        close_media_options_btn.connect("clicked", self.on_close_media_options, dialog)
+        media_options.append(close_media_options_btn)
+
+        dialog.set_child(media_options)
+
+        dialog.present()
+
+    def add_to_album(self, btn, add_album_box, first_dialog):
+        dialog = Adw.MessageDialog(
+            transient_for=self.get_root(),
+            heading="Add to Album",
+            body="Select an album to add the file to:",
+        )
+
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_min_content_height(200)
+        scrolled_window.set_min_content_width(300)
+
+        flowbox = Gtk.FlowBox()
+        flowbox.set_valign(Gtk.Align.START)
+        flowbox.set_max_children_per_line(3)
+        flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
+
+        albums = list_database_albums(self.app.conn)
+        for album in albums:
+            button = Gtk.Button(label=album)
+            button.connect("clicked", self.on_album_button_clicked, album, first_dialog, dialog)
+            flowbox.append(button)
+
+        scrolled_window.set_child(flowbox)
+        dialog.set_extra_child(scrolled_window)
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.set_response_appearance("cancel", Adw.ResponseAppearance.DESTRUCTIVE)
+
+        dialog.connect("response", lambda dialog, response: dialog.destroy())
+        dialog.present()
+
+    def on_album_button_clicked(self, btn, album_name, first_dialog, second_dialog):
+        try:
+            file_path = self.app.media_paths[self.app.current_index]
+            add_file_to_album(self.app.conn, file_path, album_name)
+            second_dialog.destroy()
+            first_dialog.destroy()
+            print(f"Successfully added {file_path} to album '{album_name}'")
+        except Exception as e:
+            print(f"Error adding file to album '{album_name}': {e}")
+
+    def delete_from_album(self, btn, dialog):
+        delete_file_from_album(self.app.conn, self.app.media_paths[self.app.current_index], self.app.current_album)
+        dialog.destroy()
+
+    def on_close_media_options(self, btn, dialog):
+        dialog.destroy()
 
     def on_return_to_albums_view(self, btn):
         self.app.switch_to_view(self.app.create_albums_box)
 
-    def open_delete_popup(self, btn):
+    def open_delete_popup(self, btn, dialog):
         dialog = Adw.MessageDialog(
             transient_for=self.get_root(),
             heading="Delete File?",
