@@ -24,6 +24,7 @@ class VideoPlayerWidget(Gtk.Box):
         Gst.init(None)
 
         css_provider = Gtk.CssProvider()
+
         css_provider.load_from_data(b"""
         .control-box {
             background-color: rgba(0, 0, 0, 0.7); /* Black with 70% opacity */
@@ -35,7 +36,9 @@ class VideoPlayerWidget(Gtk.Box):
             background-color: transparent; /* Transparent background */
             border: none; /* No border */
         }
-        """)
+        """
+        )
+
         display = Gdk.Display.get_default()
         Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 

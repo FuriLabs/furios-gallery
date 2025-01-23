@@ -69,14 +69,16 @@ def create_tables(conn):
             file_path TEXT UNIQUE NOT NULL,
             file_type TEXT NOT NULL
         );
-        """)
+        """
+        )
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS albums (
             album_id INTEGER PRIMARY KEY AUTOINCREMENT,
             album_name TEXT NOT NULL
         );
-        """)
+        """
+        )
 
         cursor.execute("""
         CREATE TABLE IF NOT EXISTS file_albums (
@@ -86,7 +88,9 @@ def create_tables(conn):
             FOREIGN KEY (file_id) REFERENCES files(file_id),
             FOREIGN KEY (album_id) REFERENCES albums(album_id)
         );
-        """)
+        """
+        )
+
         print("Tables created successfully")
     except sqlite3.Error as e:
         print(f"Error creating tables: {e}")
@@ -186,7 +190,8 @@ def get_album_database_paths(conn, album_name):
         JOIN file_albums ON files.file_id = file_albums.file_id
         JOIN albums ON file_albums.album_id = albums.album_id
         WHERE albums.album_name = ?
-    """, (album_name,))
+    """
+    ,(album_name,))
 
     file_paths = [row[0] for row in cur.fetchall()]
     valid_paths = []

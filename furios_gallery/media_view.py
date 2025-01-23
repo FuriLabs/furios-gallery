@@ -24,6 +24,7 @@ class MediaView(Gtk.Box):
 
     def setup_css(self):
         css_provider = Gtk.CssProvider()
+
         css_provider.load_from_data(b"""
         .media-menu-box {
             background-color: #333;
@@ -35,7 +36,9 @@ class MediaView(Gtk.Box):
         .test {
             background-color: #239;
         }
-        """)
+        """
+        )
+
         display = Gdk.Display.get_default()
         Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 

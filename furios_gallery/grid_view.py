@@ -23,11 +23,14 @@ class GridView(Gtk.Box):
 
     def setup_css(self):
         css_provider = Gtk.CssProvider()
+
         css_provider.load_from_data(b"""
         .delete-btn {
             padding: 5px;
         }
-        """)
+        """
+        )
+
         display = Gdk.Display.get_default()
         Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
