@@ -315,6 +315,7 @@ class MediaView(Adw.NavigationPage):
                     zoomable_image.set_vexpand(True)
                     zoomable_image.set_hexpand(True)
                     zoomable_image.set_valign(Gtk.Align.CENTER)
+                    zoomable_image.set_halign(Gtk.Align.CENTER)
                     scrolled_win.set_child(zoomable_image)
                     zoomable_image.init_gestures()
                     carousel.append(scrolled_win)
