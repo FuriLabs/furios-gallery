@@ -158,3 +158,5 @@ class Albums(Adw.NavigationPage):
 
                 # Push grid view to navigation view
                 self.app_window.navigation_view.push(grid_view_page)
+
+            self.flowbox.unselect_all()
