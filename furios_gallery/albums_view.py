@@ -56,6 +56,9 @@ class Albums(Adw.NavigationPage):
         # Load albums
         self.load_albums()
 
+        # Give focus to the album_view page
+        self.app_window.present()
+
     def setup_css(self):
         css_provider = Gtk.CssProvider()
 
