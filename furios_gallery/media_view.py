@@ -86,7 +86,7 @@ class MediaView(Adw.NavigationPage):
             button.connect("clicked", on_click, *args)
             return button
 
-        add_to_album_btn = create_button("Add to Album", self.add_to_album, dialog)
+        add_to_album_btn = create_button("Add to Album", lambda btn: self.add_to_album(btn, None, dialog))
         media_options.append(add_to_album_btn)
 
         remove_from_album_btn = create_button("Remove from Album", self.delete_from_album, dialog)
