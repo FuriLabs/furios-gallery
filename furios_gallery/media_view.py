@@ -12,15 +12,14 @@ from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
 from .media_manager import get_file_creation_date, delete_from_albums, delete_file_from_album, list_database_albums, add_file_to_album
 
-class MediaView(Gtk.Box):
+class MediaView(Adw.NavigationPage):
     def __init__(self, app):
         super().__init__()
         self.app = app
         self.carousel = None
         self.previous_index = 0
         self.setup_css()
-        self.widget = self.create_widget()
-        self.append(self.widget)
+        self.setup_content()
 
     def setup_css(self):
         css_provider = Gtk.CssProvider()
@@ -42,25 +41,27 @@ class MediaView(Gtk.Box):
         display = Gdk.Display.get_default()
         Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
-    def create_widget(self, curr_index=None):
-        if curr_index is None:
-            curr_index = self.app.current_index
-
-        self.overlay = Gtk.Overlay()
-        self.overlay.set_halign(Gtk.Align.FILL)
-        self.overlay.set_valign(Gtk.Align.FILL)
-        self.overlay.set_hexpand(True)
-        self.overlay.set_vexpand(True)
-
+    def setup_content(self):
+        # Main content box
         self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.main_box.set_halign(Gtk.Align.FILL)
         self.main_box.set_valign(Gtk.Align.FILL)
         self.main_box.set_hexpand(True)
         self.main_box.set_vexpand(True)
 
+        # Overlay for additional UI elements
+        self.overlay = Gtk.Overlay()
+        self.overlay.set_halign(Gtk.Align.FILL)
+        self.overlay.set_valign(Gtk.Align.FILL)
+        self.overlay.set_hexpand(True)
+        self.overlay.set_vexpand(True)
+
+        # Media menu box
+        curr_index = self.app.current_index
         self.media_menu_box = self.create_media_menu_box(curr_index)
         self.main_box.append(self.media_menu_box)
 
+        # Carousel
         self.carousel = self.create_carousel(curr_index)
         self.carousel.set_valign(Gtk.Align.FILL)
         self.carousel.set_halign(Gtk.Align.FILL)
@@ -68,20 +69,29 @@ class MediaView(Gtk.Box):
         self.carousel.set_hexpand(True)
         self.main_box.append(self.carousel)
 
+        # Index label
         self.index_label = Gtk.Label(label=f"{curr_index + 1}/{len(self.app.media_paths)}")
         self.index_label.set_halign(Gtk.Align.CENTER)
         self.index_label.set_valign(Gtk.Align.END)
         self.index_label.set_margin_bottom(10)
         self.overlay.add_overlay(self.index_label)
 
+        # Add touch event listener
         self.add_touch_event_listener(self.overlay)
 
+        # Setup navigation and overlay buttons
         self.setup_buttons()
 
+        # Set overlay child
         self.overlay.set_child(self.main_box)
-        return self.overlay
 
-    def create_media_menu_box(self,curr_index):
+        # Set content for NavigationPage
+        self.set_child(self.overlay)
+
+        # Set title
+        self.set_title("Media View")
+
+    def create_media_menu_box(self, curr_index):
         media_menu_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         media_menu_box.set_hexpand(True)
         media_menu_box.set_halign(Gtk.Align.FILL)
@@ -196,9 +206,14 @@ class MediaView(Gtk.Box):
         dialog.destroy()
 
     def on_return_to_albums_view(self, btn):
-        self.app.switch_to_view(self.app.create_albums_box)
+        # Assuming the app has a navigation view method to go back
+        if hasattr(self.app, 'navigation_view'):
+            self.app.navigation_view.pop()
+        else:
+            # Fallback to app's method of switching views
+            self.app.switch_to_view(self.app.create_albums_box)
 
-    def open_delete_popup(self, btn, dialog):
+    def open_delete_popup(self, btn):
         dialog = Adw.MessageDialog(
             transient_for=self.get_root(),
             heading="Delete File?",
@@ -310,7 +325,7 @@ class MediaView(Gtk.Box):
                     carousel.append(video_widget)
 
     def clear_carousel(self):
-        while child:= self.carousel.get_first_child():
+        while child := self.carousel.get_first_child():
             self.carousel.remove(child)
 
     def on_page_changed(self, carousel, index):

@@ -7,18 +7,35 @@
 import asyncio, gi, os
 from gi.repository import Gtk, GLib, Adw, Gdk
 
-class GridView(Gtk.Box):
-    def __init__(self, app, thumbnails, items_per_load=200):
-        super().__init__()
+class GridView(Adw.NavigationPage):
+    def __init__(self, app, thumbnails, album_name="Media", items_per_load=200):
+        super().__init__(title=album_name)
+
         self.app = app
         self.thumbnails = thumbnails
         self.items_per_load = items_per_load
+
+        # Main box to hold the grid view
+        self.main_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.main_grid_box.set_hexpand(True)
+        self.main_grid_box.set_vexpand(True)
+        self.main_grid_box.set_halign(Gtk.Align.FILL)
+        self.main_grid_box.set_valign(Gtk.Align.FILL)
+
+        # Placeholder while loading
+        self.placeholder = Gtk.Label(label="Loading...")
+        self.main_grid_box.append(self.placeholder)
+
+        # Set the main grid box as the child of the NavigationPage
+        self.set_child(self.main_grid_box)
+
+        # Setup CSS
         self.setup_css()
+
+        # Flowbox will be None initially
         self.flowbox = None
 
-        self.placeholder = Gtk.Label(label="Loading...")
-        self.append(self.placeholder)
-
+        # Async setup of widget
         asyncio.create_task(self.setup_widget())
 
     def setup_css(self):
@@ -35,20 +52,13 @@ class GridView(Gtk.Box):
         Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
     async def setup_widget(self):
-        self.widget = await self.create_widget()
+        await self.create_widget()
         GLib.idle_add(self._replace_placeholder_with_widget)
 
     def _replace_placeholder_with_widget(self):
-        self.remove(self.placeholder)
-        self.append(self.widget)
+        self.main_grid_box.remove(self.placeholder)
 
     async def create_widget(self):
-        self.main_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.main_grid_box.set_hexpand(True)
-        self.main_grid_box.set_vexpand(True)
-        self.main_grid_box.set_halign(Gtk.Align.FILL)
-        self.main_grid_box.set_valign(Gtk.Align.FILL)
-
         scrolled_window = Gtk.ScrolledWindow()
         scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled_window.set_hexpand(True)
@@ -65,17 +75,18 @@ class GridView(Gtk.Box):
 
         scrolled_window.set_child(self.flowbox)
 
+        # Load initial items
         asyncio.create_task(self.load_more_items())
 
+        # Connect signals
         self.flowbox.connect("selected-children-changed", self.on_child_selected)
         self.flowbox.connect("selected-children-changed", self.update_selected_count)
 
+        # Connect scroll event
         adjustment = scrolled_window.get_vadjustment()
         adjustment.connect("value-changed", self.on_scroll)
 
         self.main_grid_box.append(scrolled_window)
-
-        return self.main_grid_box
 
     def update_selected_count(self, flowbox):
         if hasattr(self.app, 'selected_files_label') and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:

@@ -4,15 +4,25 @@
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
 
-from gi.repository import Gtk, Adw, Gdk
+import gi
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+
+from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf
 from os.path import expanduser
 from pathlib import Path
 import os
+
 from .media_view import MediaView
 from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
-from .media_manager import get_album_database_paths, get_album_media_paths, create_tables, create_connection, insert_file, populate_database, delete_from_albums
+from .media_manager import (
+    get_album_database_paths, get_album_media_paths,
+    create_tables, create_connection,
+    insert_file, populate_database, delete_from_albums,
+    list_database_albums
+)
 
 class GalleryWindow(Adw.ApplicationWindow):
     def __init__(self, *args, **kwargs):
@@ -23,71 +33,97 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.set_hexpand(True)
         self.set_vexpand(True)
 
+        # Set up application directory
         app_dir = Path(expanduser("~/.local/share/io.FuriOS.Gallery"))
         app_dir.mkdir(parents=True, exist_ok=True)
 
+        # Database connection
         self.conn = create_connection(str(app_dir / "gallery-albums.db"))
         if self.conn is not None:
             create_tables(self.conn)
 
+        # Thumbnail generator
         self.thumbnails = ThumbnailGenerator()
+
+        # Media management variables
         self.current_album = ""
         self.media_paths = get_album_database_paths(self.conn, "Recents")
         self.current_index = len(self.media_paths) - 1
-        self.current_view = None
 
-        # Create main layout structure
+        # Create toast overlay for notifications
         self.toast_overlay = Adw.ToastOverlay()
+
+        # Create navigation view for swipe gestures
+        self.navigation_view = Adw.NavigationView()
+
+        # Create initial albums page
+        initial_albums_page = self.create_albums_page()
+        self.navigation_view.add(initial_albums_page)
+
+        # Toolbar view setup
         self.toolbar_view = Adw.ToolbarView()
 
-        # Setup header with buttons
+        # Header bar setup
         self.header = Adw.HeaderBar()
         self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
 
-        # Add return to albums button on the left
+        # Return to albums button
         self.return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
         self.return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
         self.header.pack_start(self.return_to_albums_btn)
 
-        # Add create album button on the left
+        # Create album button
         self.create_album_btn = Gtk.Button(icon_name="folder-new-symbolic")
         self.create_album_btn.connect("clicked", self.create_album)
         self.header.pack_start(self.create_album_btn)
 
-        # Add delete button on the right
+        # Delete media button
         self.delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
         self.delete_media_btn.connect("clicked", self.open_delete_popup)
         self.delete_media_btn.add_css_class("delete-btn")
         self.header.pack_end(self.delete_media_btn)
 
+        # Add header to toolbar view
         self.toolbar_view.add_top_bar(self.header)
 
-        # Setup navigation and content
-        self.navigation_view = Adw.NavigationView()
-        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.current_view = self.create_albums_box()
-        self.main_box.append(self.current_view)
+        # Set navigation view as toolbar content
+        self.toolbar_view.set_content(self.navigation_view)
 
-        # Setup navigation page
-        self.main_page = Adw.NavigationPage(
-            title="Gallery",
-            child=self.main_box
-        )
-        self.navigation_view.add(self.main_page)
-
-        # Setup bottom sheet
-        self.bottom_sheet = Adw.BottomSheet()
-        self.bottom_sheet.set_content(self.navigation_view)
-
-        # Setup content
-        self.toolbar_view.set_content(self.bottom_sheet)
+        # Set toast overlay as main content
         self.toast_overlay.set_child(self.toolbar_view)
         self.set_content(self.toast_overlay)
 
         self.present()
 
+    def create_albums_page(self):
+        albums_page = Albums(self)
+        albums_page.set_name("albums-square")
+        return albums_page
+
+    def create_media_view_page(self):
+        media_view = MediaView(self)
+        media_view.set_halign(Gtk.Align.FILL)
+        media_view.set_valign(Gtk.Align.FILL)
+        media_view.set_hexpand(True)
+        media_view.set_vexpand(True)
+        media_view.set_name("mediaView-square")
+        return media_view
+
+    def create_grid_view_page(self, album_name=None):
+        media_grid_view = GridView(self, self.thumbnails)
+        media_grid_view.set_halign(Gtk.Align.FILL)
+        media_grid_view.set_valign(Gtk.Align.FILL)
+        media_grid_view.set_hexpand(True)
+        media_grid_view.set_vexpand(True)
+
+        if media_grid_view.flowbox is not None:
+            self.thumbnails.load_images_in_background(self.media_paths, media_grid_view.flowbox)
+
+        media_grid_view.set_name("mediaGridView-square")
+
+        return media_grid_view
+
     def show_toast(self, message, duration=3):
-        """Display a toast message."""
         toast = Adw.Toast(title=message)
         self.toast_overlay.add_toast(toast)
         print(message)
@@ -96,54 +132,21 @@ class GalleryWindow(Adw.ApplicationWindow):
             return False
         GLib.timeout_add_seconds(duration, dismiss_toast)
 
-    def create_media_view_box(self):
-        media_view_box = MediaView(self)
-        media_view_box.widget.set_halign(Gtk.Align.FILL)
-        media_view_box.widget.set_valign(Gtk.Align.FILL)
-        media_view_box.widget.set_hexpand(True)
-        media_view_box.widget.set_vexpand(True)
-        media_view_box.widget.set_name("mediaView-square")
-        return media_view_box
-
-    def create_grid_view_box(self):
-        media_grid_view_box = GridView(self, self.thumbnails)
-        media_grid_view_box.set_halign(Gtk.Align.FILL)
-        media_grid_view_box.set_valign(Gtk.Align.FILL)
-        media_grid_view_box.set_hexpand(True)
-        media_grid_view_box.set_vexpand(True)
-
-        if media_grid_view_box.flowbox is not None:
-            self.thumbnails.load_images_in_background(self.media_paths, media_grid_view_box.flowbox)
-
-        media_grid_view_box.set_name("mediaGridView-square")
-        return media_grid_view_box
-
-    def create_albums_box(self):
-        albums_box = Albums(self)
-        albums_box.set_halign(Gtk.Align.FILL)
-        albums_box.set_valign(Gtk.Align.FILL)
-        albums_box.set_hexpand(True)
-        albums_box.set_vexpand(True)
-        albums_box.set_name("albums-square")
-        return albums_box
-
-    def switch_to_view(self, new_view_creator):
-        if self.current_view:
-            self.main_box.remove(self.current_view)
-        self.current_view = new_view_creator()
-        self.main_box.append(self.current_view)
-
     def open_media_at_index(self, media_index):
         self.current_index = media_index
-        self.switch_to_view(self.create_media_view_box)
+        media_page = self.create_media_view_page()
+        self.navigation_view.push(media_page)
 
-    def open_album(self, album_name):
-        self.media_paths = get_album_database_paths(self.conn, album_name)
-        self.current_index = len(self.media_paths) - 1
-        self.switch_to_view(self.create_grid_view_box)
-
-    def on_return_to_albums_view(self, btn):
-        self.switch_to_view(self.create_albums_box)
+    def on_return_to_albums_view(self, btn=None):
+        # Directly add the initial albums page if not already present
+        if not self.navigation_view.get_visible_page():
+            initial_albums_page = self.create_albums_page()
+            self.navigation_view.add(initial_albums_page)
+        else:
+            # If there are multiple pages, pop until we're back to the albums view
+            while self.navigation_view.get_visible_page().get_title() != "Albums":
+                if not self.navigation_view.pop():
+                    break
 
     def create_album(self, button):
         dialog = Adw.MessageDialog(
@@ -181,7 +184,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                         print(f"Successfully added album '{album_name}' to the database.")
 
                         # Refresh the albums view
-                        self.switch_to_view(self.create_albums_box)
+                        self.navigation_view.pop_to_root()
                     else:
                         print(f"Album '{album_name}' already exists in the database.")
                 except Exception as e:
@@ -191,15 +194,18 @@ class GalleryWindow(Adw.ApplicationWindow):
         dialog.destroy()
 
     def open_delete_popup(self, btn):
-        if hasattr(self.current_view, 'flowbox'):
-            self.current_view.flowbox.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
+        current_page = self.navigation_view.get_visible_page()
+        current_view = current_page.get_child()
+
+        if hasattr(current_view, 'flowbox'):
+            current_view.flowbox.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
 
             # Create selection bar
             selection_bar = Adw.HeaderBar()
 
             # Selection count label
             self.selected_files_label = Gtk.Label(
-                label=f"Selected Files: {len(self.current_view.flowbox.get_selected_children())}"
+                label=f"Selected Files: {len(current_view.flowbox.get_selected_children())}"
             )
             selection_bar.set_title_widget(self.selected_files_label)
 
@@ -220,19 +226,25 @@ class GalleryWindow(Adw.ApplicationWindow):
             self.selection_bar = selection_bar
 
     def on_cancel_selection(self, btn):
-        if hasattr(self.current_view, 'flowbox'):
-            self.current_view.flowbox.unselect_all()
-            self.current_view.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        current_page = self.navigation_view.get_visible_page()
+        current_view = current_page.get_child()
+
+        if hasattr(current_view, 'flowbox'):
+            current_view.flowbox.unselect_all()
+            current_view.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
 
         # Restore original header
         self.toolbar_view.remove(self.selection_bar)
         self.toolbar_view.add_top_bar(self.header)
 
     def on_delete_confirmation(self, btn):
+        current_page = self.navigation_view.get_visible_page()
+        current_view = current_page.get_child()
+
         dialog = Adw.MessageDialog(
             transient_for=self,
             heading="Delete Files?",
-            body=f"This will permanently delete the {len(self.current_view.flowbox.get_selected_children())} selected files from your system"
+            body=f"This will permanently delete the {len(current_view.flowbox.get_selected_children())} selected files from your system"
         )
 
         dialog.add_response("cancel", "Cancel")
@@ -243,7 +255,10 @@ class GalleryWindow(Adw.ApplicationWindow):
 
     def on_delete_media(self, dialog, response):
         if response == "delete":
-            selected_children = self.current_view.flowbox.get_selected_children()
+            current_page = self.navigation_view.get_visible_page()
+            current_view = current_page.get_child()
+            selected_children = current_view.flowbox.get_selected_children()
+
             for child in selected_children:
                 media_index = child.media_index
                 media_path = self.media_paths[media_index]
@@ -255,13 +270,16 @@ class GalleryWindow(Adw.ApplicationWindow):
                 except Exception as e:
                     print(f"Error deleting file: {e}")
 
-                self.current_view.flowbox.remove(child)
+                current_view.flowbox.remove(child)
 
         # Restore original header
         self.toolbar_view.remove(self.selection_bar)
         self.toolbar_view.add_top_bar(self.header)
 
-        if hasattr(self.current_view, 'flowbox'):
-            self.current_view.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        current_page = self.navigation_view.get_visible_page()
+        current_view = current_page.get_child()
+
+        if hasattr(current_view, 'flowbox'):
+            current_view.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
 
         dialog.destroy()
