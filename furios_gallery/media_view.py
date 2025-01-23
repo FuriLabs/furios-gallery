@@ -116,37 +116,34 @@ class MediaView(Gtk.Box):
 
     def open_menu_popup(self, btn):
         dialog = Adw.MessageDialog(
-            transient_for=self.get_root()
+            transient_for=self.get_root(),
+            modal=True,
+            heading="Media Options"
         )
 
-        media_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        media_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        media_options.set_margin_top(10)
+        media_options.set_margin_bottom(10)
         media_options.set_margin_start(10)
-        media_options.set_hexpand(True)
-        media_options.set_vexpand(True)
         media_options.set_margin_end(10)
 
-        add_album_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        def create_button(label, on_click, *args):
+            button = Gtk.Button(label=label)
+            button.set_hexpand(True)
+            button.set_halign(Gtk.Align.FILL)
+            button.connect("clicked", on_click, *args)
+            return button
 
-        add_to_album_btn = Gtk.Button(label="Add to album")
-        add_to_album_btn.set_margin_top(10)
-        add_to_album_btn.set_margin_bottom(5)
-        add_to_album_btn.connect("clicked", self.add_to_album, add_album_box, dialog)
-        add_album_box.append(add_to_album_btn)
-        media_options.append(add_album_box)
+        add_to_album_btn = create_button("Add to Album", self.add_to_album, dialog)
+        media_options.append(add_to_album_btn)
 
-        remove_from_album_btn = Gtk.Button(label="Remove from album")
-        remove_from_album_btn.set_margin_top(5)
-        remove_from_album_btn.set_margin_bottom(5)
-        remove_from_album_btn.connect("clicked", self.delete_from_album, dialog)
+        remove_from_album_btn = create_button("Remove from Album", self.delete_from_album, dialog)
         media_options.append(remove_from_album_btn)
 
-        close_media_options_btn = Gtk.Button(label="Cancel")
-        close_media_options_btn.set_margin_top(5)
-        close_media_options_btn.set_margin_bottom(10)
-        close_media_options_btn.connect("clicked", self.on_close_media_options, dialog)
+        close_media_options_btn = create_button("Cancel", self.on_close_media_options, dialog)
         media_options.append(close_media_options_btn)
 
-        dialog.set_child(media_options)
+        dialog.set_extra_child(media_options)
 
         dialog.present()
 
