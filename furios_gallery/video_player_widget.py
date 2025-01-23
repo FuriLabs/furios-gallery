@@ -58,7 +58,6 @@ class VideoPlayerWidget(Gtk.Box):
         video_widget = Gtk.Picture.new_for_paintable(paintable)
         video_widget.set_hexpand(True)
         video_widget.set_vexpand(True)
-        self.append(video_widget)
 
         self.overlay = Gtk.Overlay()
         self.overlay.set_child(video_widget)
@@ -200,8 +199,10 @@ class VideoPlayerWidget(Gtk.Box):
         success, duration = self.playbin.query_duration(Gst.Format.TIME)
 
         if success:
+            self.seeker.handler_block_by_func(self.on_seek)
             self.seeker.set_range(0, duration / Gst.SECOND)
             self.seeker.set_value(position / Gst.SECOND)
+            self.seeker.handler_unblock_by_func(self.on_seek)
 
             pos_seconds = int(position / Gst.SECOND)
             dur_seconds = int(duration / Gst.SECOND)
