@@ -23,4 +23,5 @@ Depends: ${misc:Depends},
          python3-pil,
          gstreamer1.0-plugins-base,
          gstreamer1.0-plugins-good,
+         gstreamer1.0-gtk4,
 Description: Media gallery application for FuriOS
