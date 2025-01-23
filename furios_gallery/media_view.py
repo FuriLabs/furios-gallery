@@ -7,7 +7,7 @@
 import gi, os
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf
+from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf, GLib
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
 from .media_manager import get_file_creation_date, delete_from_albums, delete_file_from_album, list_database_albums, add_file_to_album
@@ -19,13 +19,6 @@ class MediaView(Adw.NavigationPage):
         self.carousel = None
         self.previous_index = 0
         self.setup_content()
-
-        if len(self.app.media_paths) > 0:
-            date = get_file_creation_date(self.app.media_paths[self.app.current_index])
-            self.app.header.set_title_widget(Adw.WindowTitle(title=date))
-
-        # Disable gesture navigation
-        self.set_can_pop(False)
 
     def setup_content(self):
         # Main content box
@@ -50,13 +43,6 @@ class MediaView(Adw.NavigationPage):
         self.carousel.set_hexpand(True)
         self.main_box.append(self.carousel)
 
-        # Index label
-        self.index_label = Gtk.Label(label=f"{self.app.current_index + 1}/{len(self.app.media_paths)}")
-        self.index_label.set_halign(Gtk.Align.CENTER)
-        self.index_label.set_valign(Gtk.Align.END)
-        self.index_label.set_margin_bottom(10)
-        self.overlay.add_overlay(self.index_label)
-
         # Add touch event listener
         self.add_touch_event_listener(self.overlay)
 
@@ -68,6 +54,17 @@ class MediaView(Adw.NavigationPage):
 
         # Set content for NavigationPage
         self.set_child(self.overlay)
+
+        # Disable gesture navigation
+        self.set_can_pop(False)
+
+        if len(self.app.media_paths) > 0:
+            new_date = get_file_creation_date(self.app.media_paths[self.app.current_index])
+            # this is a bit of a hack since setting this immediately here for some reason doesn't update the header
+            GLib.timeout_add(5, self.update_header_title, new_date)
+
+    def update_header_title(self, date):
+        self.app.header.set_title_widget(Adw.WindowTitle(title=date))
 
     def open_menu_popup(self, btn):
         dialog = Adw.MessageDialog(
@@ -150,14 +147,6 @@ class MediaView(Adw.NavigationPage):
     def on_close_media_options(self, btn, dialog):
         dialog.destroy()
 
-    def on_return_to_albums_view(self, btn):
-        # Assuming the app has a navigation view method to go back
-        if hasattr(self.app, 'navigation_view'):
-            self.app.navigation_view.pop()
-        else:
-            # Fallback to app's method of switching views
-            self.app.switch_to_view(self.app.create_albums_box)
-
     def open_delete_popup(self, btn):
         dialog = Adw.MessageDialog(
             transient_for=self.get_root(),
@@ -212,21 +201,9 @@ class MediaView(Adw.NavigationPage):
             self.clear_carousel()
             self.populate_carousel(self.carousel, self.app.current_index)
 
-            self.update_label()
             self.update_date_label()
         else:
             print("Error: Current index is out of range.")
-
-    def update_label(self):
-        if hasattr(self, "index_label") and self.index_label.get_parent():
-            self.overlay.remove_overlay(self.index_label)
-
-        self.index_label = Gtk.Label(label=f"{self.app.current_index + 1}/{len(self.app.media_paths)}")
-        self.index_label.set_halign(Gtk.Align.CENTER)
-        self.index_label.set_valign(Gtk.Align.END)
-        self.index_label.set_margin_bottom(10)
-
-        self.overlay.add_overlay(self.index_label)
 
     def update_date_label(self):
         if len(self.app.media_paths) > 0:
@@ -282,9 +259,10 @@ class MediaView(Adw.NavigationPage):
             self.app.current_index -= 1
         elif index < self.previous_index:  # Swiping right
             self.app.current_index += 1
+        else:
+            return
 
         self.previous_index = index
-        self.update_label()
 
         if index == 0:
             new_start = self.app.current_index + 1
@@ -372,15 +350,3 @@ class MediaView(Adw.NavigationPage):
                 self.carousel.prepend(video_widget)
             else:
                 self.carousel.append(video_widget)
-
-    def remove_excess_items(self, prepend):
-        max_items = 7
-        num_pages = self.carousel.get_n_pages()
-
-        while num_pages > max_items:
-            if prepend:
-                self.carousel.remove(self.carousel.get_nth_page(num_pages - 1))
-            else:
-                self.carousel.remove(self.carousel.get_nth_page(0))
-
-            num_pages = self.carousel.get_n_pages()
