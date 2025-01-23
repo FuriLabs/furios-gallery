@@ -31,14 +31,14 @@ def generate_image_thumbnail(image_path):
     return thumbnail_path
 
 def generate_video_thumbnail(video_path):
-    thumbnail_path = os.path.join(CACHE_DIR, f"{os.path.basename(video_path)}_thumbnail.jpg")
+    thumbnail_path = os.path.join(CACHE_DIR, f"{os.path.basename(video_path).split('.')[0]}_thumbnail.jpg")
     if os.path.exists(thumbnail_path):
         return thumbnail_path
     try:
         command = [
             "ffmpeg",
             "-i", video_path,
-            "-ss", "1",
+            "-ss", "00:00:01",
             "-vframes", "1",
             "-q:v", "2",
             thumbnail_path
