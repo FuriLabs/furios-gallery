@@ -14,32 +14,18 @@ from .media_manager import get_file_creation_date, delete_from_albums, delete_fi
 
 class MediaView(Adw.NavigationPage):
     def __init__(self, app):
-        super().__init__()
+        super().__init__(title="Media")
         self.app = app
         self.carousel = None
         self.previous_index = 0
-        self.setup_css()
         self.setup_content()
 
-    def setup_css(self):
-        css_provider = Gtk.CssProvider()
+        if len(self.app.media_paths) > 0:
+            date = get_file_creation_date(self.app.media_paths[self.app.current_index])
+            self.app.header.set_title_widget(Adw.WindowTitle(title=date))
 
-        css_provider.load_from_data(b"""
-        .media-menu-box {
-            background-color: #333;
-            padding: 15px; /* Increase padding inside the box */
-        }
-        .delete-btn {
-            padding: 5px;
-        }
-        .test {
-            background-color: #239;
-        }
-        """
-        )
-
-        display = Gdk.Display.get_default()
-        Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        # Disable gesture navigation
+        self.set_can_pop(False)
 
     def setup_content(self):
         # Main content box
@@ -56,13 +42,8 @@ class MediaView(Adw.NavigationPage):
         self.overlay.set_hexpand(True)
         self.overlay.set_vexpand(True)
 
-        # Media menu box
-        curr_index = self.app.current_index
-        self.media_menu_box = self.create_media_menu_box(curr_index)
-        self.main_box.append(self.media_menu_box)
-
         # Carousel
-        self.carousel = self.create_carousel(curr_index)
+        self.carousel = self.create_carousel(self.app.current_index)
         self.carousel.set_valign(Gtk.Align.FILL)
         self.carousel.set_halign(Gtk.Align.FILL)
         self.carousel.set_vexpand(True)
@@ -70,7 +51,7 @@ class MediaView(Adw.NavigationPage):
         self.main_box.append(self.carousel)
 
         # Index label
-        self.index_label = Gtk.Label(label=f"{curr_index + 1}/{len(self.app.media_paths)}")
+        self.index_label = Gtk.Label(label=f"{self.app.current_index + 1}/{len(self.app.media_paths)}")
         self.index_label.set_halign(Gtk.Align.CENTER)
         self.index_label.set_valign(Gtk.Align.END)
         self.index_label.set_margin_bottom(10)
@@ -87,42 +68,6 @@ class MediaView(Adw.NavigationPage):
 
         # Set content for NavigationPage
         self.set_child(self.overlay)
-
-        # Set title
-        self.set_title("Media View")
-
-    def create_media_menu_box(self, curr_index):
-        media_menu_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        media_menu_box.set_hexpand(True)
-        media_menu_box.set_halign(Gtk.Align.FILL)
-        media_menu_box.set_css_classes(["media-menu-box"])
-
-        return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
-        return_to_albums_btn.set_size_request(50,40)
-        return_to_albums_btn.set_halign(Gtk.Align.START)
-        return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
-        media_menu_box.append(return_to_albums_btn)
-
-        self.date_label = Gtk.Label(label=get_file_creation_date(self.app.media_paths[curr_index]))
-        self.date_label.set_hexpand(True)
-        self.date_label.set_halign(Gtk.Align.FILL)
-        media_menu_box.append(self.date_label)
-
-        delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
-        delete_media_btn.set_margin_end(5)
-        delete_media_btn.set_size_request(50,40)
-        delete_media_btn.set_css_classes(["delete-btn"])
-        delete_media_btn.set_halign(Gtk.Align.END)
-        delete_media_btn.connect("clicked", self.open_delete_popup)
-        media_menu_box.append(delete_media_btn)
-
-        more_info_menu = Gtk.Button(icon_name="view-more-symbolic")
-        more_info_menu.set_size_request(50,40)
-        more_info_menu.set_halign(Gtk.Align.END)
-        more_info_menu.connect("clicked", self.open_menu_popup)
-        media_menu_box.append(more_info_menu)
-
-        return media_menu_box
 
     def open_menu_popup(self, btn):
         dialog = Adw.MessageDialog(
@@ -284,8 +229,9 @@ class MediaView(Adw.NavigationPage):
         self.overlay.add_overlay(self.index_label)
 
     def update_date_label(self):
-        new_date = get_file_creation_date(self.app.media_paths[self.app.current_index])
-        self.date_label.set_text(new_date)
+        if len(self.app.media_paths) > 0:
+            new_date = get_file_creation_date(self.app.media_paths[self.app.current_index])
+            self.app.header.set_title_widget(Adw.WindowTitle(title=new_date))
 
     def create_carousel(self, curr_index):
         carousel = Adw.Carousel()

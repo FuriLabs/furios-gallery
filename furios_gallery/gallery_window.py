@@ -53,9 +53,12 @@ class GalleryWindow(Adw.ApplicationWindow):
         # Create toast overlay for notifications
         self.toast_overlay = Adw.ToastOverlay()
 
+        # Header bar setup
+        self.header = Adw.HeaderBar()
+        self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+
         # Create navigation view for swipe gestures
         self.navigation_view = Adw.NavigationView()
-        self.navigation_view.connect('popped', self.on_navigation_changed)
 
         # Create initial albums page
         initial_albums_page = self.create_albums_page()
@@ -64,20 +67,28 @@ class GalleryWindow(Adw.ApplicationWindow):
         # Toolbar view setup
         self.toolbar_view = Adw.ToolbarView()
 
-        # Header bar setup
-        self.header = Adw.HeaderBar()
-        self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
-
         # Create album button
         self.create_album_btn = Gtk.Button(icon_name="folder-new-symbolic")
         self.create_album_btn.connect("clicked", self.create_album)
         self.header.pack_start(self.create_album_btn)
+
+        # Media view buttons (initially hidden)
+        self.media_options_btn = Gtk.Button(icon_name="view-more-symbolic")
+        self.media_options_btn.connect("clicked", self.on_media_options_clicked)
+        self.media_options_btn.set_visible(False)
+        self.header.pack_end(self.media_options_btn)
 
         # Delete media button
         self.delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
         self.delete_media_btn.connect("clicked", self.open_delete_popup)
         self.delete_media_btn.add_css_class("delete-btn")
         self.header.pack_end(self.delete_media_btn)
+
+        # Return button
+        self.return_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
+        self.return_btn.connect("clicked", self.on_return_clicked)
+        self.return_btn.set_visible(False)
+        self.header.pack_start(self.return_btn)
 
         # Add header to toolbar view
         self.toolbar_view.add_top_bar(self.header)
@@ -89,11 +100,45 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.toast_overlay.set_child(self.toolbar_view)
         self.set_content(self.toast_overlay)
 
+        # Navigation view state changes
+        self.navigation_view.connect('popped', self.on_navigation_changed)
+        self.navigation_view.connect('pushed', self.on_navigation_changed)
+
         self.present()
 
-    def on_navigation_changed(self, navigation_view, page):
-        if navigation_view.get_visible_page().get_title() == "Albums":
-            self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+    def on_navigation_changed(self, navigation_view, page=None):
+        visible_page = navigation_view.get_visible_page()
+        if visible_page:
+            if isinstance(visible_page, MediaView):
+                # Media view header
+                self.header.set_title_widget(Adw.WindowTitle(title="Media"))
+                self.create_album_btn.set_visible(False)
+                self.delete_media_btn.set_visible(True)
+                self.media_options_btn.set_visible(True)
+                self.return_btn.set_visible(True)
+            elif visible_page.get_title() == "Albums":
+                # Album view header
+                self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+                self.create_album_btn.set_visible(True)
+                self.delete_media_btn.set_visible(True)
+                self.media_options_btn.set_visible(False)
+                self.return_btn.set_visible(False)
+            else:
+                # Grid view header
+                self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
+                self.create_album_btn.set_visible(False)
+                self.delete_media_btn.set_visible(True)
+                self.media_options_btn.set_visible(False)
+                self.return_btn.set_visible(True)
+
+    def on_media_options_clicked(self, btn):
+        current_page = self.navigation_view.get_visible_page()
+        if isinstance(current_page, MediaView):
+            current_page.open_menu_popup(None)
+
+    def on_return_clicked(self, btn=None):
+        if self.navigation_view.get_visible_page():
+            self.navigation_view.pop()
 
     def create_albums_page(self):
         albums_page = Albums(self)
