@@ -20,8 +20,7 @@ from .thumbnail_generator import ThumbnailGenerator
 from .media_manager import (
     get_album_database_paths, get_album_media_paths,
     create_tables, create_connection,
-    insert_file, populate_database, delete_from_albums,
-    list_database_albums
+    insert_file, delete_from_albums,
 )
 
 class GalleryWindow(Adw.ApplicationWindow):
