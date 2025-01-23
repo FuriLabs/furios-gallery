@@ -55,6 +55,7 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         # Create navigation view for swipe gestures
         self.navigation_view = Adw.NavigationView()
+        self.navigation_view.connect('popped', self.on_navigation_changed)
 
         # Create initial albums page
         initial_albums_page = self.create_albums_page()
@@ -66,11 +67,6 @@ class GalleryWindow(Adw.ApplicationWindow):
         # Header bar setup
         self.header = Adw.HeaderBar()
         self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
-
-        # Return to albums button
-        self.return_to_albums_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
-        self.return_to_albums_btn.connect("clicked", self.on_return_to_albums_view)
-        self.header.pack_start(self.return_to_albums_btn)
 
         # Create album button
         self.create_album_btn = Gtk.Button(icon_name="folder-new-symbolic")
@@ -94,6 +90,10 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.set_content(self.toast_overlay)
 
         self.present()
+
+    def on_navigation_changed(self, navigation_view, page):
+        if navigation_view.get_visible_page().get_title() == "Albums":
+            self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
 
     def create_albums_page(self):
         albums_page = Albums(self)
@@ -133,17 +133,6 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.current_index = media_index
         media_page = self.create_media_view_page()
         self.navigation_view.push(media_page)
-
-    def on_return_to_albums_view(self, btn=None):
-        # Directly add the initial albums page if not already present
-        if not self.navigation_view.get_visible_page():
-            initial_albums_page = self.create_albums_page()
-            self.navigation_view.add(initial_albums_page)
-        else:
-            # If there are multiple pages, pop until we're back to the albums view
-            while self.navigation_view.get_visible_page().get_title() != "Albums":
-                if not self.navigation_view.pop():
-                    break
 
     def create_album(self, button):
         dialog = Adw.MessageDialog(

@@ -153,6 +153,9 @@ class Albums(Adw.NavigationPage):
                 self.app_window.media_paths = get_album_database_paths(self.app_window.conn, album_name)
                 self.app_window.current_index = len(self.app_window.media_paths) - 1
 
+                # Update header title
+                self.app_window.header.set_title_widget(Adw.WindowTitle(title=album_name))
+
                 # Create grid view page for the album
                 grid_view_page = self.app_window.create_grid_view_page(album_name)
 
