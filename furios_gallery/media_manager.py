@@ -108,8 +108,8 @@ def populate_database(conn):
                     albums = [album_name, "Recents"]
                     media_items.append((file_path, file_type, albums))
 
-    process_directory(pictures_root, 'picture', '*.jpg')
-    process_directory(videos_root, 'video', '*.mkv')
+    process_directory(pictures_root, 'picture', ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.webp', '*.svg'])
+    process_directory(videos_root, 'video', ['*.mkv', '*.mp4', '*.avi', '*.mov', '*.wmv', '*.flv', '*.webm', '*.m4v', '*.mpg', '*.mpeg'])
 
     for file_path, file_type, albums in media_items:
         insert_file_and_albums(conn, file_path, file_type, albums)
