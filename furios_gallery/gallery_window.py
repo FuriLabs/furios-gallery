@@ -226,19 +226,28 @@ class GalleryWindow(Adw.ApplicationWindow):
         dialog.destroy()
 
     def open_delete_popup(self, btn):
-        current_page = self.navigation_view.get_visible_page()
-        current_view = current_page.get_child()
+        visible_page = self.navigation_view.get_visible_page()
+        if visible_page:
+            if isinstance(visible_page, GridView):
+                flowbox = visible_page.flowbox
+                label_text = f"Selected Files: {len(flowbox.get_selected_children())}"
+            elif isinstance(visible_page, MediaView):
+                visible_page.open_delete_popup(btn)
+                return
+            elif visible_page.get_title() == "Albums":
+                flowbox = visible_page.flowbox
+                label_text = f"Selected Albums: {len(flowbox.get_selected_children())}"
+            else:
+                print("Unsupported view type for delete popup")
+                return
 
-        if hasattr(current_view, 'flowbox'):
-            current_view.flowbox.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
+            flowbox.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
 
             # Create selection bar
             selection_bar = Adw.HeaderBar()
 
             # Selection count label
-            self.selected_files_label = Gtk.Label(
-                label=f"Selected Files: {len(current_view.flowbox.get_selected_children())}"
-            )
+            self.selected_files_label = Gtk.Label(label=label_text)
             selection_bar.set_title_widget(self.selected_files_label)
 
             # Cancel button
@@ -252,18 +261,26 @@ class GalleryWindow(Adw.ApplicationWindow):
             self.delete_confirm_btn.connect("clicked", self.on_delete_confirmation)
             selection_bar.pack_end(self.delete_confirm_btn)
 
-            # Replace the header bar temporarily
+            # Restore original header
             self.toolbar_view.remove(self.header)
             self.toolbar_view.add_top_bar(selection_bar)
             self.selection_bar = selection_bar
 
     def on_cancel_selection(self, btn):
         current_page = self.navigation_view.get_visible_page()
-        current_view = current_page.get_child()
 
-        if hasattr(current_view, 'flowbox'):
-            current_view.flowbox.unselect_all()
-            current_view.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        if isinstance(current_page, GridView):
+            flowbox = current_page.flowbox
+        elif isinstance(current_page, MediaView):
+            return
+        elif current_page.get_title() == "Albums":
+            flowbox = current_page.flowbox
+        else:
+            print("Unsupported view type")
+            return
+
+        flowbox.unselect_all()
+        flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
 
         # Restore original header
         self.toolbar_view.remove(self.selection_bar)
@@ -271,25 +288,53 @@ class GalleryWindow(Adw.ApplicationWindow):
 
     def on_delete_confirmation(self, btn):
         current_page = self.navigation_view.get_visible_page()
-        current_view = current_page.get_child()
+
+        if isinstance(current_page, GridView):
+            flowbox = current_page.flowbox
+            heading = "Delete Files?"
+            body = f"This will permanently delete the {len(flowbox.get_selected_children())} selected files from your system"
+            response_handler = self.on_delete_media
+        elif isinstance(current_page, MediaView):
+            current_page.open_delete_popup(btn)
+            return
+        elif current_page.get_title() == "Albums":
+            flowbox = current_page.flowbox
+            heading = "Delete Albums?"
+            body = f"This will permanently delete the {len(flowbox.get_selected_children())} selected albums"
+            response_handler = self.on_delete_albums
+        else:
+            print("Unsupported view type for delete confirmation")
+            return
+
+        selected_children = flowbox.get_selected_children()
 
         dialog = Adw.MessageDialog(
             transient_for=self,
-            heading="Delete Files?",
-            body=f"This will permanently delete the {len(current_view.flowbox.get_selected_children())} selected files from your system"
+            heading=heading,
+            body=body
         )
 
         dialog.add_response("cancel", "Cancel")
         dialog.add_response("delete", "Delete")
         dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.connect("response", self.on_delete_media)
+        dialog.connect("response", response_handler)
         dialog.present()
 
     def on_delete_media(self, dialog, response):
         if response == "delete":
             current_page = self.navigation_view.get_visible_page()
-            current_view = current_page.get_child()
-            selected_children = current_view.flowbox.get_selected_children()
+
+            if isinstance(current_page, GridView):
+                flowbox = current_page.flowbox
+            elif isinstance(current_page, MediaView):
+                return
+            elif current_page.get_title() == "Albums":
+                flowbox = current_page.flowbox
+            else:
+                print("Unsupported view type for delete")
+                return
+
+            selected_children = flowbox.get_selected_children()
 
             for child in selected_children:
                 media_index = child.media_index
@@ -302,16 +347,59 @@ class GalleryWindow(Adw.ApplicationWindow):
                 except Exception as e:
                     print(f"Error deleting file: {e}")
 
-                current_view.flowbox.remove(child)
+                flowbox.remove(child)
+
+        self.toolbar_view.remove(self.selection_bar)
+        self.toolbar_view.add_top_bar(self.header)
+
+        current_page = self.navigation_view.get_visible_page()
+
+        if isinstance(current_page, GridView):
+            flowbox = current_page.flowbox
+        elif isinstance(current_page, MediaView):
+            return
+        elif current_page.get_title() == "Albums":
+            flowbox = current_page.flowbox
+        else:
+            print("Unsupported view type for selection mode reset")
+            return
+
+        flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        dialog.destroy()
+
+    def on_delete_albums(self, dialog, response):
+        if response == "delete":
+            current_page = self.navigation_view.get_visible_page()
+
+            if current_page.get_title() == "Albums":
+                flowbox = current_page.flowbox
+                selected_children = flowbox.get_selected_children()
+
+                for child in selected_children:
+                    album_name = child.album_name
+
+                    # Skip default albums
+                    if album_name.lower() in ['recents', 'pictures', 'videos']:
+                        continue
+
+                    try:
+                        # Delete album from database
+                        cur = self.conn.cursor()
+                        cur.execute("DELETE FROM file_albums WHERE album_id IN (SELECT album_id FROM albums WHERE album_name = ?)", (album_name,))
+                        cur.execute("DELETE FROM albums WHERE album_name = ?", (album_name,))
+                        self.conn.commit()
+
+                        # Remove from UI
+                        flowbox.remove(child)
+                    except Exception as e:
+                        print(f"Error deleting album {album_name}: {e}")
+
+                # Refresh albums view
+                current_page.load_albums()
 
         # Restore original header
         self.toolbar_view.remove(self.selection_bar)
         self.toolbar_view.add_top_bar(self.header)
 
-        current_page = self.navigation_view.get_visible_page()
-        current_view = current_page.get_child()
-
-        if hasattr(current_view, 'flowbox'):
-            current_view.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
-
+        current_page.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         dialog.destroy()
