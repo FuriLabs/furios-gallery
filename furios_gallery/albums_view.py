@@ -38,7 +38,7 @@ class Albums(Adw.NavigationPage):
         self.flowbox.set_max_children_per_line(3)
         self.flowbox.set_min_children_per_line(3)
         self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.flowbox.set_homogeneous(False)
+        self.flowbox.set_homogeneous(True)
 
         # Connect selection changed signal
         self.flowbox.connect("selected-children-changed", self.on_album_selected)
