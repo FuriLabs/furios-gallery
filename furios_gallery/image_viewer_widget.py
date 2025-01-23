@@ -20,14 +20,6 @@ class ImageViewerWidget(Gtk.Widget):
         self.translate_x = 0
         self.translate_y = 0
 
-        win_width, win_height = win.get_default_size()
-        img_width = self.texture.get_intrinsic_width()
-        img_height = self.texture.get_intrinsic_height()
-
-        scale_width = win_width / img_width
-        scale_height = win_height / img_height
-        self.scale = min(scale_width, scale_height)
-
     def do_snapshot(self, snapshot):
         width = self.texture.get_intrinsic_width() * self.scale
         height = self.texture.get_intrinsic_height() * self.scale
