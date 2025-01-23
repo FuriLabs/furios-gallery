@@ -136,3 +136,4 @@ class GridView(Adw.NavigationPage):
                 item = selected[0]
                 self.app.current_index = item.media_index
                 self.app.open_media_at_index(item.media_index)
+            self.flowbox.unselect_all()
