@@ -42,7 +42,6 @@ class ImageViewerWidget(Gtk.Widget):
         self.add_controller(self.zoom_gesture)
 
         self.drag_gesture = Gtk.GestureDrag.new()
-        self.drag_gesture.connect("drag-begin", self.on_drag_begin)
         self.drag_gesture.connect("drag-update", self.on_drag_update)
         self.add_controller(self.drag_gesture)
 
@@ -51,15 +50,11 @@ class ImageViewerWidget(Gtk.Widget):
         self.queue_resize()
 
         new_scale = self.scale * zoom_factor
-
-        if  new_scale >= 0.18 and new_scale <= 0.7:
+        if 1 <= new_scale <= 3.0:
             self.scale = new_scale
-            self.queue_resize()
-
-    def on_drag_begin(self, gesture, start_x, start_y):
-        self.drag_start_x = start_x
-        self.drag_start_y = start_y
+            self.queue_draw()
 
     def on_drag_update(self, gesture, offset_x, offset_y):
         self.translate_x += offset_x
         self.translate_y += offset_y
+        self.queue_resize()
