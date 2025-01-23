@@ -1,3 +1,3 @@
-from .furios_gallery import FuriosGalleryApp
+from .furios_gallery import GalleryApp
 
-__all__ = ['FuriosGalleryApp']
+__all__ = ['GalleryApp']

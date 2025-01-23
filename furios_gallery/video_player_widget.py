@@ -17,6 +17,7 @@ class VideoPlayerWidget(Gtk.Box):
         self.file_path = file_path
         self.playbin = None
         self.control_box_opacity = 1.0
+        self.control_box = None
         self.init_ui()
 
     def init_ui(self):
@@ -143,7 +144,11 @@ class VideoPlayerWidget(Gtk.Box):
             self.control_box.set_opacity(self.control_box_opacity)
             return True
 
-        GLib.timeout_add(50, update_opacity)
+        if self.control_box:
+            GLib.timeout_add(50, update_opacity)
+        else:
+            # show a toast once the initializatin of all classes is fixed
+            print("Cannot play the video")
 
     def fade_in_controls(self):
         def update_opacity():

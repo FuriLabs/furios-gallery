@@ -296,7 +296,7 @@ class MediaView(Gtk.Box):
                     scrolled_win.set_vexpand(True)
                     scrolled_win.set_halign(Gtk.Align.FILL)
                     scrolled_win.set_valign(Gtk.Align.FILL)
-                    zoomable_image = ImageViewerWidget(media_path, self.app.win)
+                    zoomable_image = ImageViewerWidget(media_path, self.app)
                     zoomable_image.set_vexpand(True)
                     zoomable_image.set_hexpand(True)
                     zoomable_image.set_valign(Gtk.Align.CENTER)
@@ -391,7 +391,7 @@ class MediaView(Gtk.Box):
 
         if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
             scrolled_win = Gtk.ScrolledWindow()
-            zoomable_image = ImageViewerWidget(media_path, self.app.win)
+            zoomable_image = ImageViewerWidget(media_path, self.app)
             zoomable_image.set_vexpand(True)
             zoomable_image.set_hexpand(True)
             scrolled_win.set_child(zoomable_image)
