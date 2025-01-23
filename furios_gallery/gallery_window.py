@@ -180,8 +180,10 @@ class GalleryWindow(Adw.ApplicationWindow):
                         self.conn.commit()
                         print(f"Successfully added album '{album_name}' to the database.")
 
-                        # Refresh the albums view
-                        self.navigation_view.pop_to_root()
+                        # Refresh the current albums view
+                        current_page = self.navigation_view.get_visible_page()
+                        if hasattr(current_page, 'load_albums'):
+                            current_page.load_albums()
                     else:
                         print(f"Album '{album_name}' already exists in the database.")
                 except Exception as e:
