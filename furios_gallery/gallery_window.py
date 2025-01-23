@@ -116,9 +116,6 @@ class GalleryWindow(Adw.ApplicationWindow):
         media_grid_view.set_hexpand(True)
         media_grid_view.set_vexpand(True)
 
-        if media_grid_view.flowbox is not None:
-            self.thumbnails.load_images_in_background(self.media_paths, media_grid_view.flowbox)
-
         media_grid_view.set_name("mediaGridView-square")
 
         return media_grid_view

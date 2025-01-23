@@ -4,75 +4,18 @@
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
 
-import os
-import subprocess
-from PIL import Image
 from gi.repository import Gtk
+from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail
 
 class ThumbnailGenerator:
-    THUMBNAIL_SIZE = (250, 250)
-    DISPLAY_SIZE = (25, 25)
-    CACHE_DIR = os.path.expanduser("~/.cache/thumbnail_cache")
-
     def __init__(self):
-        if not os.path.exists(self.CACHE_DIR):
-            os.makedirs(self.CACHE_DIR)
+        ensure_cache_dir()
 
     def generate_thumbnail(self, media_path):
-        media_path = os.path.abspath(media_path)
-        if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-            return self._generate_image_thumbnail(media_path)
-        elif media_path.endswith(('.mp4', '.mkv', '.avi', '.flv')):
-            return self._generate_video_thumbnail(media_path)
-        else:
-            return None
-
-    def _generate_image_thumbnail(self, image_path):
-        thumbnail_path = os.path.join(self.CACHE_DIR, f"{os.path.basename(image_path)}_thumbnail.jpg")
-        if not os.path.exists(thumbnail_path):
-            if not os.path.exists(image_path):
-                print(f"File does not exist: {image_path}")
-                return None
-            try:
-                with Image.open(image_path) as img:
-                    img.thumbnail(self.THUMBNAIL_SIZE)
-                    if img.mode == 'RGBA':
-                        img = img.convert('RGB')
-                    img.save(thumbnail_path, format="JPEG")
-            except IOError as e:
-                print(f"Failed to open or process image {image_path}: {e}")
-                return None
-        return thumbnail_path
-
-    def _generate_video_thumbnail(self, video_path):
-        thumbnail_path = os.path.join(self.CACHE_DIR, f"{os.path.basename(video_path)}_thumbnail.jpg")
-
-        if os.path.exists(thumbnail_path):
-            return thumbnail_path
-
-        try:
-            command = [
-                "ffmpeg",
-                "-i", video_path,
-                "-ss", "1",
-                "-vframes", "1",
-                "-q:v", "2",
-                thumbnail_path
-            ]
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            with Image.open(thumbnail_path) as img:
-                img.thumbnail(self.THUMBNAIL_SIZE)
-                img.save(thumbnail_path, format="JPEG")
-
-        except subprocess.CalledProcessError as e:
-            print(f"ffmpeg error: {e}")
-            return None
-
-        return thumbnail_path
+        thumbnail = generate_thumbnail(media_path)
+        return thumbnail
 
     def update_ui_with_thumbnail(self, flowbox_child, thumbnail_path):
         thumbnail_picture = Gtk.Picture.new_for_filename(str(thumbnail_path))
         thumbnail_picture.set_content_fit(Gtk.ContentFit.COVER)
-
         flowbox_child.set_child(thumbnail_picture)

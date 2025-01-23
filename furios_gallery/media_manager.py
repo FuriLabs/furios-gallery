@@ -4,15 +4,11 @@
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
 
-import fnmatch
 from pathlib import Path
 import os, time
 from PIL import Image, ExifTags
 import datetime
 from datetime import datetime
-import pyinotify
-import pyinotify
-import threading
 import sqlite3
 
 def extract_file_date(filepath):
