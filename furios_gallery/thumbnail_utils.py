@@ -28,6 +28,9 @@ def generate_image_thumbnail(image_path):
         except IOError as e:
             print(f"Failed to open or process image {image_path}: {e}")
             return None
+        except Exception as e:
+            print(f"An unexpected error occurred while processing {image_path}: {e}")
+            return None
     return thumbnail_path
 
 def generate_video_thumbnail(video_path):
