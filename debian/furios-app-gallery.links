@@ -1,1 +1,2 @@
 /usr/lib/furios-gallery/main.py /usr/bin/io.FuriOS.Gallery
+/usr/lib/furios-gallery/gallery_daemon.py /usr/libexec/furios-gallery-daemon
