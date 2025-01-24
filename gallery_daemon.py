@@ -3,8 +3,8 @@
 
 import os
 import sys
-import asyncio
 from pathlib import Path
+from gi.repository import GLib
 import pyinotify
 from concurrent.futures import ThreadPoolExecutor
 from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail, has_thumbnail
@@ -22,36 +22,44 @@ class BaseDaemon:
     PICTURE_FORMATS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.svg'}
     VIDEO_FORMATS = {'.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'}
 
-    def __init__(self):
+    def __init__(self, loop):
         self.wm = pyinotify.WatchManager()
         self.executor = ThreadPoolExecutor(max_workers=4)
+        self.loop = loop
         self.setup()
 
     def setup(self):
         pass
 
-    async def run(self):
+    def run(self):
         raise NotImplementedError
 
 class ThumbnailDaemon(BaseDaemon):
     def setup(self):
         ensure_cache_dir()
 
-    async def process_existing_files(self):
+    def process_existing_files(self):
         tasks = []
-        for watch_dir in self.WATCH_DIRS:
-            path = Path(watch_dir)
-            for file_path in path.rglob("*"):
-                if file_path.is_file() and file_path.suffix.lower() in (self.PICTURE_FORMATS | self.VIDEO_FORMATS):
-                    if not has_thumbnail(str(file_path)):
-                        print(f"Processing thumbnail for: {file_path}")
-                        tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
-        if tasks:
-            await asyncio.get_event_loop().run_in_executor(None, lambda: [t.result() for t in tasks])
 
-    async def run(self):
+        def process_files():
+            for watch_dir in self.WATCH_DIRS:
+                path = Path(watch_dir)
+                for file_path in path.rglob("*"):
+                    if file_path.is_file() and file_path.suffix.lower() in (self.PICTURE_FORMATS | self.VIDEO_FORMATS):
+                        if not has_thumbnail(str(file_path)):
+                            print(f"Processing thumbnail for: {file_path}")
+                            tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
+
+            if tasks:
+                for task in tasks:
+                    task.result()
+            return False
+
+        GLib.idle_add(process_files)
+
+    def run(self):
         print("Starting thumbnail daemon...")
-        await self.process_existing_files()
+        self.process_existing_files()
 
         class EventHandler(pyinotify.ProcessEvent):
             def __init__(self, daemon):
@@ -63,13 +71,19 @@ class ThumbnailDaemon(BaseDaemon):
                     self.daemon.executor.submit(generate_thumbnail, event.pathname)
 
         handler = EventHandler(self)
-        notifier = pyinotify.AsyncioNotifier(self.wm, asyncio.get_event_loop(), default_proc_fun=handler)
+        notifier = pyinotify.Notifier(self.wm, default_proc_fun=handler)
         mask = pyinotify.IN_CLOSE_WRITE
         for watch_dir in self.WATCH_DIRS:
             self.wm.add_watch(watch_dir, mask, rec=True, auto_add=True)
 
-        while True:
-            await asyncio.sleep(1)
+        def glib_inotify_handler(fd, condition):
+            if condition == GLib.IO_IN:
+                notifier.process_events()
+                if notifier.check_events():
+                    notifier.read_events()
+            return True
+
+        GLib.io_add_watch(notifier._fd, GLib.IO_IN, glib_inotify_handler)
 
 class DatabaseDaemon(BaseDaemon):
     def setup(self):
@@ -88,7 +102,27 @@ class DatabaseDaemon(BaseDaemon):
         finally:
             conn.close()
 
-    async def process_existing_files(self):
+    def process_existing_files(self):
+        tasks = []
+        conn = create_connection(self.db_path)
+
+        def process_files():
+            for watch_dir in self.WATCH_DIRS:
+                path = Path(watch_dir)
+                for file_path in path.rglob("*"):
+                    if file_path.is_file() and file_path.suffix.lower() in (self.PICTURE_FORMATS | self.VIDEO_FORMATS):
+                        if not has_thumbnail(str(file_path)):
+                            print(f"Processing thumbnail for: {file_path}")
+                            tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
+
+            if tasks:
+                for task in tasks:
+                    task.result()
+            return False
+
+        GLib.idle_add(process_files)
+
+    def process_existing_files(self):
         tasks = []
         conn = create_connection(self.db_path)
         try:
@@ -108,18 +142,22 @@ class DatabaseDaemon(BaseDaemon):
                             if file_type == "picture":
                                 albums.append("Pictures")
                             albums.append("Recents")
-                            tasks.append(
-                                self.executor.submit(self._process_file, file_path, file_type, albums)
-                            )
+                            tasks.append((file_path, file_type, albums))
         finally:
             conn.close()
 
         if tasks:
-            await asyncio.get_event_loop().run_in_executor(None, lambda: [t.result() for t in tasks])
+            def process_tasks():
+                for task in tasks:
+                    self.executor.submit(self._process_file, *task).result()
+                print("Finished processing existing files.")
+                return False
 
-    async def run(self):
+            GLib.idle_add(process_tasks)
+
+    def run(self):
         print("Starting database daemon...")
-        await self.process_existing_files()
+        self.process_existing_files()
 
         class EventHandler(pyinotify.ProcessEvent):
             def __init__(self, daemon):
@@ -159,26 +197,35 @@ class DatabaseDaemon(BaseDaemon):
                     conn.close()
 
         handler = EventHandler(self)
-        notifier = pyinotify.AsyncioNotifier(self.wm, asyncio.get_event_loop(), default_proc_fun=handler)
+
+        notifier = pyinotify.Notifier(self.wm, default_proc_fun=handler)
         mask = pyinotify.IN_CLOSE_WRITE | pyinotify.IN_DELETE
         for watch_dir in self.WATCH_DIRS:
             self.wm.add_watch(watch_dir, mask, rec=True, auto_add=True)
 
-        while True:
-            await asyncio.sleep(1)
+        def glib_inotify_handler(fd, condition):
+            if condition == GLib.IO_IN:
+                notifier.process_events()
+                if notifier.check_events():
+                    notifier.read_events()
+            return True
 
-async def main():
-    thumbnail_daemon = ThumbnailDaemon()
-    database_daemon = DatabaseDaemon()
+        GLib.io_add_watch(notifier._fd, GLib.IO_IN, glib_inotify_handler)
 
-    await asyncio.gather(
-        thumbnail_daemon.run(),
-        database_daemon.run()
-    )
+def main(main_loop):
+    thumbnail_daemon = ThumbnailDaemon(main_loop)
+    database_daemon = DatabaseDaemon(main_loop)
+
+    thumbnail_daemon.run()
+    database_daemon.run()
+
+    main_loop.run()
 
 if __name__ == "__main__":
+    main_loop = GLib.MainLoop()
     try:
-        asyncio.run(main())
+        main(main_loop)
     except KeyboardInterrupt:
         print("Shutting down...")
+        main_loop.quit()
         sys.exit(0)
