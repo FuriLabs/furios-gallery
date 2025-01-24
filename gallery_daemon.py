@@ -11,7 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail, has_thumbnail
 from furios_gallery.media_manager import (
     create_connection, create_tables, insert_file_and_albums,
-    delete_from_albums, extract_file_date, get_file_creation_date
+    delete_from_albums, extract_file_date, get_file_creation_date,
+    PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension
 )
 
 class BaseDaemon:
@@ -19,9 +20,6 @@ class BaseDaemon:
         os.path.expanduser("~/Pictures"),
         os.path.expanduser("~/Videos")
     ]
-
-    PICTURE_FORMATS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.svg'}
-    VIDEO_FORMATS = {'.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'}
 
     def __init__(self, loop):
         super().__init__()
@@ -47,7 +45,7 @@ class ThumbnailDaemon(BaseDaemon):
             for watch_dir in self.WATCH_DIRS:
                 path = Path(watch_dir)
                 for file_path in path.rglob("*"):
-                    if file_path.is_file() and file_path.suffix.lower() in (self.PICTURE_FORMATS | self.VIDEO_FORMATS):
+                    if file_path.is_file() and extract_extension(file_path) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
                         if not has_thumbnail(str(file_path)):
                             print(f"Processing thumbnail for: {file_path}")
                             tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
@@ -69,7 +67,7 @@ class ThumbnailDaemon(BaseDaemon):
                 self.daemon = daemon
 
             def process_IN_CLOSE_WRITE(self, event):
-                if Path(event.pathname).suffix.lower() in (self.daemon.PICTURE_FORMATS | self.daemon.VIDEO_FORMATS):
+                if extract_extension(event.pathname) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
                     print(f"Generating thumbnail for: {event.pathname}")
                     self.daemon.executor.submit(generate_thumbnail, event.pathname)
 
@@ -114,7 +112,7 @@ class DatabaseDaemon(BaseDaemon):
             for watch_dir in self.WATCH_DIRS:
                 path = Path(watch_dir)
                 for file_path in path.rglob("*"):
-                    if file_path.is_file() and file_path.suffix.lower() in (self.PICTURE_FORMATS | self.VIDEO_FORMATS):
+                    if file_path.is_file() and extract_extension(file_path) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
                         if not has_thumbnail(str(file_path)):
                             print(f"Processing thumbnail for: {file_path}")
                             tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
@@ -134,12 +132,12 @@ class DatabaseDaemon(BaseDaemon):
             for watch_dir in self.WATCH_DIRS:
                 path = Path(watch_dir)
                 for file_path in path.rglob("*"):
-                    file_suffix = file_path.suffix.lower()
-                    if file_suffix in (self.PICTURE_FORMATS | self.VIDEO_FORMATS):
+                    file_suffix = extract_extension(file_path)
+                    if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
                         cur.execute("SELECT file_id FROM files WHERE file_path = ?", (str(file_path),))
                         if not cur.fetchone():
                             print(f"Adding to database: {file_path}")
-                            file_type = 'video' if file_suffix in self.VIDEO_FORMATS else 'picture'
+                            file_type = 'video' if file_suffix in VIDEO_EXTENSIONS else 'picture'
                             albums = [file_path.parent.name]
                             if file_type == "video":
                                 albums.append("Videos")
@@ -169,8 +167,8 @@ class DatabaseDaemon(BaseDaemon):
                 self.daemon = daemon
 
             def process_IN_CLOSE_WRITE(self, event):
-                file_suffix = Path(event.pathname).suffix.lower()
-                if file_suffix in (self.daemon.PICTURE_FORMATS | self.daemon.VIDEO_FORMATS):
+                file_suffix = extract_extension(event.pathname)
+                if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
                     conn = create_connection(self.daemon.db_path)
                     try:
                         cur = conn.cursor()
