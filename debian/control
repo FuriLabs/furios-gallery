@@ -26,4 +26,5 @@ Depends: ${misc:Depends},
          gstreamer1.0-plugins-base,
          gstreamer1.0-plugins-good,
          gstreamer1.0-gtk4,
+         ffmpeg,
 Description: Media gallery application for FuriOS
