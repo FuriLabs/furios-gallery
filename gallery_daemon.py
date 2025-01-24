@@ -23,6 +23,7 @@ class BaseDaemon:
     VIDEO_FORMATS = {'.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.mpg', '.mpeg'}
 
     def __init__(self, loop):
+        super().__init__()
         self.wm = pyinotify.WatchManager()
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.loop = loop
@@ -63,6 +64,7 @@ class ThumbnailDaemon(BaseDaemon):
 
         class EventHandler(pyinotify.ProcessEvent):
             def __init__(self, daemon):
+                super().__init__()
                 self.daemon = daemon
 
             def process_IN_CLOSE_WRITE(self, event):
@@ -81,6 +83,7 @@ class ThumbnailDaemon(BaseDaemon):
                 notifier.process_events()
                 if notifier.check_events():
                     notifier.read_events()
+                    notifier.process_events()
             return True
 
         GLib.io_add_watch(notifier._fd, GLib.IO_IN, glib_inotify_handler)
@@ -161,6 +164,7 @@ class DatabaseDaemon(BaseDaemon):
 
         class EventHandler(pyinotify.ProcessEvent):
             def __init__(self, daemon):
+                super().__init__()
                 self.daemon = daemon
 
             def process_IN_CLOSE_WRITE(self, event):
@@ -208,6 +212,7 @@ class DatabaseDaemon(BaseDaemon):
                 notifier.process_events()
                 if notifier.check_events():
                     notifier.read_events()
+                    notifier.process_events()
             return True
 
         GLib.io_add_watch(notifier._fd, GLib.IO_IN, glib_inotify_handler)
