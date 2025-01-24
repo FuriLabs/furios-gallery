@@ -1,7 +1,10 @@
 [Unit]
 Description=FuriOS gallery database management and thumbnail daemon
+StartLimitBurst=5000
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 ExecStart=/usr/libexec/furios-gallery-daemon
-Restart=on-failure
+Restart=always
+RestartSec=5s
