@@ -68,8 +68,8 @@ class GridView(Adw.NavigationPage):
         self.flowbox.set_valign(Gtk.Align.START)
         self.flowbox.set_column_spacing(0)
         self.flowbox.set_row_spacing(0)
-        self.flowbox.set_max_children_per_line(6)
-        self.flowbox.set_min_children_per_line(6)
+        self.flowbox.set_max_children_per_line(5)
+        self.flowbox.set_min_children_per_line(5)
         self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.flowbox.set_homogeneous(True)
 
@@ -119,7 +119,7 @@ class GridView(Adw.NavigationPage):
         if thumbnail_path:
             flowbox_child = Gtk.FlowBoxChild()
             flowbox_child.media_index = media_index
-            flowbox_child.set_size_request(50, 70)
+            flowbox_child.set_size_request(50, 90)
 
             GLib.idle_add(
                 self.thumbnails.update_ui_with_thumbnail,
