@@ -5,6 +5,8 @@ import os
 import subprocess
 from PIL import Image
 
+from furios_gallery.media_manager import PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension
+
 THUMBNAIL_SIZE = (250, 250)
 DISPLAY_SIZE = (25, 25)
 CACHE_DIR = os.path.expanduser("~/.cache/thumbnail_cache")
@@ -61,8 +63,8 @@ def has_thumbnail(media_path):
 
 def generate_thumbnail(media_path):
     media_path = os.path.abspath(media_path)
-    if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+    if extract_extension(media_path) in PICTURE_EXTENSIONS:
         return generate_image_thumbnail(media_path)
-    elif media_path.endswith(('.mp4', '.mkv', '.avi', '.flv')):
+    elif extract_extension(media_path) in VIDEO_EXTENSIONS:
         return generate_video_thumbnail(media_path)
     return None

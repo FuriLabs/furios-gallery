@@ -11,9 +11,19 @@ import datetime
 from datetime import datetime
 import sqlite3
 
+PICTURE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'svg']
+VIDEO_EXTENSIONS = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg']
+
+def extract_extension(filepath: str) -> str:
+    # Grab file extension without leading dot
+    _, file_extension = os.path.splitext(filepath)
+    file_extension = file_extension.lstrip(".").lower()
+
+    return file_extension
+
 def extract_file_date(filepath):
     try:
-        if filepath.lower().endswith(('.jpg', '.jpeg')):
+        if extract_extension(filepath) in ['jpg', 'jpeg']:
             with Image.open(filepath) as img:
                 exif_data = img._getexif()
                 if exif_data:
@@ -103,13 +113,13 @@ def populate_database(conn):
         for subdir, dirs, files in os.walk(directory):
             album_name = os.path.basename(subdir)
             for file in files:
-                if any(file.endswith(ext) for ext in extensions):
+                if extract_extension(file) in extensions:
                     file_path = os.path.join(subdir, file)
                     albums = [album_name, "Recents"]
                     media_items.append((file_path, file_type, albums))
 
-    process_directory(pictures_root, 'picture', ['*.jpg', '*.jpeg', '*.png', '*.bmp', '*.webp', '*.svg'])
-    process_directory(videos_root, 'video', ['*.mkv', '*.mp4', '*.avi', '*.mov', '*.wmv', '*.flv', '*.webm', '*.m4v', '*.mpg', '*.mpeg'])
+    process_directory(pictures_root, 'picture', PICTURE_EXTENSIONS)
+    process_directory(videos_root, 'video', VIDEO_EXTENSIONS)
 
     for file_path, file_type, albums in media_items:
         insert_file_and_albums(conn, file_path, file_type, albums)
