@@ -305,14 +305,14 @@ class MediaView(Adw.NavigationPage):
     def update_media_left(self, btn):
         next_position = int(self.carousel.get_position()) - 1
         if next_position >= 0 and self.app.current_index + 1 <= len(self.app.media_paths) - 1:
-            self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) - 1), True)
-            self.on_page_changed(self.carousel, int(self.carousel.get_position()) - 1)
+            self.carousel.scroll_to(self.carousel.get_nth_page(next_position), True)
+            self.on_page_changed(self.carousel, next_position)
 
     def update_media_right(self, btn):
         next_position = int(self.carousel.get_position()) + 1
-        if next_position < len(self.app.media_paths) and self.app.current_index + 1 > 0:
-            self.carousel.scroll_to(self.carousel.get_nth_page(int(self.carousel.get_position()) + 1), True)
-            self.on_page_changed(self.carousel, int(self.carousel.get_position()) + 1)
+        if next_position < len(self.app.media_paths) and next_position < self.carousel.get_n_pages():
+            self.carousel.scroll_to(self.carousel.get_nth_page(next_position), True)
+            self.on_page_changed(self.carousel, next_position)
 
     def add_touch_event_listener(self, widget):
         gesture = Gtk.GestureClick.new()
