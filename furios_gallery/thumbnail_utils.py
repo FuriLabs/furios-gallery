@@ -16,7 +16,8 @@ def ensure_cache_dir():
         os.makedirs(CACHE_DIR)
 
 def generate_image_thumbnail(image_path):
-    thumbnail_path = os.path.join(CACHE_DIR, f"{os.path.basename(image_path)}_thumbnail.jpg")
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    thumbnail_path = os.path.join(CACHE_DIR, f"{base_name}_thumbnail.jpg")
     if not os.path.exists(thumbnail_path):
         if not os.path.exists(image_path):
             print(f"File does not exist: {image_path}")
@@ -36,7 +37,8 @@ def generate_image_thumbnail(image_path):
     return thumbnail_path
 
 def generate_video_thumbnail(video_path):
-    thumbnail_path = os.path.join(CACHE_DIR, f"{os.path.basename(video_path).split('.')[0]}_thumbnail.jpg")
+    base_name = os.path.splitext(os.path.basename(video_path))[0]
+    thumbnail_path = os.path.join(CACHE_DIR, f"{base_name}_thumbnail.jpg")
     if os.path.exists(thumbnail_path):
         return thumbnail_path
     try:
