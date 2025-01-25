@@ -253,6 +253,10 @@ class MediaView(Adw.NavigationPage):
             self.carousel.remove(child)
 
     def on_page_changed(self, carousel, index):
+        prev_page = self.carousel.get_nth_page(self.previous_index)
+        if isinstance(prev_page, VideoPlayerWidget):
+            prev_page.stop_video()
+            
         self.update_date_label()
 
         if index > self.previous_index:  # Swiping left
