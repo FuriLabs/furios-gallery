@@ -130,6 +130,11 @@ class VideoPlayerWidget(Gtk.Box):
             self.play_pause_image.set_from_icon_name("view-refresh-symbolic")
             self.play_pause_button.connect("clicked", self.restart_video)
 
+    def stop_video(self):
+        self.playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 0)
+        self.playbin.set_state(Gst.State.PAUSED)
+        self.play_pause_image.set_from_icon_name("media-playback-start-symbolic")
+
     def restart_video(self, button):
         self.playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 0)
         self.playbin.set_state(Gst.State.PLAYING)
