@@ -6,6 +6,7 @@
 
 import asyncio, gi, os
 from gi.repository import Gtk, GLib, Adw, Gdk
+from furios_gallery.media_manager import check_file_integrity
 
 class GridView(Adw.NavigationPage):
     def __init__(self, app, thumbnails, album_name="Media", items_per_load=200):
@@ -114,20 +115,21 @@ class GridView(Adw.NavigationPage):
         self.app.current_index = end_index
 
     def add_media_to_flowbox(self, media_path, media_index):
-        thumbnail_path = self.thumbnails.generate_thumbnail(media_path)
+        if check_file_integrity(media_path):
+            thumbnail_path = self.thumbnails.generate_thumbnail(media_path)
 
-        if thumbnail_path:
-            flowbox_child = Gtk.FlowBoxChild()
-            flowbox_child.media_index = media_index
-            flowbox_child.set_size_request(50, 90)
+            if thumbnail_path:
+                flowbox_child = Gtk.FlowBoxChild()
+                flowbox_child.media_index = media_index
+                flowbox_child.set_size_request(50, 90)
 
-            GLib.idle_add(
-                self.thumbnails.update_ui_with_thumbnail,
-                flowbox_child,
-                thumbnail_path
-            )
+                GLib.idle_add(
+                    self.thumbnails.update_ui_with_thumbnail,
+                    flowbox_child,
+                    thumbnail_path
+                )
 
-            GLib.idle_add(self.flowbox.append, flowbox_child)
+                GLib.idle_add(self.flowbox.append, flowbox_child)
 
     def on_child_selected(self, flowbox):
         if self.flowbox.get_selection_mode() == Gtk.SelectionMode.SINGLE:

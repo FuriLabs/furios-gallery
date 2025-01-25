@@ -5,7 +5,7 @@
 # Joaquin Philco <joaquin@furilabs.com>
 
 from pathlib import Path
-import os, time
+import os, time, subprocess
 from PIL import Image, ExifTags
 import datetime
 from datetime import datetime
@@ -109,14 +109,23 @@ def populate_database(conn):
 
     media_items = []
 
+    def file_exists_in_database(conn, file_path):
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM files WHERE file_path = ?", (file_path,))
+        exists = cursor.fetchone()[0] > 0
+        cursor.close()
+        return exists
+
     def process_directory(directory, file_type, extensions):
         for subdir, dirs, files in os.walk(directory):
             album_name = os.path.basename(subdir)
             for file in files:
-                if extract_extension(file) in extensions:
-                    file_path = os.path.join(subdir, file)
-                    albums = [album_name, "Recents"]
-                    media_items.append((file_path, file_type, albums))
+                file_path = os.path.join(subdir, file)
+                if file_path.lower().endswith(tuple(extensions)):
+                    if not file_exists_in_database(conn, file_path):
+                        if check_file_integrity(file_path):
+                            albums = [album_name, "Recents"]
+                            media_items.append((file_path, file_type, albums))
 
     process_directory(pictures_root, 'picture', PICTURE_EXTENSIONS)
     process_directory(videos_root, 'video', VIDEO_EXTENSIONS)
@@ -125,6 +134,47 @@ def populate_database(conn):
         insert_file_and_albums(conn, file_path, file_type, albums)
 
     print(f"Processed {len(media_items)} media files.")
+
+def check_picture_integrity(file_path):
+    if not os.path.exists(file_path):
+        print(file_path)
+        return False
+
+    if os.path.getsize(file_path) == 0:
+        print(file_path)
+        return False
+
+    try:
+        with Image.open(file_path) as img:
+            img.verify()
+
+            img = Image.open(file_path)
+            img.getpixel((0, 0))
+            return True
+    except (IOError, ValueError) as e:
+        print(f"Image could not be opened or is corrupted: {str(e)}")
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred: {str(e)}")
+        return False
+
+def check_video_integrity(file_path):
+    # TBD: Do not use subprocess, no bueno, and we need to do smt about .mkv
+    try:
+        result = subprocess.run(
+            ['ffmpeg', '-v', 'error', '-i', file_path, '-f', 'null', '-'],
+            stderr=subprocess.PIPE,
+            text=True
+        )
+    except Exception as e:
+        print(f"An error occurred while checking {file_path}: {e}")
+        return False
+
+def check_file_integrity(file_path):
+    if extract_extension(file_path) in PICTURE_EXTENSIONS:
+        return check_picture_integrity(file_path)
+    elif extract_extension(file_path) in VIDEO_EXTENSIONS:
+        return check_video_integrity(file_path)
 
 def insert_file(conn, file_path, file_type):
     cur = conn.cursor()
