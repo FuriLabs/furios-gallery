@@ -97,20 +97,13 @@ class Albums(Adw.NavigationPage):
 
             # Create album thumbnail
             if album_paths:
-                last_media_url = album_paths[-1]
-
-                # Handle video thumbnails
-                if last_media_url.endswith(('.mp4', '.mkv', '.avi')):
+                for last_media_url in reversed(album_paths):
                     thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
                     if thumbnail_path:
                         image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
                         picture = Gtk.Picture.new_for_pixbuf(image)
                         picture.set_css_classes(["rounded-image"])
-                else:
-                    # Handle image thumbnails
-                    image = GdkPixbuf.Pixbuf.new_from_file_at_scale(last_media_url, width=400, height=400, preserve_aspect_ratio=False)
-                    picture = Gtk.Picture.new_for_pixbuf(image)
-                    picture.set_css_classes(["rounded-image"])
+                        break
             else:
                 # Default missing album image
                 picture = Gtk.Box()
