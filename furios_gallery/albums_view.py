@@ -4,10 +4,10 @@
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
 
-import gi
+import gi, re
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf
+from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf, Pango
 
 from .media_manager import get_album_database_paths, list_database_albums, get_album_media_paths
 from .thumbnail_generator import ThumbnailGenerator
@@ -124,7 +124,7 @@ class Albums(Adw.NavigationPage):
             # Album name label
             label = Gtk.Label(label=album)
             label.set_wrap(False)
-            label.set_max_width_chars(20)
+            label.set_ellipsize(Pango.EllipsizeMode.END)
 
             album_box.append(picture)
             album_box.append(label)
