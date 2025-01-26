@@ -135,46 +135,44 @@ def populate_database(conn):
 
     print(f"Processed {len(media_items)} media files.")
 
-def check_picture_integrity(file_path):
+def check_file_integrity(file_path):
     if not os.path.exists(file_path):
-        print(file_path)
+        print(f"File does not exist: {file_path}")
         return False
 
     if os.path.getsize(file_path) == 0:
-        print(file_path)
+        print(f"File is empty: {file_path}")
         return False
 
     try:
-        with Image.open(file_path) as img:
-            img.verify()
+        if extract_extension(file_path) in PICTURE_EXTENSIONS:
+            with Image.open(file_path) as img:
+                img.verify()
 
-            img = Image.open(file_path)
-            img.getpixel((0, 0))
+                img = Image.open(file_path)
+                img.getpixel((0, 0))
+
+                return True
+        elif extract_extension(file_path) in VIDEO_EXTENSIONS:
+            command = [
+                "ffmpeg",
+                "-i", file_path,
+                "-f",
+                "null",
+                "-"
+            ]
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
             return True
+        else:
+            return None
+
     except (IOError, ValueError) as e:
-        print(f"Image could not be opened or is corrupted: {str(e)}")
+        print(f"File could not be opened or is corrupted: {str(e)}")
         return False
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
         return False
-
-def check_video_integrity(file_path):
-    # TBD: Do not use subprocess, no bueno, and we need to do smt about .mkv
-    try:
-        result = subprocess.run(
-            ['ffmpeg', '-v', 'error', '-i', file_path, '-f', 'null', '-'],
-            stderr=subprocess.PIPE,
-            text=True
-        )
-    except Exception as e:
-        print(f"An error occurred while checking {file_path}: {e}")
-        return False
-
-def check_file_integrity(file_path):
-    if extract_extension(file_path) in PICTURE_EXTENSIONS:
-        return check_picture_integrity(file_path)
-    elif extract_extension(file_path) in VIDEO_EXTENSIONS:
-        return check_video_integrity(file_path)
 
 def insert_file(conn, file_path, file_type):
     cur = conn.cursor()
