@@ -158,7 +158,7 @@ class MediaView(Adw.NavigationPage):
         dialog.add_response("delete", "Delete")
         dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
 
-        dialog.connect("response", lambda dialog, response: self.on_delete_media(dialog, response))
+        dialog.connect("response", self.on_delete_media)
 
         dialog.present()
 

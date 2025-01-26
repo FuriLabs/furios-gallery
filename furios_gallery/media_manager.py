@@ -259,7 +259,7 @@ def get_album_database_paths(conn, album_name):
             print(f"File not found, removing from database: {path}")
             delete_from_albums(conn, path)
 
-    sorted_paths = sorted(valid_paths, key=lambda path: os.path.getmtime(path))
+    sorted_paths = sorted(valid_paths, key=os.path.getmtime)
     return sorted_paths
 
 def get_album_media_paths(conn, album_name):
