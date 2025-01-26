@@ -156,12 +156,15 @@ def check_file_integrity(file_path):
         elif extract_extension(file_path) in VIDEO_EXTENSIONS:
             command = [
                 "ffmpeg",
+                "-v", "error",
+                "-ss", "00:00:01",  # Start checking one minute into the video
+                "-t", "1",  # Only check for 10 seconds
                 "-i", file_path,
-                "-f",
-                "null",
+                "-vf", "fps=fps=1",  # Process only one frame per second
+                "-f", "null",
                 "-"
             ]
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
 
             return True
         else:
