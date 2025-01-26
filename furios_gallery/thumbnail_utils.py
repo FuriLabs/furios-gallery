@@ -5,7 +5,7 @@ import os
 import subprocess
 from PIL import Image
 
-from furios_gallery.media_manager import PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension
+from furios_gallery.media_manager import PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
 
 THUMBNAIL_SIZE = (250, 250)
 DISPLAY_SIZE = (25, 25)
@@ -19,8 +19,8 @@ def generate_image_thumbnail(image_path):
     base_name = os.path.splitext(os.path.basename(image_path))[0]
     thumbnail_path = os.path.join(CACHE_DIR, f"{base_name}_thumbnail.jpg")
     if not os.path.exists(thumbnail_path):
-        if not os.path.exists(image_path):
-            print(f"File does not exist: {image_path}")
+        if not os.path.exists(image_path) or os.path.getsize(image_path) == 0:
+            print(f"File does not exist or is empty: {image_path}")
             return None
         try:
             with Image.open(image_path) as img:
@@ -64,9 +64,13 @@ def has_thumbnail(media_path):
     return os.path.exists(thumbnail_path)
 
 def generate_thumbnail(media_path):
-    media_path = os.path.abspath(media_path)
-    if extract_extension(media_path) in PICTURE_EXTENSIONS:
-        return generate_image_thumbnail(media_path)
-    elif extract_extension(media_path) in VIDEO_EXTENSIONS:
-        return generate_video_thumbnail(media_path)
-    return None
+    if check_file_integrity(media_path):
+        media_path = os.path.abspath(media_path)
+        if extract_extension(media_path) in PICTURE_EXTENSIONS:
+            return generate_image_thumbnail(media_path)
+        elif extract_extension(media_path) in VIDEO_EXTENSIONS:
+            return generate_video_thumbnail(media_path)
+        else:
+            return None
+    else:
+        return None

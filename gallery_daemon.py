@@ -12,7 +12,7 @@ from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail,
 from furios_gallery.media_manager import (
     create_connection, create_tables, insert_file_and_albums,
     delete_from_albums, extract_file_date, get_file_creation_date,
-    PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension
+    PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
 )
 
 class BaseDaemon:
@@ -132,19 +132,20 @@ class DatabaseDaemon(BaseDaemon):
             for watch_dir in self.WATCH_DIRS:
                 path = Path(watch_dir)
                 for file_path in path.rglob("*"):
-                    file_suffix = extract_extension(file_path)
-                    if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
-                        cur.execute("SELECT file_id FROM files WHERE file_path = ?", (str(file_path),))
-                        if not cur.fetchone():
-                            print(f"Adding to database: {file_path}")
-                            file_type = 'video' if file_suffix in VIDEO_EXTENSIONS else 'picture'
-                            albums = [file_path.parent.name]
-                            if file_type == "video":
-                                albums.append("Videos")
-                            if file_type == "picture":
-                                albums.append("Pictures")
-                            albums.append("Recents")
-                            tasks.append((file_path, file_type, albums))
+                    if check_file_integrity(file_path):
+                        file_suffix = extract_extension(file_path)
+                        if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
+                            cur.execute("SELECT file_id FROM files WHERE file_path = ?", (str(file_path),))
+                            if not cur.fetchone():
+                                print(f"Adding to database: {file_path}")
+                                file_type = 'video' if file_suffix in VIDEO_EXTENSIONS else 'picture'
+                                albums = [file_path.parent.name]
+                                if file_type == "video":
+                                    albums.append("Videos")
+                                if file_type == "picture":
+                                    albums.append("Pictures")
+                                albums.append("Recents")
+                                tasks.append((file_path, file_type, albums))
         finally:
             conn.close()
 
@@ -167,29 +168,30 @@ class DatabaseDaemon(BaseDaemon):
                 self.daemon = daemon
 
             def process_IN_CLOSE_WRITE(self, event):
-                file_suffix = extract_extension(event.pathname)
-                if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
-                    conn = create_connection(self.daemon.db_path)
-                    try:
-                        cur = conn.cursor()
-                        cur.execute("SELECT file_id FROM files WHERE file_path = ?", (event.pathname,))
-                        if not cur.fetchone():
-                            print(f"Adding to database: {event.pathname}")
-                            file_type = 'video' if file_suffix in self.daemon.VIDEO_FORMATS else 'picture'
-                            albums = [Path(event.pathname).parent.name]
-                            if file_type == "video":
-                                albums.append("Videos")
-                            if file_type == "picture":
-                                albums.append("Pictures")
-                            albums.append("Recents")
-                            self.daemon.executor.submit(
-                                self.daemon._process_file,
-                                Path(event.pathname),
-                                file_type,
-                                albums
-                            )
-                    finally:
-                        conn.close()
+                if check_file_integrity(event.pathname):
+                    file_suffix = extract_extension(event.pathname)
+                    if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
+                        conn = create_connection(self.daemon.db_path)
+                        try:
+                            cur = conn.cursor()
+                            cur.execute("SELECT file_id FROM files WHERE file_path = ?", (event.pathname,))
+                            if not cur.fetchone():
+                                print(f"Adding to database: {event.pathname}")
+                                file_type = 'video' if file_suffix in self.daemon.VIDEO_FORMATS else 'picture'
+                                albums = [Path(event.pathname).parent.name]
+                                if file_type == "video":
+                                    albums.append("Videos")
+                                if file_type == "picture":
+                                    albums.append("Pictures")
+                                albums.append("Recents")
+                                self.daemon.executor.submit(
+                                    self.daemon._process_file,
+                                    Path(event.pathname),
+                                    file_type,
+                                    albums
+                                )
+                        finally:
+                            conn.close()
 
             def process_IN_DELETE(self, event):
                 print(f"Removing from database: {event.pathname}")
