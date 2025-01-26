@@ -59,7 +59,7 @@ def generate_video_thumbnail(video_path):
         except subprocess.CalledProcessError as e:
             print(f"ffmpeg error: {e}")
             return None
-        
+
     return thumbnail_path
 
 def has_thumbnail(media_path):

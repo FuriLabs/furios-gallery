@@ -11,8 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail, has_thumbnail
 from furios_gallery.media_manager import (
     create_connection, create_tables, insert_file_and_albums,
-    delete_from_albums, extract_file_date, get_file_creation_date,
-    PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
+    delete_from_albums, PICTURE_EXTENSIONS, VIDEO_EXTENSIONS,
+    extract_extension, check_file_integrity
 )
 
 class BaseDaemon:
@@ -106,7 +106,6 @@ class DatabaseDaemon(BaseDaemon):
 
     def process_existing_files(self):
         tasks = []
-        conn = create_connection(self.db_path)
 
         def process_files():
             for watch_dir in self.WATCH_DIRS:
@@ -227,8 +226,10 @@ def main(main_loop):
 
     main_loop.run()
 
+
 if __name__ == "__main__":
     main_loop = GLib.MainLoop()
+
     try:
         main(main_loop)
     except KeyboardInterrupt:

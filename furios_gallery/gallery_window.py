@@ -8,7 +8,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Adw, Gio, Gdk, GLib, GdkPixbuf
+from gi.repository import Gtk, Adw, GLib
 from os.path import expanduser
 from pathlib import Path
 import os
@@ -18,9 +18,9 @@ from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
 from .media_manager import (
-    get_album_database_paths, get_album_media_paths,
+    get_album_database_paths,
     create_tables, create_connection,
-    insert_file, delete_from_albums,
+    delete_from_albums,
 )
 
 class GalleryWindow(Adw.ApplicationWindow):
@@ -168,9 +168,11 @@ class GalleryWindow(Adw.ApplicationWindow):
         toast = Adw.Toast(title=message)
         self.toast_overlay.add_toast(toast)
         print(message)
+
         def dismiss_toast():
             toast.dismiss()
             return False
+
         GLib.timeout_add_seconds(duration, dismiss_toast)
 
     def open_media_at_index(self, media_index):
@@ -305,8 +307,6 @@ class GalleryWindow(Adw.ApplicationWindow):
         else:
             print("Unsupported view type for delete confirmation")
             return
-
-        selected_children = flowbox.get_selected_children()
 
         dialog = Adw.MessageDialog(
             transient_for=self,
