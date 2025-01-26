@@ -106,25 +106,6 @@ class DatabaseDaemon(BaseDaemon):
 
     def process_existing_files(self):
         tasks = []
-
-        def process_files():
-            for watch_dir in self.WATCH_DIRS:
-                path = Path(watch_dir)
-                for file_path in path.rglob("*"):
-                    if file_path.is_file() and extract_extension(file_path) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
-                        if not has_thumbnail(str(file_path)):
-                            print(f"Processing thumbnail for: {file_path}")
-                            tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
-
-            if tasks:
-                for task in tasks:
-                    task.result()
-            return False
-
-        GLib.idle_add(process_files)
-
-    def process_existing_files(self):
-        tasks = []
         conn = create_connection(self.db_path)
         try:
             cur = conn.cursor()
