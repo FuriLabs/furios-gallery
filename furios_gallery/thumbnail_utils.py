@@ -60,7 +60,9 @@ def generate_video_thumbnail(video_path):
     return thumbnail_path
 
 def has_thumbnail(media_path):
-    thumbnail_path = os.path.join(CACHE_DIR, f"{os.path.basename(media_path)}_thumbnail.jpg")
+    base_name = os.path.splitext(os.path.basename(media_path))[0]
+    thumbnail_path = os.path.join(CACHE_DIR, f"{base_name}_thumbnail.jpg")
+
     return os.path.exists(thumbnail_path)
 
 def generate_thumbnail(media_path):
