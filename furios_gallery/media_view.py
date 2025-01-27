@@ -234,7 +234,7 @@ class MediaView(Adw.NavigationPage):
                     scrolled_win.set_vexpand(True)
                     scrolled_win.set_halign(Gtk.Align.FILL)
                     scrolled_win.set_valign(Gtk.Align.FILL)
-                    zoomable_image = ImageViewerWidget(media_path, self.app)
+                    zoomable_image = ImageViewerWidget(media_path, self.app, scrolled_win)
                     zoomable_image.set_vexpand(True)
                     zoomable_image.set_hexpand(True)
                     zoomable_image.set_valign(Gtk.Align.CENTER)
@@ -333,7 +333,7 @@ class MediaView(Adw.NavigationPage):
 
         if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
             scrolled_win = Gtk.ScrolledWindow()
-            zoomable_image = ImageViewerWidget(media_path, self.app)
+            zoomable_image = ImageViewerWidget(media_path, self.app, scrolled_win)
             zoomable_image.set_vexpand(True)
             zoomable_image.set_hexpand(True)
             zoomable_image.set_valign(Gtk.Align.CENTER)
