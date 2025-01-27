@@ -149,9 +149,6 @@ def check_file_integrity(file_path):
             with Image.open(file_path) as img:
                 img.verify()
 
-                img = Image.open(file_path)
-                img.getpixel((0, 0))
-
                 return True
         elif ext in VIDEO_EXTENSIONS:
             with av.open(file_path) as container:
