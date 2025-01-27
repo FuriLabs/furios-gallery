@@ -36,6 +36,8 @@ class GridView(Adw.NavigationPage):
         # Flowbox will be None initially
         self.flowbox = None
 
+        self._loading = False
+
         # Async setup of widget
         asyncio.create_task(self.setup_widget())
 
@@ -99,6 +101,12 @@ class GridView(Adw.NavigationPage):
                 asyncio.create_task(self.load_more_items())
 
     async def load_more_items(self):
+        # If we're already loading, do nothing.
+        # Prevents repeated calls if the user keeps scrolling.
+        if self._loading == True:
+            return
+        self._loading = True
+
         start_index = self.app.current_index
         end_index = max(self.app.current_index - self.items_per_load, -1)
 
@@ -111,6 +119,7 @@ class GridView(Adw.NavigationPage):
             await asyncio.to_thread(self.add_media_to_flowbox, media_path, i)
 
         self.app.current_index = end_index
+        self._loading = False
 
     def add_media_to_flowbox(self, media_path, media_index):
         thumbnail_path = self.thumbnails.generate_thumbnail(media_path)
