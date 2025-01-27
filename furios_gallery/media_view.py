@@ -10,7 +10,8 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, GLib
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
-from .media_manager import get_file_creation_date, delete_from_albums, delete_file_from_album, list_database_albums, add_file_to_album
+from .media_manager import get_file_creation_date
+from .database_manager import delete_from_albums, delete_file_from_album, list_database_albums, add_file_to_album
 
 class MediaView(Adw.NavigationPage):
     def __init__(self, app):

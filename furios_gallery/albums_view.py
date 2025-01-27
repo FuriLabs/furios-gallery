@@ -9,7 +9,7 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gdk, GdkPixbuf, Pango
 
-from .media_manager import get_album_database_paths, list_database_albums, get_album_media_paths
+from .database_manager import get_album_database_paths, list_database_albums, get_album_media_paths
 from .thumbnail_generator import ThumbnailGenerator
 
 class Albums(Adw.NavigationPage):
