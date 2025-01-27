@@ -12,7 +12,7 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gdk, GdkPixbuf, Pango
 
-from .database_manager import get_album_database_paths, list_database_albums, get_album_media_paths
+from .database_manager import cleanup_database, get_album_database_paths, get_album_media_paths, list_database_albums
 from .thumbnail_generator import ThumbnailGenerator
 
 class Albums(Adw.NavigationPage):
@@ -82,6 +82,9 @@ class Albums(Adw.NavigationPage):
     def load_albums(self):
         # Clear existing items
         self.flowbox.remove_all()
+
+        # Clean up the database to remove files that might of been deleted
+        cleanup_database(self.app_window.conn)
 
         # Get albums from database
         albums = list_database_albums(self.app_window.conn)

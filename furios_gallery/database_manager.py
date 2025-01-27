@@ -108,6 +108,21 @@ def populate_database(conn):
 
     print(f"Processed {len(media_items)} media files.")
 
+def cleanup_database(conn):
+    """Return a sorted-by-mtime list of valid file paths in a given album."""
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT files.file_path 
+        FROM files
+    """)
+
+    file_paths = [row[0] for row in cur.fetchall()]
+
+    for path in file_paths:
+        if not os.path.exists(path):
+            print(f"File not found, removing from database: {path}")
+            delete_from_albums(conn, path)
+
 def insert_file_and_albums(conn, file_path, albums):
     """Insert a single file into the database (if not present) and link it to albums."""
     file_type = "picture" if extract_extension(file_path) in PICTURE_EXTENSIONS else "video"
@@ -201,17 +216,9 @@ def get_album_database_paths(conn, album_name):
     , (album_name,))
 
     file_paths = [row[0] for row in cur.fetchall()]
-    valid_paths = []
-
-    for path in file_paths:
-        if os.path.exists(path):
-            valid_paths.append(path)
-        else:
-            print(f"File not found, removing from database: {path}")
-            delete_from_albums(conn, path)
 
     # Sort existing files by last modification time
-    return sorted(valid_paths, key=lambda p: os.path.getmtime(p))
+    return sorted(file_paths, key=lambda p: os.path.getmtime(p))
 
 def get_album_media_paths(conn, album_name):
     """Example of specialized retrieval with fallback logic to pictures/videos."""
@@ -225,22 +232,8 @@ def get_album_media_paths(conn, album_name):
             WHERE albums.album_name = ?
         """
         cur.execute(query, (album_name,))
-        rows = cur.fetchall()
-
-        media_paths = []
-        for row in rows:
-            if os.path.exists(row[0]):
-                media_paths.append(row[0])
-            else:
-                print(f"File not found, removing from database: {row[0]}")
-                delete_from_albums(conn, row[0])
-
-        # Optional logic to include "Pictures" or "Videos" from the "Recents" album
-        # (If the intention is to unify content between them, fine. Otherwise, remove this logic.)
-        if album_name.lower() in ['pictures', 'recents']:
-            media_paths.extend(get_album_database_paths(conn, "Pictures"))
-        if album_name.lower() in ['videos', 'recents']:
-            media_paths.extend(get_album_database_paths(conn, "Videos"))
+        
+        media_paths = [row[0] for row in cur.fetchall()]
 
         return media_paths
     except Exception as e:
