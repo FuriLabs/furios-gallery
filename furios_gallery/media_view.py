@@ -66,6 +66,7 @@ class MediaView(Adw.NavigationPage):
 
     def update_header_title(self, date):
         self.app.header.set_title_widget(Adw.WindowTitle(title=date))
+        self.app.update_properties_view()
 
     def open_menu_popup(self, btn):
         dialog = Adw.MessageDialog(
@@ -266,6 +267,8 @@ class MediaView(Adw.NavigationPage):
             self.app.current_index += 1
         else:
             return
+
+        self.app.update_properties_view()
 
         self.previous_index = index
 
