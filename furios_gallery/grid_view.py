@@ -107,19 +107,35 @@ class GridView(Adw.NavigationPage):
             return
         self._loading = True
 
+        batch_size = 20
+
         start_index = self.app.current_index
         end_index = max(self.app.current_index - self.items_per_load, -1)
 
-        for i in range(start_index, end_index, -1):
-            if i < 0 or i >= len(self.app.media_paths):
-                print(f"Skipped invalid index: {i}")
-                continue
+        # We go from start_index down to end_index, in steps of batch_size
+        while start_index > end_index:
+            chunk_end = max(start_index - batch_size, end_index)
+            tasks = []
 
-            media_path = self.app.media_paths[i]
-            await asyncio.to_thread(self.add_media_to_flowbox, media_path, i)
+            # Collect tasks for this chunk
+            for i in range(start_index, chunk_end, -1):
+                if i < 0 or i >= len(self.app.media_paths):
+                    continue
 
+                media_path = self.app.media_paths[i]
+                # Schedule the thumbnail work in a thread to avoid blocking the main loop
+                tasks.append(asyncio.to_thread(self.add_media_to_flowbox, media_path, i))
+
+            # Run all tasks in parallel
+            await asyncio.gather(*tasks)
+
+            # Update the start_index to move on to the next chunk
+            start_index = chunk_end
+
+        # We’ve now loaded up to end_index
         self.app.current_index = end_index
         self._loading = False
+
 
     def add_media_to_flowbox(self, media_path, media_index):
         thumbnail_path = self.thumbnails.generate_thumbnail(media_path)
