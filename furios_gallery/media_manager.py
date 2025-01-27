@@ -5,7 +5,7 @@
 # Joaquin Philco <joaquin@furilabs.com>
 
 from pathlib import Path
-import os, time, subprocess
+import os, time, av
 from PIL import Image
 from datetime import datetime
 import sqlite3
@@ -144,7 +144,8 @@ def check_file_integrity(file_path):
         return False
 
     try:
-        if extract_extension(file_path) in PICTURE_EXTENSIONS:
+        ext = extract_extension(file_path)
+        if ext in PICTURE_EXTENSIONS:
             with Image.open(file_path) as img:
                 img.verify()
 
@@ -152,20 +153,14 @@ def check_file_integrity(file_path):
                 img.getpixel((0, 0))
 
                 return True
-        elif extract_extension(file_path) in VIDEO_EXTENSIONS:
-            command = [
-                "ffmpeg",
-                "-v", "error",
-                "-ss", "00:00:01",  # Start checking one minute into the video
-                "-t", "1",  # Only check for 10 seconds
-                "-i", file_path,
-                "-vf", "fps=fps=1",  # Process only one frame per second
-                "-f", "null",
-                "-"
-            ]
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-
-            return True
+        elif ext in VIDEO_EXTENSIONS:
+            with av.open(file_path) as container:
+                video_stream = container.streams.video[0]
+                for frame in container.decode(video_stream):
+                    if frame:
+                        return True
+                    break
+            return False
         else:
             return None
 

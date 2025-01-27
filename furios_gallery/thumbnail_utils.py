@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Copyright (C) 2025 Furi Labs
 
-import os
-import subprocess
+import os, av
 from PIL import Image
 
 from furios_gallery.media_manager import PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
@@ -44,20 +43,13 @@ def generate_video_thumbnail(video_path):
             return None
 
         try:
-            command = [
-                "ffmpeg",
-                "-i", video_path,
-                "-ss", "00:00:01",
-                "-vframes", "1",
-                "-q:v", "2",
-                thumbnail_path
-            ]
-            subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            with Image.open(thumbnail_path) as img:
-                img.thumbnail(THUMBNAIL_SIZE)
-                img.save(thumbnail_path, format="JPEG")
-        except subprocess.CalledProcessError as e:
-            print(f"ffmpeg error: {e}")
+            container = av.open(video_path)
+            frame = next(container.decode(video=0))
+            img = frame.to_image()
+            img.thumbnail(THUMBNAIL_SIZE)
+            img.save(thumbnail_path, format="JPEG")
+        except (av.AVError, IOError) as e:
+            print(f"Error processing video: {e}")
             return None
 
     return thumbnail_path
