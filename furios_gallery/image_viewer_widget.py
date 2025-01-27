@@ -8,17 +8,16 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gtk, Gdk, GdkPixbuf
+from gi.repository import Gtk, Gdk, GdkPixbuf, Graphene
 
 class ImageViewerWidget(Gtk.Widget):
-    def __init__(self, path, win, *args, **kwargs):
+    def __init__(self, path, win, scrolled_win, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, win.get_width(), win.get_height(), True)
         self.texture = Gdk.Texture.new_for_pixbuf(self.pixbuf)
         self.scale = 1.0
-
-        self.translate_x = 0
-        self.translate_y = 0
+        self.scrolled_win = scrolled_win
+        self.win = win
 
     def do_snapshot(self, snapshot):
         width = self.texture.get_intrinsic_width() * self.scale
@@ -41,20 +40,35 @@ class ImageViewerWidget(Gtk.Widget):
         self.zoom_gesture.connect("scale-changed", self.on_zoom)
         self.add_controller(self.zoom_gesture)
 
-        self.drag_gesture = Gtk.GestureDrag.new()
-        self.drag_gesture.connect("drag-update", self.on_drag_update)
-        self.add_controller(self.drag_gesture)
-
     def on_zoom(self, gesture, scale_delta):
         zoom_factor = 1.005 if scale_delta > 1 else 0.99
         self.queue_resize()
 
         new_scale = self.scale * zoom_factor
         if 1 <= new_scale <= 3.0:
+            # In order to zoom in/out at the gesture's center, we need to figure out
+            # the new adjustment values that will keep the gesture's center at the same
+            # position on the screen after the zoom. Since the gesture's position is
+            # relative to our scrollable, we need to convert it to the native window
+            # coordinates first.
+
+            _, x, y = gesture.get_bounding_box_center()
+
+            h_adjust = self.scrolled_win.get_hadjustment()
+            v_adjust = self.scrolled_win.get_vadjustment()
+
+            origin = Graphene.Point(0, 0)
+            _, our_origin_on_screen = self.compute_point(self.get_native(), origin)
+
+            x = x + our_origin_on_screen.x
+            y = y + our_origin_on_screen.y
+
+            new_h_value = h_adjust.get_value() * zoom_factor + x * (zoom_factor - 1)
+            new_v_value = v_adjust.get_value() * zoom_factor + y * (zoom_factor - 1)
+
+            h_adjust.set_value(new_h_value)
+            v_adjust.set_value(new_v_value)
+            
+            # Update scale which triggers resize
             self.scale = new_scale
             self.queue_draw()
-
-    def on_drag_update(self, gesture, offset_x, offset_y):
-        self.translate_x += offset_x
-        self.translate_y += offset_y
-        self.queue_resize()
