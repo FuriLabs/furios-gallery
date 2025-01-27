@@ -11,8 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail, has_thumbnail
 from furios_gallery.media_manager import (
     create_connection, create_tables, insert_file_and_albums,
-    delete_from_albums, extract_file_date, get_file_creation_date,
-    PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
+    delete_from_albums, PICTURE_EXTENSIONS, VIDEO_EXTENSIONS,
+    extract_extension, check_file_integrity
 )
 
 class BaseDaemon:
@@ -103,26 +103,6 @@ class DatabaseDaemon(BaseDaemon):
             insert_file_and_albums(conn, str(file_path), file_type, albums)
         finally:
             conn.close()
-
-    def process_existing_files(self):
-        tasks = []
-        conn = create_connection(self.db_path)
-
-        def process_files():
-            for watch_dir in self.WATCH_DIRS:
-                path = Path(watch_dir)
-                for file_path in path.rglob("*"):
-                    if file_path.is_file() and extract_extension(file_path) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
-                        if not has_thumbnail(str(file_path)):
-                            print(f"Processing thumbnail for: {file_path}")
-                            tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
-
-            if tasks:
-                for task in tasks:
-                    task.result()
-            return False
-
-        GLib.idle_add(process_files)
 
     def process_existing_files(self):
         tasks = []
@@ -227,8 +207,10 @@ def main(main_loop):
 
     main_loop.run()
 
+
 if __name__ == "__main__":
     main_loop = GLib.MainLoop()
+
     try:
         main(main_loop)
     except KeyboardInterrupt:

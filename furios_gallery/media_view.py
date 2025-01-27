@@ -7,7 +7,7 @@
 import gi, os
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gio, Gdk, GdkPixbuf, GLib
+from gi.repository import Gtk, Adw, GLib
 from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
 from .media_manager import get_file_creation_date, delete_from_albums, delete_file_from_album, list_database_albums, add_file_to_album
@@ -158,7 +158,7 @@ class MediaView(Adw.NavigationPage):
         dialog.add_response("delete", "Delete")
         dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
 
-        dialog.connect("response", lambda dialog, response: self.on_delete_media(dialog, response))
+        dialog.connect("response", self.on_delete_media)
 
         dialog.present()
 
@@ -256,7 +256,7 @@ class MediaView(Adw.NavigationPage):
         prev_page = self.carousel.get_nth_page(self.previous_index)
         if isinstance(prev_page, VideoPlayerWidget):
             prev_page.stop_video()
-            
+
         self.update_date_label()
 
         if index > self.previous_index:  # Swiping left

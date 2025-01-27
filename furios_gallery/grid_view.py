@@ -4,7 +4,7 @@
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
 
-import asyncio, gi, os
+import asyncio
 from gi.repository import Gtk, GLib, Adw, Gdk
 from furios_gallery.media_manager import check_file_integrity
 
@@ -99,8 +99,6 @@ class GridView(Adw.NavigationPage):
                 asyncio.create_task(self.load_more_items())
 
     async def load_more_items(self):
-        batch_size = 20
-
         start_index = self.app.current_index
         end_index = max(self.app.current_index - self.items_per_load, -1)
 

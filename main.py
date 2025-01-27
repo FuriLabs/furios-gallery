@@ -9,7 +9,6 @@ gi.require_version('Adw', '1')
 
 from furios_gallery import GalleryApp
 from asyncio import run, sleep
-from sys import exit
 
 async def pump_gtk_events():
     main_context = GLib.MainContext.default()

@@ -6,8 +6,7 @@
 
 from pathlib import Path
 import os, time, subprocess
-from PIL import Image, ExifTags
-import datetime
+from PIL import Image
 from datetime import datetime
 import sqlite3
 
@@ -117,7 +116,7 @@ def populate_database(conn):
         return exists
 
     def process_directory(directory, file_type, extensions):
-        for subdir, dirs, files in os.walk(directory):
+        for subdir, _, files in os.walk(directory):
             album_name = os.path.basename(subdir)
             for file in files:
                 file_path = os.path.join(subdir, file)
@@ -260,7 +259,7 @@ def get_album_database_paths(conn, album_name):
             print(f"File not found, removing from database: {path}")
             delete_from_albums(conn, path)
 
-    sorted_paths = sorted(valid_paths, key=lambda path: os.path.getmtime(path))
+    sorted_paths = sorted(valid_paths, key=os.path.getmtime)
     return sorted_paths
 
 def get_album_media_paths(conn, album_name):
