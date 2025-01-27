@@ -10,9 +10,11 @@ import pyinotify
 from concurrent.futures import ThreadPoolExecutor
 from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail, has_thumbnail
 from furios_gallery.media_manager import (
-    create_connection, create_tables, insert_file_and_albums,
-    delete_from_albums, PICTURE_EXTENSIONS, VIDEO_EXTENSIONS,
-    extract_extension, check_file_integrity
+    extract_file_date, get_file_creation_date,
+    PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
+)
+from furios_gallery.database_manager import (
+    create_connection, create_tables, insert_file_and_albums, delete_from_albums
 )
 
 class BaseDaemon:

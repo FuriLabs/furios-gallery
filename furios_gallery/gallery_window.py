@@ -17,8 +17,8 @@ from .media_view import MediaView
 from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
-from .media_manager import (
-    get_album_database_paths,
+from .database_manager import (
+    get_album_database_paths, get_album_media_paths,
     create_tables, create_connection,
     delete_from_albums,
 )
