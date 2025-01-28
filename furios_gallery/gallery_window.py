@@ -10,8 +10,9 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
+gi.require_version('Shumate', '1.0')
 
-from gi.repository import Gtk, Adw, GLib
+from gi.repository import Gtk, Adw, GLib, Shumate
 from os.path import expanduser
 from pathlib import Path
 import os
@@ -75,12 +76,13 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.create_album_btn.connect("clicked", self.create_album)
         self.header.pack_start(self.create_album_btn)
 
-        # Media view buttons (initially hidden)
+        # Info button (initially hidden)
         self.info_btn = Gtk.Button(icon_name="help-about-symbolic")
         self.info_btn.connect("clicked", self.on_info_clicked)
         self.info_btn.set_visible(False)
         self.header.pack_end(self.info_btn)
 
+        # Media view buttons (initially hidden)
         self.media_options_btn = Gtk.Button(icon_name="view-more-symbolic")
         self.media_options_btn.connect("clicked", self.on_media_options_clicked)
         self.media_options_btn.set_visible(False)
@@ -141,6 +143,14 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(False)
+            elif visible_page.get_title() == "Location":
+                # Map view header
+                self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
+                self.create_album_btn.set_visible(False)
+                self.delete_media_btn.set_visible(False)
+                self.media_options_btn.set_visible(False)
+                self.info_btn.set_visible(False)
+                self.return_btn.set_visible(True)
             else:
                 # Grid view header
                 self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
@@ -154,7 +164,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         current_page = self.navigation_view.get_visible_page()
         if isinstance(current_page, MediaView):
             current_media = self.media_paths[self.current_index]
-            properties_view = MediaPropertiesView(current_media)
+            properties_view = MediaPropertiesView(current_media, self)
 
             self.bottom_sheet.set_sheet(properties_view)
             self.bottom_sheet.set_open(True)
@@ -167,7 +177,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             current_page = self.navigation_view.get_visible_page()
             if isinstance(current_page, MediaView):
                 current_media = self.media_paths[self.current_index]
-                properties_view = MediaPropertiesView(current_media)
+                properties_view = MediaPropertiesView(current_media, self)
                 properties_view.set_vexpand(True)
                 self.bottom_sheet.set_content(properties_view)
 
@@ -183,6 +193,51 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         if self.navigation_view.get_visible_page():
             self.navigation_view.pop()
+
+    def on_map_clicked(self, lat, lon):
+        self.hide_properties()
+        current_page = self.navigation_view.get_visible_page()
+        if isinstance(current_page, MediaView):
+            # Create a navigation page for the map
+            map_page = Adw.NavigationPage()
+            map_page.set_title("Location")
+
+            # Create map widget
+            map_widget = Shumate.SimpleMap()
+            map_widget.set_vexpand(True)
+            map_widget.set_hexpand(True)
+
+            # Set up the map source
+            registry = Shumate.MapSourceRegistry.new_with_defaults()
+            map_source = registry.get_by_id(Shumate.MAP_SOURCE_OSM_MAPNIK)
+            viewport = map_widget.get_viewport()
+            map_widget.set_map_source(map_source)
+
+            # Reference map source used by MarkerLayer
+            viewport.set_reference_map_source(map_source)
+
+            # Set up marker with visible icon
+            marker_layer = Shumate.MarkerLayer(viewport=viewport)
+            marker = Shumate.Marker()
+            marker.set_location(lat, lon)
+
+            # Create a visible marker icon
+            marker_icon = Gtk.Image()
+            marker_icon.set_from_icon_name("mark-location-symbolic")
+            marker_icon.add_css_class("map-marker")
+            marker_icon.set_pixel_size(48)
+            marker.set_child(marker_icon)
+
+            marker_layer.add_marker(marker)
+            map_widget.get_map().add_layer(marker_layer)
+            map_widget.get_map().go_to(lat, lon)
+            viewport.set_zoom_level(19)
+
+            # Set map as the page content
+            map_page.set_child(map_widget)
+
+            # Push the map page to the navigation stack
+            self.navigation_view.push(map_page)
 
     def create_albums_page(self):
         albums_page = Albums(self)

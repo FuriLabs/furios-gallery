@@ -10,7 +10,8 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GLib
+gi.require_version('Shumate', '1.0')
+from gi.repository import Gtk, Adw, GLib, Shumate
 from PIL import Image
 from PIL.ExifTags import TAGS
 import os
@@ -19,8 +20,9 @@ from datetime import datetime
 from .media_manager import MetadataReader, extract_extension, PICTURE_EXTENSIONS, VIDEO_EXTENSIONS
 
 class MediaPropertiesView(Gtk.Box):
-    def __init__(self, media_path):
+    def __init__(self, media_path, app_window):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.app_window = app_window
         self.media_path = media_path
 
         # Main content box with padding
@@ -91,6 +93,10 @@ class MediaPropertiesView(Gtk.Box):
 
         groups_box.append(self.camera_group)
 
+        # Show map if gps data avaialble
+        if self.metadata_reader.contains_gps_data():
+            self.add_map(groups_box)
+
         # Add groups box to scrolled window
         scrolled.set_child(groups_box)
 
@@ -102,6 +108,76 @@ class MediaPropertiesView(Gtk.Box):
 
         # Load the properties
         self.load_properties()
+
+    def add_map(self, groups_box):
+        # Get GPS coordinates from metadata
+        gps_info = self.metadata_reader.get_metadata_value("GPSInfo")
+        final_lat = 0.0
+        final_lon = 0.0
+        if gps_info:
+            latitude_ref = gps_info.get(1)
+            latitude = gps_info.get(2)
+            longitude_ref = gps_info.get(3)
+            longitude = gps_info.get(4)
+            final_lat = self.convert_gps_to_decimal(latitude, latitude_ref)
+            final_lon = self.convert_gps_to_decimal(longitude, longitude_ref)
+
+        # Create a map group
+        map_group = Adw.PreferencesGroup(title="Location")
+
+        # Create a vertical box to stack the map and the button
+        map_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        map_container.set_vexpand(True)
+        map_container.set_hexpand(True)
+
+        # Create map widget
+        map_widget = Shumate.SimpleMap()
+        map_widget.set_vexpand(True)
+        map_widget.set_hexpand(True)
+
+        # Set up the map source
+        registry = Shumate.MapSourceRegistry.new_with_defaults()
+        map_source = registry.get_by_id(Shumate.MAP_SOURCE_OSM_MAPNIK)
+        viewport = map_widget.get_viewport()
+        map_widget.set_map_source(map_source)
+
+        # Reference map source used by MarkerLayer
+        viewport.set_reference_map_source(map_source)
+
+        # Set up marker with visible icon
+        marker_layer = Shumate.MarkerLayer(viewport=viewport)
+        marker = Shumate.Marker()
+        marker.set_location(final_lat, final_lon)
+
+        # Create a visible marker icon
+        marker_icon = Gtk.Image()
+        marker_icon.set_from_icon_name("mark-location-symbolic")
+        marker_icon.add_css_class("map-marker")
+        marker_icon.set_pixel_size(48)
+        marker.set_child(marker_icon)
+
+        marker_layer.add_marker(marker)
+        map_widget.get_map().add_layer(marker_layer)
+
+        map_widget.get_map().go_to(final_lat, final_lon)
+        viewport.set_zoom_level(19)
+
+        # Add the map widget to the container
+        map_container.append(map_widget)
+
+        # Create the "Open Map" button
+        open_map_button = Gtk.Button(label="Open Map")
+        open_map_button.add_css_class("flat")
+        open_map_button.connect("clicked", lambda btn: self.app_window.on_map_clicked(final_lat, final_lon))
+
+        # Add the button to the container (below the map)
+        map_container.append(open_map_button)
+
+        # Add the container to the map group
+        map_group.add(map_container)
+
+        # Append the map group to the groups box
+        groups_box.append(map_group)
 
     def create_file_rows(self, file_extension):
         camera_rows = {}
