@@ -8,7 +8,7 @@
 # Luis Garcia <git@luigi311.com>
 
 import os, time, av
-from PIL import Image
+from PIL import Image, ExifTags
 from datetime import datetime
 
 PICTURE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'svg']
@@ -88,3 +88,62 @@ def check_file_integrity(file_path):
     except Exception as e:
         print(f"An unexpected error occurred: {str(e)}")
         return False
+
+class MetadataReader():
+    def __init__(self, file_path):
+        self.metadata = {}
+        self.file_path = file_path
+        self.read_metadata_from_file_path()
+
+    def read_metadata_from_file_path(self):
+        ext = extract_extension(self.file_path)
+        if ext in PICTURE_EXTENSIONS:
+            image = Image.open(self.file_path)
+
+            if 'exif' in image.info:
+                exif_data = image._getexif()
+                if exif_data:
+                    self.metadata['EXIF Data'] = {ExifTags.TAGS.get(tag, f"Unknown Tag {tag}"): exif_data[tag] for tag in exif_data}
+            else:
+                print("No EXIF data found.")
+
+        elif ext in VIDEO_EXTENSIONS:
+            container = av.open(self.file_path)
+            self.metadata['Video Metadata'] = {}
+            self.metadata['Video Metadata']['Container'] = {
+                "Format": container.format.name,
+                "Duration": container.duration
+            }
+
+            self.metadata['Video Metadata']['Streams'] = {}
+            for index, stream in enumerate(container.streams):
+                stream_info = {
+                    "Type": stream.type,
+                    "Codec": stream.codec_context.codec_tag,
+                    "Codec Tag": stream.codec_context.codec_tag
+                }
+                if stream.type == 'video':
+                    stream_info.update({
+                        "Width": stream.width,
+                        "Height": stream.height
+                    })
+                elif stream.type == 'audio':
+                    stream_info.update({
+                        "Channels": stream.channels,
+                        "Sample rate": stream.sample_rate
+                    })
+                self.metadata['Video Metadata']['Streams'][f"Stream {index}"] = stream_info
+
+            container.close()
+
+    def get_metadata_value(self, key):
+        if key in self.metadata:
+            return self.metadata[key]
+
+        for category, data in self.metadata.items():
+            if isinstance(data, dict):
+                if key in data:
+                    return data[key]
+                for sub_key, sub_data in data.items():
+                    if isinstance(sub_data, dict) and key in sub_data:
+                        return sub_data[key]
