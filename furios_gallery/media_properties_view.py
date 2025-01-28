@@ -129,12 +129,15 @@ class MediaPropertiesView(Gtk.Box):
             }
         return camera_rows
 
-    def set_subtitle_or_hide(self, row_key, value):
+    def set_subtitle_or_hide(self, key, value):
         if value:
-            self.camera_rows[row_key].set_subtitle(str(value))
-            self.camera_rows[row_key].show()
+            self.camera_rows[key].set_subtitle(str(value))
+            self.camera_rows[key].set_visible(True)
+            return True
         else:
-            self.camera_rows[row_key].hide()
+            self.camera_rows[key].set_subtitle("")
+            self.camera_rows[key].set_visible(False)
+            return False
 
     def load_properties(self):
         # Set basic file information
@@ -162,6 +165,8 @@ class MediaPropertiesView(Gtk.Box):
             self.load_video_properties()
 
     def load_image_properties(self):
+        visible_rows_count = 0
+
         for key in self.camera_rows:
             metadata_key_mapping = {
                 "Maker, Model": ("Make", "Model"),
@@ -175,34 +180,32 @@ class MediaPropertiesView(Gtk.Box):
 
             metadata_key = metadata_key_mapping.get(key)
             if metadata_key:
+                value = None
                 if key == "Maker, Model":
                     make = self.metadata_reader.get_metadata_value("Make")
                     model = self.metadata_reader.get_metadata_value("Model")
-
-                    make_model = f"{make} {model}" if make and model else None
-                    self.set_subtitle_or_hide(key, make_model)
+                    value = f"{make} {model}" if make and model else None
 
                 elif key == "Image Dimensions":
                     width = self.metadata_reader.get_metadata_value("ImageWidth")
                     height = self.metadata_reader.get_metadata_value("ImageLength")
-                    dimensions_value = f"{width} x {height}" if width and height else None
-                    self.set_subtitle_or_hide(key, dimensions_value)
+                    value = f"{width} x {height}" if width and height else None
 
                 elif key == "Aperture":
                     aperture = self.metadata_reader.get_metadata_value("FNumber")
-                    self.set_subtitle_or_hide(key, str(aperture) if aperture is not None else None)
+                    value = str(aperture) if aperture is not None else None
 
                 elif key == "Exposure":
                     exposure = self.metadata_reader.get_metadata_value("ExposureTime")
-                    self.set_subtitle_or_hide(key, str(exposure) if exposure is not None else None)
+                    value = str(exposure) if exposure is not None else None
 
                 elif key == "ISO":
                     iso = self.metadata_reader.get_metadata_value("ISOSpeedRatings")
-                    self.set_subtitle_or_hide(key, str(iso) if iso is not None else None)
+                    value = str(iso) if iso is not None else None
 
                 elif key == "FocalLength":
                     focal_length = self.metadata_reader.get_metadata_value("FocalLength")
-                    self.set_subtitle_or_hide(key, str(focal_length) if focal_length is not None else None)
+                    value = str(focal_length) if focal_length is not None else None
 
                 elif key == "Location":
                     gps_info = self.metadata_reader.get_metadata_value("GPSInfo")
@@ -215,13 +218,17 @@ class MediaPropertiesView(Gtk.Box):
                         if latitude and longitude and latitude_ref and longitude_ref:
                             latitude_degrees = self.convert_gps_to_decimal(latitude, latitude_ref)
                             longitude_degrees = self.convert_gps_to_decimal(longitude, longitude_ref)
-                            location_display = f"Lat: {latitude_degrees:.6f}, Lon: {longitude_degrees:.6f}"
-                        else:
-                            location_display = None
-                    else:
-                        location_display = None
+                            value = f"Lat: {latitude_degrees:.6f}, Lon: {longitude_degrees:.6f}"
 
-                    self.set_subtitle_or_hide(key, location_display)
+                # Call to update row and track visibility
+                if self.set_subtitle_or_hide(key, value):
+                    visible_rows_count += 1
+
+        # Hide the camera group if no rows are visible
+        if visible_rows_count == 0:
+            self.camera_group.set_visible(False)
+        else:
+            self.camera_group.set_visible(True)
 
     def convert_gps_to_decimal(self, gps_data, ref):
         degrees, minutes, seconds = gps_data
