@@ -147,3 +147,10 @@ class MetadataReader():
                 for sub_key, sub_data in data.items():
                     if isinstance(sub_data, dict) and key in sub_data:
                         return sub_data[key]
+
+    def contains_gps_data(self):
+        exif_data = self.metadata.get('EXIF Data', {})
+        gps_info = exif_data.get('GPSInfo', None)
+        if gps_info and isinstance(gps_info, dict):
+            return True
+        return False
