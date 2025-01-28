@@ -61,11 +61,10 @@ class MediaPropertiesView(Gtk.Box):
         # Media Information Group
         media_group = Adw.PreferencesGroup(title="Media Information")
 
-        self.size_row = Adw.ActionRow(title="Media Size")
         self.format_row = Adw.ActionRow(title="Format")
         self.filesize_row = Adw.ActionRow(title="File Size")
 
-        for row in [self.size_row, self.format_row, self.filesize_row]:
+        for row in [self.format_row, self.filesize_row]:
             media_group.add(row)
 
         groups_box.append(media_group)
