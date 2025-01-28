@@ -3,6 +3,9 @@
 #
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
 
 import gi
 gi.require_version('Gtk', '4.0')
@@ -17,6 +20,7 @@ from .media_view import MediaView
 from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
+from .media_properties_view import MediaPropertiesView
 from .database_manager import (
     get_album_database_paths, get_album_media_paths,
     create_tables, create_connection,
@@ -72,6 +76,11 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.header.pack_start(self.create_album_btn)
 
         # Media view buttons (initially hidden)
+        self.info_btn = Gtk.Button(icon_name="help-about-symbolic")
+        self.info_btn.connect("clicked", self.on_info_clicked)
+        self.info_btn.set_visible(False)
+        self.header.pack_end(self.info_btn)
+
         self.media_options_btn = Gtk.Button(icon_name="view-more-symbolic")
         self.media_options_btn.connect("clicked", self.on_media_options_clicked)
         self.media_options_btn.set_visible(False)
@@ -89,11 +98,19 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.return_btn.set_visible(False)
         self.header.pack_start(self.return_btn)
 
+        # Bottom sheet setup
+        self.bottom_sheet = Adw.BottomSheet()
+        self.bottom_sheet.set_modal(True)
+        self.bottom_sheet.set_can_open(True)
+
         # Add header to toolbar view
         self.toolbar_view.add_top_bar(self.header)
 
-        # Set navigation view as toolbar content
-        self.toolbar_view.set_content(self.navigation_view)
+        # Set navigation view as bottom sheet content
+        self.bottom_sheet.set_content(self.navigation_view)
+
+        # Set bottom sheet as toolbar view content
+        self.toolbar_view.set_content(self.bottom_sheet)
 
         # Set toast overlay as main content
         self.toast_overlay.set_child(self.toolbar_view)
@@ -114,6 +131,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(True)
                 self.media_options_btn.set_visible(True)
+                self.info_btn.set_visible(True)
                 self.return_btn.set_visible(True)
             elif visible_page.get_title() == "Albums":
                 # Album view header
@@ -121,6 +139,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.create_album_btn.set_visible(True)
                 self.delete_media_btn.set_visible(True)
                 self.media_options_btn.set_visible(False)
+                self.info_btn.set_visible(False)
                 self.return_btn.set_visible(False)
             else:
                 # Grid view header
@@ -128,7 +147,29 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(True)
                 self.media_options_btn.set_visible(False)
+                self.info_btn.set_visible(False)
                 self.return_btn.set_visible(True)
+
+    def on_info_clicked(self, btn):
+        current_page = self.navigation_view.get_visible_page()
+        if isinstance(current_page, MediaView):
+            current_media = self.media_paths[self.current_index]
+            properties_view = MediaPropertiesView(current_media)
+
+            self.bottom_sheet.set_sheet(properties_view)
+            self.bottom_sheet.set_open(True)
+
+    def hide_properties(self, button=None):
+        self.bottom_sheet.set_open(False)
+
+    def update_properties_view(self):
+        if self.bottom_sheet.get_open():
+            current_page = self.navigation_view.get_visible_page()
+            if isinstance(current_page, MediaView):
+                current_media = self.media_paths[self.current_index]
+                properties_view = MediaPropertiesView(current_media)
+                properties_view.set_vexpand(True)
+                self.bottom_sheet.set_content(properties_view)
 
     def on_media_options_clicked(self, btn):
         current_page = self.navigation_view.get_visible_page()
@@ -136,6 +177,10 @@ class GalleryWindow(Adw.ApplicationWindow):
             current_page.open_menu_popup(None)
 
     def on_return_clicked(self, btn=None):
+        # If bottom sheet is open, close it first
+        if self.bottom_sheet.get_open():
+            self.hide_properties()
+
         if self.navigation_view.get_visible_page():
             self.navigation_view.pop()
 

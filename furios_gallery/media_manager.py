@@ -3,6 +3,9 @@
 #
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
 
 import os, time, av
 from PIL import Image
@@ -79,7 +82,6 @@ def check_file_integrity(file_path):
             return False
         else:
             return None
-
     except (IOError, ValueError) as e:
         print(f"File could not be opened or is corrupted: {str(e)}")
         return False

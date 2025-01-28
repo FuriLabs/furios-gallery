@@ -1,3 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2025 Furi Labs
+#
+# Authors:
+# Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
+
 import os
 from pathlib import Path
 import sqlite3
@@ -31,14 +40,16 @@ def create_tables(conn):
                     file_path TEXT UNIQUE NOT NULL,
                     file_type TEXT NOT NULL
                 );
-            """)
+            """
+            )
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS albums (
                     album_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     album_name TEXT NOT NULL
                 );
-            """)
+            """
+            )
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS file_albums (
@@ -48,12 +59,12 @@ def create_tables(conn):
                     FOREIGN KEY (file_id) REFERENCES files(file_id),
                     FOREIGN KEY (album_id) REFERENCES albums(album_id)
                 );
-            """)
+            """
+            )
 
             # Create indexes to optimize lookups
             cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_files_path ON files(file_path)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_name ON albums(album_name)")
-
         print("Tables and indexes created successfully")
     except sqlite3.Error as e:
         print(f"Error creating tables: {e}")
@@ -86,7 +97,7 @@ def populate_database(conn):
                         if check_file_integrity(file_path):
                             albums = [album_name, "Recents"]
                             media_items.append((file_path, albums))
-    
+
     process_directory(pictures_root, PICTURE_EXTENSIONS)
     process_directory(videos_root, VIDEO_EXTENSIONS)
 
@@ -119,9 +130,11 @@ def insert_file(conn, file_path, file_type):
     cursor = conn.cursor()
     # First try an insert or ignore:
     cursor.execute("""
-        INSERT OR IGNORE INTO files (file_path, file_type) 
+        INSERT OR IGNORE INTO files (file_path, file_type)
         VALUES (?, ?)
-    """, (file_path, file_type))
+    """
+    , (file_path, file_type))
+
     # If the row was ignored, we need to fetch its existing ID.
     if cursor.lastrowid == 0:
         # The file already exists. Fetch its ID.
@@ -148,7 +161,8 @@ def insert_file_album(conn, file_id, album_id):
     cursor.execute("""
         INSERT OR IGNORE INTO file_albums (file_id, album_id) 
         VALUES (?, ?)
-    """, (file_id, album_id))
+    """
+    , (file_id, album_id))
 
 def list_database_albums(conn):
     """Return a list of album names with a custom priority sort."""
@@ -169,7 +183,6 @@ def list_database_albums(conn):
 
         albums.sort(key=album_sort_key)
         return albums
-
     except Exception as e:
         print(f"Error fetching albums: {e}")
         return []
@@ -179,12 +192,13 @@ def get_album_database_paths(conn, album_name):
     """Return a sorted-by-mtime list of valid file paths in a given album."""
     cur = conn.cursor()
     cur.execute("""
-        SELECT files.file_path 
+        SELECT files.file_path
         FROM files
         JOIN file_albums ON files.file_id = file_albums.file_id
         JOIN albums ON file_albums.album_id = albums.album_id
         WHERE albums.album_name = ?
-    """, (album_name,))
+    """
+    , (album_name,))
 
     file_paths = [row[0] for row in cur.fetchall()]
     valid_paths = []
@@ -204,7 +218,7 @@ def get_album_media_paths(conn, album_name):
     try:
         cur = conn.cursor()
         query = """
-            SELECT files.file_path 
+            SELECT files.file_path
             FROM files
             JOIN file_albums ON files.file_id = file_albums.file_id
             JOIN albums ON file_albums.album_id = albums.album_id
