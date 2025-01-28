@@ -231,7 +231,6 @@ class MediaPropertiesView(Gtk.Box):
         return decimal
 
     def load_video_properties(self):
-        self.metadata_reader.print_metadata()
         metadata_key_mapping = {
             "Format": "Format",
             "Duration": "Duration",
