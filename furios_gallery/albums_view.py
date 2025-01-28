@@ -12,7 +12,7 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gdk, GdkPixbuf, Pango
 
-from .database_manager import cleanup_database, get_album_database_paths, get_album_media_paths, list_database_albums
+from .database_manager import cleanup_database, get_album_database_paths, list_database_albums, get_album_last_media_path
 from .thumbnail_generator import ThumbnailGenerator
 
 class Albums(Adw.NavigationPage):
@@ -99,17 +99,15 @@ class Albums(Adw.NavigationPage):
             album_box.set_valign(Gtk.Align.CENTER)
 
             # Get album media paths
-            album_paths = get_album_media_paths(self.app_window.conn, album)
+            album_paths = get_album_last_media_path(self.app_window.conn, album)
 
             # Create album thumbnail
             if album_paths:
-                for last_media_url in reversed(album_paths):
-                    thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
-                    if thumbnail_path:
-                        image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
-                        picture = Gtk.Picture.new_for_pixbuf(image)
-                        picture.set_css_classes(["rounded-image"])
-                        break
+                thumbnail_path = self.thumbnail_generator.generate_thumbnail(album_paths)
+                if thumbnail_path:
+                    image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
+                    picture = Gtk.Picture.new_for_pixbuf(image)
+                    picture.set_css_classes(["rounded-image"])
             else:
                 # Default missing album image
                 picture = Gtk.Box()
@@ -162,3 +160,4 @@ class Albums(Adw.NavigationPage):
                 self.app_window.navigation_view.push(grid_view_page)
 
             self.flowbox.unselect_all()
+

@@ -65,6 +65,8 @@ def create_tables(conn):
             # Create indexes to optimize lookups
             cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_files_path ON files(file_path)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_name ON albums(album_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_file_albums_albums ON file_albums(album_id ASC)")
+
         print("Tables and indexes created successfully")
     except sqlite3.Error as e:
         print(f"Error creating tables: {e}")
@@ -220,7 +222,7 @@ def get_album_database_paths(conn, album_name):
     # Sort existing files by last modification time
     return sorted(file_paths, key=lambda p: os.path.getmtime(p))
 
-def get_album_media_paths(conn, album_name):
+def get_album_last_media_path(conn, album_name):
     """Example of specialized retrieval with fallback logic to pictures/videos."""
     try:
         cur = conn.cursor()
@@ -230,12 +232,16 @@ def get_album_media_paths(conn, album_name):
             JOIN file_albums ON files.file_id = file_albums.file_id
             JOIN albums ON file_albums.album_id = albums.album_id
             WHERE albums.album_name = ?
+            ORDER BY files.file_id DESC
+            LIMIT 1
         """
         cur.execute(query, (album_name,))
-        
-        media_paths = [row[0] for row in cur.fetchall()]
+        row = cur.fetchone()
 
-        return media_paths
+        if row:
+            return row[0]
+
+        return []
     except Exception as e:
         print(f"Error retrieving media paths for album {album_name}: {e}")
         return []
