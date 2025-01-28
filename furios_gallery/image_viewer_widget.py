@@ -19,6 +19,7 @@ class ImageViewerWidget(Gtk.Widget):
         self.pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, win.get_width(), win.get_height(), True)
         self.texture = Gdk.Texture.new_for_pixbuf(self.pixbuf)
         self.scale = 1.0
+        self.scale_at_start = 1.0
         self.scrolled_win = scrolled_win
         self.win = win
 
@@ -40,14 +41,19 @@ class ImageViewerWidget(Gtk.Widget):
 
     def init_gestures(self):
         self.zoom_gesture = Gtk.GestureZoom.new()
+        self.zoom_gesture.connect("begin", self.on_zoom_begin)
         self.zoom_gesture.connect("scale-changed", self.on_zoom)
-        self.add_controller(self.zoom_gesture)
+        self.scrolled_win.add_controller(self.zoom_gesture)
+
+    def on_zoom_begin(self, gesture, sequence):
+        self.scale_at_start = self.scale
 
     def on_zoom(self, gesture, scale_delta):
-        zoom_factor = 1.005 if scale_delta > 1 else 0.99
+        zoom_factor = (scale_delta * self.scale_at_start) / self.scale
         self.queue_resize()
 
         new_scale = self.scale * zoom_factor
+
         if 1 <= new_scale <= 3.0:
             # In order to zoom in/out at the gesture's center, we need to figure out
             # the new adjustment values that will keep the gesture's center at the same
@@ -61,7 +67,7 @@ class ImageViewerWidget(Gtk.Widget):
             v_adjust = self.scrolled_win.get_vadjustment()
 
             origin = Graphene.Point(0, 0)
-            _, our_origin_on_screen = self.compute_point(self.get_native(), origin)
+            _, our_origin_on_screen = self.scrolled_win.compute_point(self.get_native(), origin)
 
             x = x + our_origin_on_screen.x
             y = y + our_origin_on_screen.y
