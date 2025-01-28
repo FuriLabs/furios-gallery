@@ -255,7 +255,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                     cur = self.conn.cursor()
                     cur.execute(check_sql, (album_name,))
                     if cur.fetchone() is None:
-                        insert_sql = "INSERT INTO albums (album_name) VALUES (?)"
+                        insert_sql = "INSERT INTO albums (album_name, custom) VALUES (?, TRUE)"
                         cur.execute(insert_sql, (album_name,))
                         self.conn.commit()
                         print(f"Successfully added album '{album_name}' to the database.")

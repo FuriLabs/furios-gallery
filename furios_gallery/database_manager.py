@@ -28,6 +28,27 @@ def create_connection(db_file):
         print(e)
     return conn
 
+# Temporary method for handling migrations, if this grows to big switch over to a tool that
+# can handle migrations in a better way
+def update_table_schema(conn):
+    """Check and update the schema of the albums table if necessary."""
+    try:
+        with conn:  # Ensure changes are in a single transaction
+            cursor = conn.cursor()
+
+            # Check if the 'custom' column exists in the 'albums' table
+            cursor.execute("PRAGMA table_info(albums)")
+            columns = cursor.fetchall()
+            column_names = [column[1] for column in columns]
+
+            # Add the 'custom' column if it doesn't exist
+            if 'custom' not in column_names:
+                cursor.execute("ALTER TABLE albums ADD COLUMN custom BOOLEAN NOT NULL DEFAULT FALSE")
+                print("Added 'custom' column to the 'albums' table.")
+
+    except sqlite3.Error as e:
+        print(f"Error updating table schema: {e}")
+
 def create_tables(conn):
     """Create the necessary tables and indexes if they do not exist."""
     try:
@@ -46,7 +67,8 @@ def create_tables(conn):
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS albums (
                     album_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    album_name TEXT NOT NULL
+                    album_name TEXT NOT NULL,
+                    custom BOOLEAN NOT NULL
                 );
             """
             )
@@ -62,9 +84,14 @@ def create_tables(conn):
             """
             )
 
+            update_table_schema(conn)
+
             # Create indexes to optimize lookups
             cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_files_path ON files(file_path)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_name ON albums(album_name)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_custom_albumns ON albums(custom ASC)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_file_albums_albums ON file_albums(album_id ASC)")
+
         print("Tables and indexes created successfully")
     except sqlite3.Error as e:
         print(f"Error creating tables: {e}")
@@ -152,7 +179,7 @@ def insert_or_get_album(conn, album_name):
     if album:
         return album[0]
     else:
-        cursor.execute("INSERT INTO albums (album_name) VALUES (?)", (album_name,))
+        cursor.execute("INSERT INTO albums (album_name, custom) VALUES (?, FALSE)", (album_name,))
         return cursor.lastrowid
 
 def insert_file_album(conn, file_id, album_id):
@@ -168,7 +195,18 @@ def list_database_albums(conn):
     """Return a list of album names with a custom priority sort."""
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT album_name FROM albums")
+        cursor.execute("""
+            SELECT DISTINCT a.album_name
+            FROM albums a
+                JOIN file_albums fa ON a.album_id = fa.album_id
+            WHERE a.custom = FALSE
+            UNION
+            SELECT DISTINCT album_name
+            FROM albums
+            WHERE custom = TRUE
+        """
+        )
+
         albums = [row[0] for row in cursor.fetchall()]
 
         priority_order = ['Recents', 'Pictures', 'Videos', 'Screenshots']
