@@ -107,7 +107,8 @@ class MediaPropertiesView(Gtk.Box):
         camera_rows = {}
         if file_extension in PICTURE_EXTENSIONS:
             camera_rows = {
-                "Maker, Model": Adw.ActionRow(title="Maker, Model"),
+                "Maker": Adw.ActionRow(title="Maker"),
+                "Model": Adw.ActionRow(title="Model"),
                 "Image Dimensions": Adw.ActionRow(title="Image Dimensions"),
                 "Aperture": Adw.ActionRow(title="Aperture"),
                 "Exposure": Adw.ActionRow(title="Exposure"),
@@ -166,24 +167,28 @@ class MediaPropertiesView(Gtk.Box):
     def load_image_properties(self):
         visible_rows_count = 0
 
-        for key in self.camera_rows:
-            metadata_key_mapping = {
-                "Maker, Model": ("Make", "Model"),
-                "Image Dimensions": ("ImageWidth", "ImageLength"),
-                "Aperture": "FNumber",
-                "Exposure": "ExposureTime",
-                "ISO": "ISOSpeedRatings",
-                "FocalLength": "FocalLength",
-                "Location": "GPSInfo"
-            }
+        metadata_key_mapping = {
+            "Maker": "Meker",
+            "Model": "Model",
+            "Image Dimensions": ("ImageWidth", "ImageLength"),
+            "Aperture": "FNumber",
+            "Exposure": "ExposureTime",
+            "ISO": "ISOSpeedRatings",
+            "FocalLength": "FocalLength",
+            "Location": "GPSInfo"
+        }
 
+        for key in self.camera_rows:
             metadata_key = metadata_key_mapping.get(key)
             if metadata_key:
                 value = None
-                if key == "Maker, Model":
+                if key == "Maker":
                     make = self.metadata_reader.get_metadata_value("Make")
+                    value = str(f"{make}") if make  else None
+
+                elif key == "Model":
                     model = self.metadata_reader.get_metadata_value("Model")
-                    value = f"{make} {model}" if make and model else None
+                    value = str(f"{model}") if model else None
 
                 elif key == "Image Dimensions":
                     width = self.metadata_reader.get_metadata_value("ImageWidth")
