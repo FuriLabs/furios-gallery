@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
-# Copyright (C) 2025 Bardia Moshiri <bardia@furilabs.com>
+# Copyright (C) 2025 Furi Labs
+#
+# Authors:
+# Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
 
 import gi
 gi.require_version('Gtk', '4.0')

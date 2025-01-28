@@ -3,6 +3,9 @@
 #
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
 
 import gi
 gi.require_version("Gtk", "4.0")
@@ -68,7 +71,7 @@ class ImageViewerWidget(Gtk.Widget):
 
             h_adjust.set_value(new_h_value)
             v_adjust.set_value(new_v_value)
-            
+
             # Update scale which triggers resize
             self.scale = new_scale
             self.queue_draw()

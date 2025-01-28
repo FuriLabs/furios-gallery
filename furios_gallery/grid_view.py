@@ -3,6 +3,9 @@
 #
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
 
 import asyncio
 from gi.repository import Gtk, GLib, Adw, Gdk
@@ -135,7 +138,6 @@ class GridView(Adw.NavigationPage):
         # We’ve now loaded up to end_index
         self.app.current_index = end_index
         self._loading = False
-
 
     def add_media_to_flowbox(self, media_path, media_index):
         thumbnail_path = self.thumbnails.generate_thumbnail(media_path)

@@ -3,6 +3,9 @@
 #
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
 
 import gi, os
 gi.require_version('Gtk', '4.0')
@@ -278,7 +281,6 @@ class MediaView(Adw.NavigationPage):
             for i in range(new_start, new_end + 1):
                 if 0 <= i < len(self.app.media_paths):
                     self.add_media_to_carousel(i, prepend=True)
-
         elif index == carousel.get_n_pages() - 1:
             new_start = self.app.current_index - 1
             new_end = max(self.app.current_index - 4, 0)
@@ -349,7 +351,6 @@ class MediaView(Adw.NavigationPage):
                 self.carousel.prepend(scrolled_win)
             else:
                 self.carousel.append(scrolled_win)
-
         elif media_path.endswith(('.mp4', '.mkv', '.avi')):
             video_widget = VideoPlayerWidget(media_path)
             video_widget.set_halign(Gtk.Align.CENTER)

@@ -3,6 +3,9 @@
 #
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
+# Bardia Moshiri <bardia@furilabs.com>
+# Jesús Higueras <jesus@furilabs.com>
+# Luis Garcia <git@luigi311.com>
 
 from gi.repository import Gtk
 from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail
