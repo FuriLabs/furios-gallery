@@ -16,12 +16,27 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, Graphene
 class ImageViewerWidget(Gtk.Widget):
     def __init__(self, path, win, scrolled_win, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, win.get_width(), win.get_height(), True)
+        self.pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
         self.texture = Gdk.Texture.new_for_pixbuf(self.pixbuf)
+        self.min_scale = 0
         self.scale = 1.0
         self.scale_at_start = 1.0
         self.scrolled_win = scrolled_win
         self.win = win
+
+        # Calculate the initial scale to fit the image within the window
+        self.calculate_initial_scale()
+
+    def calculate_initial_scale(self):
+        win_width = self.win.get_width()
+        win_height = self.win.get_height()
+        img_width = self.pixbuf.get_width()
+        img_height = self.pixbuf.get_height()
+
+        # Calculate the scale to fit the image within the window
+        scale_width = win_width / img_width
+        scale_height = win_height / img_height
+        self.min_scale = self.scale = min(scale_width, scale_height)
 
     def do_snapshot(self, snapshot):
         width = self.texture.get_intrinsic_width() * self.scale
@@ -54,30 +69,33 @@ class ImageViewerWidget(Gtk.Widget):
 
         new_scale = self.scale * zoom_factor
 
-        if 1 <= new_scale <= 3.0:
-            # In order to zoom in/out at the gesture's center, we need to figure out
-            # the new adjustment values that will keep the gesture's center at the same
-            # position on the screen after the zoom. Since the gesture's position is
-            # relative to our scrollable, we need to convert it to the native window
-            # coordinates first.
+        # Clamp to full screen
+        if new_scale < self.min_scale:
+            new_scale = self.min_scale
 
-            _, x, y = gesture.get_bounding_box_center()
+        # In order to zoom in/out at the gesture's center, we need to figure out
+        # the new adjustment values that will keep the gesture's center at the same
+        # position on the screen after the zoom. Since the gesture's position is
+        # relative to our scrollable, we need to convert it to the native window
+        # coordinates first.
 
-            h_adjust = self.scrolled_win.get_hadjustment()
-            v_adjust = self.scrolled_win.get_vadjustment()
+        _, x, y = gesture.get_bounding_box_center()
 
-            origin = Graphene.Point(0, 0)
-            _, our_origin_on_screen = self.scrolled_win.compute_point(self.get_native(), origin)
+        h_adjust = self.scrolled_win.get_hadjustment()
+        v_adjust = self.scrolled_win.get_vadjustment()
 
-            x = x + our_origin_on_screen.x
-            y = y + our_origin_on_screen.y
+        origin = Graphene.Point(0, 0)
+        _, our_origin_on_screen = self.scrolled_win.compute_point(self.get_native(), origin)
 
-            new_h_value = h_adjust.get_value() * zoom_factor + x * (zoom_factor - 1)
-            new_v_value = v_adjust.get_value() * zoom_factor + y * (zoom_factor - 1)
+        x = x + our_origin_on_screen.x
+        y = y + our_origin_on_screen.y
 
-            h_adjust.set_value(new_h_value)
-            v_adjust.set_value(new_v_value)
+        new_h_value = h_adjust.get_value() * zoom_factor + x * (zoom_factor - 1)
+        new_v_value = v_adjust.get_value() * zoom_factor + y * (zoom_factor - 1)
 
-            # Update scale which triggers resize
-            self.scale = new_scale
-            self.queue_draw()
+        h_adjust.set_value(new_h_value)
+        v_adjust.set_value(new_v_value)
+
+        # Update scale which triggers resize
+        self.scale = new_scale
+        self.queue_draw()
