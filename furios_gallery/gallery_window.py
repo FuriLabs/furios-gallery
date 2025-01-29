@@ -95,7 +95,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.header.pack_end(self.delete_media_btn)
 
         # Return button
-        self.return_btn = Gtk.Button(icon_name="application-exit-rtl-symbolic")
+        self.return_btn = Gtk.Button(icon_name="go-previous-symbolic")
         self.return_btn.connect("clicked", self.on_return_clicked)
         self.return_btn.set_visible(False)
         self.header.pack_start(self.return_btn)
