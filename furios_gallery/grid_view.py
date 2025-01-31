@@ -113,17 +113,14 @@ class GridView(Adw.NavigationPage):
         batch_size = 20
 
         start_index = self.app.current_index
-        end_index = max(self.app.current_index - self.items_per_load, -1)
-
+        end_index = max(self.app.current_index - self.items_per_load, 0)
         # We go from start_index down to end_index, in steps of batch_size
         while start_index > end_index:
             chunk_end = max(start_index - batch_size, end_index)
             tasks = []
 
             # Collect tasks for this chunk
-            for i in range(start_index, chunk_end, -1):
-                if i < 0 or i >= len(self.app.media_paths):
-                    continue
+            for i in range(start_index, chunk_end -1, -1):
 
                 media_path = self.app.media_paths[i]
                 # Schedule the thumbnail work in a thread to avoid blocking the main loop
