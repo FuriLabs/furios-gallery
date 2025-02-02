@@ -116,12 +116,14 @@ modules:
       # Install desktop file
       - mkdir -p /app/share/applications
       - cp data/io.FuriOS.Gallery.desktop /app/share/applications/
+      # Change desktop name with the FuriLabs prefix per FuriLabs request
+      - sed -i -e 's/Name=/Name=FuriLabs /g' /app/share/applications/io.FuriOS.Gallery.desktop
 
       # Install icon
       - mkdir -p /app/share/icons/hicolor/scalable/apps
       - cp data/io.FuriOS.Gallery.svg /app/share/icons/hicolor/scalable/apps/
 
-       # Create symbolic links for binaries
+      # Create symbolic links for binaries
       - mkdir -p /app/bin
       - ln -s /app/lib/furios-gallery/main.py /app/bin/io.FuriOS.Gallery
 
