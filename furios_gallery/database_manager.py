@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 import sqlite3
 
+from gi.repository import GLib
+
 from .media_manager import PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, check_file_integrity, extract_extension
 
 # ************* Database Management ************* #
@@ -82,8 +84,9 @@ def file_exists_in_database(conn, file_path):
 def populate_database(conn):
     """Walk through user Pictures and Videos directories, check their integrity,
     and insert them into the database if not present."""
-    pictures_root = Path.home() / 'Pictures'
-    videos_root = Path.home() / 'Videos'
+    pictures_root = Path(GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES))
+
+    videos_root = Path(GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS))
 
     media_items = []
 
