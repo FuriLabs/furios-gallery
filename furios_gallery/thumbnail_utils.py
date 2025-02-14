@@ -13,6 +13,7 @@ import math
 import os
 from PIL import Image
 from PIL.PngImagePlugin import PngInfo
+from pathlib import Path
 
 from furios_gallery.media_manager import PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
 
@@ -20,9 +21,11 @@ THUMBNAIL_SIZE = (256, 256)
 DISPLAY_SIZE = (25, 25)
 CACHE_DIR = os.path.expanduser("~/.cache/thumbnails/large")
 
+def thumbnail_uri(media_path):
+    return Path(media_path).resolve().as_uri()
+
 def thumbnail_hash(media_path):
-    uri = f"file://{os.path.abspath(media_path)}"
-    return hashlib.md5(uri.encode()).hexdigest()
+    return hashlib.md5(thumbnail_uri(media_path).encode()).hexdigest()
 
 def ensure_cache_dir():
     if not os.path.exists(CACHE_DIR):
@@ -47,7 +50,7 @@ def generate_thumbnail(media_path):
 
         try:
             metadata = PngInfo()
-            metadata.add_text("Thumb::URI", f"file://{media_path}")
+            metadata.add_text("Thumb::URI", thumbnail_uri(media_path))
             metadata.add_text("Thumb::MTime", str(math.trunc(os.path.getmtime(media_path))))
             metadata.add_text("Thumb::Size", str(os.path.getsize(media_path)))
 
