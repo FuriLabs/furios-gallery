@@ -165,7 +165,7 @@ class DatabaseDaemon(BaseDaemon):
                             cur.execute("SELECT file_id FROM files WHERE file_path = ?", (event.pathname,))
                             if not cur.fetchone():
                                 print(f"Adding to database: {event.pathname}")
-                                file_type = 'video' if file_suffix in self.daemon.VIDEO_FORMATS else 'picture'
+                                file_type = 'video' if file_suffix in VIDEO_EXTENSIONS else 'picture'
                                 albums = [Path(event.pathname).parent.name]
                                 if file_type == "video":
                                     albums.append("Videos")
