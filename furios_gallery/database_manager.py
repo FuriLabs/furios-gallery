@@ -247,6 +247,30 @@ def get_album_media_paths(conn, album_name):
         print(f"Error retrieving media paths for album {album_name}: {e}")
         return []
 
+def get_latest_media_path(conn, album_name):
+    """Retrieve the most recently added media path in an album based on the highest file_id."""
+    try:
+        cur = conn.cursor()
+        query = """
+            SELECT files.file_path
+            FROM files
+            JOIN file_albums ON files.file_id = file_albums.file_id
+            JOIN albums ON file_albums.album_id = albums.album_id
+            WHERE albums.album_name = ?
+            ORDER BY files.file_id DESC  -- Select the highest file_id
+            LIMIT 1;  -- Only fetch the most recent file
+        """
+        cur.execute(query, (album_name,))
+        row = cur.fetchone()
+
+        if row and os.path.exists(row[0]):
+            return row[0]
+
+        return None
+    except Exception as e:
+        print(f"Error retrieving latest media path for album {album_name}: {e}")
+        return None
+
 def delete_from_albums(conn, file_path):
     """Completely remove a file and its references from the database."""
     try:
