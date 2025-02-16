@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<component type="desktop-application">
+  <id>io.FuriOS.Gallery</id>
+  <name>FuriOS Gallery</name>
+  <summary>View your Photos and Videos</summary>
+  <description>
+    <p>Media gallery application for FuriOS</p>
+  </description>
+  <project_license>GPL-2.0-only</project_license>
+  <metadata_license>CC0-1.0</metadata_license>
+  <url type="homepage">https://github.com/FuriLabs/furios-gallery</url>
+  <url type="bugtracker">https://github.com/FuriLabs/furios-gallery/issues</url>
+  <url type="vcs-browser">https://github.com/FuriLabs/furios-gallery</url>
+  <launchable type="desktop-id">io.FuriOS.Gallery.desktop</launchable>
+  <categories>
+    <category>GTK</category>
+    <category>GNOME</category>
+    <category>Graphics</category>
+    <category>Viewer</category>
+  </categories>
+  <developer>
+    <name>FuriOS Gallery Team</name>
+    <url>https://github.com/FuriLabs/furios-gallery/blob/trixie/gallery_daemon.py#L6-L9</url>
+  </developer>
+  <recommends>
+    <display_length compare="ge">360</display_length>
+  </recommends>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+  <releases>
+    <release version="1.0.0" date="2025-01-28">
+      <description translate="no">
+        <ul>
+          <li>Initial release</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>
