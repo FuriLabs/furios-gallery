@@ -23,7 +23,7 @@ from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
 from .media_properties_view import MediaPropertiesView
 from .database_manager import (
-    get_album_database_paths, get_album_media_paths,
+    cleanup_database,
     create_tables, create_connection,
     delete_from_albums,
 )
@@ -45,14 +45,17 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.conn = create_connection(str(app_dir / "gallery-albums.db"))
         if self.conn is not None:
             create_tables(self.conn)
+        
+        # Remove deleted files from database
+        cleanup_database(self.conn)
 
         # Thumbnail generator
         self.thumbnails = ThumbnailGenerator()
 
         # Media management variables
         self.current_album = ""
-        self.media_paths = get_album_database_paths(self.conn, "Recents")
-        self.current_index = len(self.media_paths) - 1
+        self.media_paths = []
+        self.current_index = 0
 
         # Create toast overlay for notifications
         self.toast_overlay = Adw.ToastOverlay()
