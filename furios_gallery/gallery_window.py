@@ -65,8 +65,8 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view = Adw.NavigationView()
 
         # Create initial albums page
-        initial_albums_page = self.create_albums_page()
-        self.navigation_view.add(initial_albums_page)
+        self.initial_albums_page = self.create_albums_page()
+        self.navigation_view.add(self.initial_albums_page)
 
         # Toolbar view setup
         self.toolbar_view = Adw.ToolbarView()

@@ -153,6 +153,8 @@ class MediaView(Adw.NavigationPage):
 
     def delete_from_album(self, btn, dialog):
         delete_file_from_album(self.app.conn, self.app.media_paths[self.app.current_index], self.app.current_album)
+        self.update_carousel()
+        self.app.initial_albums_page.update_album_thumbnail()
         dialog.destroy()
 
     def on_close_media_options(self, btn, dialog):
