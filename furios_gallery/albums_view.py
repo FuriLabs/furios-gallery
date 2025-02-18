@@ -12,7 +12,7 @@ gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, Gdk, GdkPixbuf, Pango
 
-from .database_manager import get_album_database_paths, list_database_albums, get_album_media_paths
+from .database_manager import get_album_database_paths, list_database_albums, get_album_media_paths, get_latest_media_path
 from .thumbnail_generator import ThumbnailGenerator
 
 class Albums(Adw.NavigationPage):
@@ -95,18 +95,14 @@ class Albums(Adw.NavigationPage):
             album_box.set_halign(Gtk.Align.CENTER)
             album_box.set_valign(Gtk.Align.CENTER)
 
-            # Get album media paths
-            album_paths = get_album_media_paths(self.app_window.conn, album)
+            last_media_url = get_latest_media_path(self.app_window.conn, album)
 
-            # Create album thumbnail
-            if album_paths:
-                for last_media_url in reversed(album_paths):
-                    thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
-                    if thumbnail_path:
-                        image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
-                        picture = Gtk.Picture.new_for_pixbuf(image)
-                        picture.set_css_classes(["rounded-image"])
-                        break
+            if last_media_url:
+                thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
+                if thumbnail_path:
+                    image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
+                    picture = Gtk.Picture.new_for_pixbuf(image)
+                    picture.set_css_classes(["rounded-image"])
             else:
                 # Default missing album image
                 picture = Gtk.Box()
@@ -159,3 +155,46 @@ class Albums(Adw.NavigationPage):
                 self.app_window.navigation_view.push(grid_view_page)
 
             self.flowbox.unselect_all()
+
+    def update_album_thumbnail(self, album):
+        last_media_url = get_latest_media_path(self.app_window.conn, album)
+
+        if last_media_url:
+            thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
+            if thumbnail_path:
+                image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
+                picture = Gtk.Picture.new_for_pixbuf(image)
+                picture.set_css_classes(["rounded-image"])
+        else:
+            picture = Gtk.Box()
+            picture.set_css_classes(["missing-image"])
+
+            picture_content = Gtk.Image.new_from_icon_name("folder-symbolic")
+            picture_content.set_pixel_size(70)
+
+            icon_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            icon_box.set_hexpand(True)
+            icon_box.set_vexpand(True)
+            icon_box.set_halign(Gtk.Align.FILL)
+            icon_box.set_valign(Gtk.Align.FILL)
+            icon_box.append(picture_content)
+
+            picture.append(icon_box)
+
+            label = Gtk.Label(label=album)
+            label.set_wrap(False)
+            label.set_ellipsize(Pango.EllipsizeMode.END)
+
+        for child in self.flowbox:
+            if hasattr(child, "album_name") and child.album_name == album:
+                album_box = child.get_child()
+                children = list(album_box)
+                if children:
+                    album_box.remove(children[0])
+                    album_box.prepend(picture)
+
+    def update_all_album_thumbnails(self):
+        for child in self.flowbox:  # Iterate over all children in the FlowBox
+            if hasattr(child, "album_name"):
+                album_name = child.album_name
+                self.update_album_thumbnail(album_name)

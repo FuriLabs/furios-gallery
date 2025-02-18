@@ -77,6 +77,7 @@ class GridView(Adw.NavigationPage):
         self.flowbox.set_max_children_per_line(5)
         self.flowbox.set_min_children_per_line(5)
         self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.flowbox.set_sort_func(lambda child1, child2: child2.media_index - child1.media_index)
         self.flowbox.set_homogeneous(True)
 
         scrolled_window.set_child(self.flowbox)
@@ -151,6 +152,15 @@ class GridView(Adw.NavigationPage):
             )
 
             GLib.idle_add(self.flowbox.append, flowbox_child)
+
+    def delete_media_from_flowbox(self, media_index):
+        child = self.flowbox.get_first_child()
+
+        while child:
+            if hasattr(child, "media_index") and child.media_index == media_index:
+                self.flowbox.remove(child)
+                break
+            child = child.get_next_sibling()
 
     def on_child_selected(self, flowbox):
         if self.flowbox.get_selection_mode() == Gtk.SelectionMode.SINGLE:

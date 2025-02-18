@@ -65,8 +65,8 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view = Adw.NavigationView()
 
         # Create initial albums page
-        initial_albums_page = self.create_albums_page()
-        self.navigation_view.add(initial_albums_page)
+        self.initial_albums_page = self.create_albums_page()
+        self.navigation_view.add(self.initial_albums_page)
 
         # Toolbar view setup
         self.toolbar_view = Adw.ToolbarView()
@@ -242,6 +242,7 @@ class GalleryWindow(Adw.ApplicationWindow):
     def create_albums_page(self):
         albums_page = Albums(self)
         albums_page.set_name("albums-square")
+        albums_page.set_tag("albumsView")
         return albums_page
 
     def create_media_view_page(self):
@@ -251,6 +252,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         media_view.set_hexpand(True)
         media_view.set_vexpand(True)
         media_view.set_name("mediaView-square")
+        media_view.set_tag("mediaView")
         return media_view
 
     def create_grid_view_page(self, album_name=None):
@@ -261,6 +263,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         media_grid_view.set_vexpand(True)
 
         media_grid_view.set_name("mediaGridView-square")
+        media_grid_view.set_tag("gridView")
 
         return media_grid_view
 

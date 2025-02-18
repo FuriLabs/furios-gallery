@@ -145,6 +145,11 @@ class MediaView(Adw.NavigationPage):
         try:
             file_path = self.app.media_paths[self.app.current_index]
             add_file_to_album(self.app.conn, file_path, album_name)
+
+            albums_view_page = self.app.navigation_view.find_page("albumsView")
+            if albums_view_page:
+                albums_view_page.update_all_album_thumbnails()
+
             second_dialog.destroy()
             first_dialog.destroy()
             print(f"Successfully added {file_path} to album '{album_name}'")
@@ -152,7 +157,18 @@ class MediaView(Adw.NavigationPage):
             print(f"Error adding file to album '{album_name}': {e}")
 
     def delete_from_album(self, btn, dialog):
-        delete_file_from_album(self.app.conn, self.app.media_paths[self.app.current_index], self.app.current_album)
+        media_to_delete_index = self.app.current_index
+        delete_file_from_album(self.app.conn, self.app.media_paths[media_to_delete_index], self.app.current_album)
+        self.update_carousel()
+
+        albums_view_page = self.app.navigation_view.find_page("albumsView")
+        if albums_view_page:
+            albums_view_page.update_all_album_thumbnails()
+
+        grid_view_page = self.app.navigation_view.find_page("gridView")
+        if grid_view_page:
+            grid_view_page.delete_media_from_flowbox(media_to_delete_index)
+
         dialog.destroy()
 
     def on_close_media_options(self, btn, dialog):
@@ -188,7 +204,18 @@ class MediaView(Adw.NavigationPage):
                     os.remove(file_path)
                     print(f"File deleted: {file_path}")
 
+                    media_to_delete_index = self.app.current_index
+
                     self.update_carousel()
+
+                    albums_view_page = self.app.navigation_view.find_page("albumsView")
+                    if albums_view_page:
+                        albums_view_page.update_all_album_thumbnails()
+
+                    grid_view_page = self.app.navigation_view.find_page("gridView")
+                    if grid_view_page:
+                        grid_view_page.delete_media_from_flowbox(media_to_delete_index)
+
                     return True
                 else:
                     print(f"File not found: {file_path}")
