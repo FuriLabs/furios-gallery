@@ -156,8 +156,8 @@ class Albums(Adw.NavigationPage):
 
             self.flowbox.unselect_all()
 
-    def update_album_thumbnail(self):
-        last_media_url = get_latest_media_path(self.app_window.conn, self.app_window.current_album)
+    def update_album_thumbnail(self, album):
+        last_media_url = get_latest_media_path(self.app_window.conn, album)
 
         if last_media_url:
             thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
@@ -186,9 +186,15 @@ class Albums(Adw.NavigationPage):
             label.set_ellipsize(Pango.EllipsizeMode.END)
 
         for child in self.flowbox:
-            if hasattr(child, "album_name") and child.album_name == self.app_window.current_album:
+            if hasattr(child, "album_name") and child.album_name == album:
                 album_box = child.get_child()
                 children = list(album_box)
                 if children:
                     album_box.remove(children[0])
                     album_box.prepend(picture)
+
+    def update_all_album_thumbnails(self):
+        for child in self.flowbox:  # Iterate over all children in the FlowBox
+            if hasattr(child, "album_name"):
+                album_name = child.album_name
+                self.update_album_thumbnail(album_name)

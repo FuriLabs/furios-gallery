@@ -153,6 +153,15 @@ class GridView(Adw.NavigationPage):
 
             GLib.idle_add(self.flowbox.append, flowbox_child)
 
+    def delete_media_from_flowbox(self, media_index):
+        child = self.flowbox.get_first_child()
+
+        while child:
+            if hasattr(child, "media_index") and child.media_index == media_index:
+                self.flowbox.remove(child)
+                break
+            child = child.get_next_sibling()
+
     def on_child_selected(self, flowbox):
         if self.flowbox.get_selection_mode() == Gtk.SelectionMode.SINGLE:
             selected = flowbox.get_selected_children()
