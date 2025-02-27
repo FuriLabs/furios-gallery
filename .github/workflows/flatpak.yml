@@ -1,0 +1,32 @@
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - trixie
+
+name: CI
+jobs:
+  flatpak:
+    name: "Flatpak"
+    runs-on: ${{ matrix.os }}
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-47
+      options: --privileged
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            os: ubuntu-24.04
+
+          - arch: aarch64
+            os: ubuntu-24.04-arm
+      # Don't fail the whole workflow if one architecture fails
+      fail-fast: false
+    steps:
+    - uses: actions/checkout@v4
+    - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+      with:
+        bundle: io.FuriOS.Gallery.flatpak
+        manifest-path: io.FuriOS.Gallery.yml
+        cache-key: flatpak-builder-${{ github.sha }}
+        arch: ${{ matrix.arch }}
