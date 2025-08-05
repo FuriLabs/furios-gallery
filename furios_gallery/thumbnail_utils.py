@@ -33,13 +33,34 @@ def ensure_cache_dir():
 
 def has_thumbnail(media_path):
     thumbnail_path = os.path.join(CACHE_DIR, f"{thumbnail_hash(media_path)}.png")
-    return os.path.exists(thumbnail_path)
+
+    if not os.path.exists(thumbnail_path):
+        return False
+
+    try:
+        # Open thumbnail and read the PNG text chunks we saved
+        with Image.open(thumbnail_path) as thumb:
+            info = thumb.info
+            stored_mtime = int(info.get("Thumb::MTime", -1))
+            stored_size  = int(info.get("Thumb::Size",  -1))
+
+        # Get current file stats
+        current_mtime = math.trunc(os.path.getmtime(media_path))
+        current_size  = os.path.getsize(media_path)
+
+        # If the stored metadata matches the current file's metadata
+        return (stored_mtime == current_mtime and stored_size == current_size)
+    
+    except Exception:
+        print(f"Error reading thumbnail metadata for {media_path}")
+
+    return False
 
 def generate_thumbnail(media_path):
     media_path = os.path.abspath(media_path)
     thumbnail_path = os.path.join(CACHE_DIR, f"{thumbnail_hash(media_path)}.png")
 
-    if not os.path.exists(thumbnail_path):
+    if not has_thumbnail(media_path):
         if not os.path.exists(media_path) or os.path.getsize(media_path) == 0:
             print(f"File does not exist or is empty: {media_path}")
             return None
