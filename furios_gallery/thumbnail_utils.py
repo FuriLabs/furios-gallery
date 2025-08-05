@@ -64,12 +64,12 @@ def generate_thumbnail(media_path):
                     img.save(thumbnail_path, format="PNG", pnginfo=metadata)
             # Process Video thumbnails
             elif extract_extension(media_path) in VIDEO_EXTENSIONS:
-                container = av.open(media_path)
-                frame = next(container.decode(video=0))
-                img = frame.to_image()
+                with av.open(media_path) as container:
+                    frame = next(container.decode(video=0))
+                    img = frame.to_image()
 
-                img.thumbnail(THUMBNAIL_SIZE)
-                img.save(thumbnail_path, format="PNG", pnginfo=metadata)
+                    img.thumbnail(THUMBNAIL_SIZE)
+                    img.save(thumbnail_path, format="PNG", pnginfo=metadata)
             else:
                 return None
         except (av.AVError, IOError) as e:
