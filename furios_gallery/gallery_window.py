@@ -63,6 +63,7 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         # Create navigation view for swipe gestures
         self.navigation_view = Adw.NavigationView()
+        self.navigation_view.connect("popped", self.on_page_popped)
 
         # Create initial albums page
         self.initial_albums_page = self.create_albums_page()
@@ -123,6 +124,19 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view.connect('pushed', self.on_navigation_changed)
 
         self.present()
+    
+    def on_page_popped(self, navigation_view, page):
+        # If it has a FlowBox, remove each child
+        if hasattr(page, "flowbox"):
+            child = page.flowbox.get_first_child()
+            while child is not None:
+                next_child = child.get_next_sibling()
+                page.flowbox.remove(child)
+                child = next_child
+
+        # Finally unparent the page itself from the nav‐view
+        navigation_view.remove(page)
+
 
     def on_navigation_changed(self, navigation_view, page=None):
         visible_page = navigation_view.get_visible_page()
