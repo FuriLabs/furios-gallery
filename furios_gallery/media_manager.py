@@ -11,7 +11,7 @@ import os, time, av
 from PIL import Image, ExifTags
 from datetime import datetime
 
-PICTURE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'webp', 'svg']
+PICTURE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'webp']
 VIDEO_EXTENSIONS = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg']
 
 def extract_extension(filepath: str) -> str:
