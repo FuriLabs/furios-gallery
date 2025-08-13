@@ -78,6 +78,8 @@ def populate_database_async(db_file, completion_callback=None):
             background_conn = create_connection(db_file)
             if background_conn:
                 populate_database(background_conn)
+                # Clean up existing SVG and dotfile entries
+                cleanup_svg_and_dotfiles(background_conn)
                 background_conn.close()
             if completion_callback:
                 GLib.idle_add(completion_callback)
@@ -89,6 +91,20 @@ def populate_database_async(db_file, completion_callback=None):
     thread = threading.Thread(target=background_task, daemon=True)
     thread.start()
 
+def should_skip_path(path):
+    """Check if a path should be skipped (dotfiles/dotdirs)"""
+    path_obj = Path(path)
+
+    # Check if any part of the path starts with a dot
+    for part in path_obj.parts:
+        if part.startswith('.'):
+            return True
+    return False
+
+def is_svg_file(file_path):
+    """Check if file is an SVG"""
+    return extract_extension(file_path) == 'svg'
+
 def file_exists_in_database(conn, file_path):
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM files WHERE file_path = ?", (file_path,))
@@ -96,20 +112,65 @@ def file_exists_in_database(conn, file_path):
     cursor.close()
     return exists
 
+def cleanup_svg_and_dotfiles(conn):
+    """Remove SVG files and any files in dot directories from the database"""
+    try:
+        with conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT file_id, file_path FROM files")
+            all_files = cursor.fetchall()
+
+            files_to_remove = []
+            for file_id, file_path in all_files:
+                # Check if it's an SVG file or in a dot directory/dotfile
+                if is_svg_file(file_path) or should_skip_path(file_path):
+                    files_to_remove.append(file_id)
+
+            for file_id in files_to_remove:
+                cursor.execute("DELETE FROM file_albums WHERE file_id = ?", (file_id,))
+
+            # Remove files
+            for file_id in files_to_remove:
+                cursor.execute("DELETE FROM files WHERE file_id = ?", (file_id,))
+
+            if files_to_remove:
+                print(f"Cleaned up {len(files_to_remove)} SVG files and dotfile entries from database")
+    except sqlite3.Error as e:
+        print(f"Error cleaning up database: {e}")
+
 def populate_database(conn):
     """Walk through user Pictures and Videos directories, check their integrity,
     and insert them into the database if not present."""
     pictures_root = Path(GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_PICTURES))
-
     videos_root = Path(GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_VIDEOS))
 
     media_items = []
 
     def process_directory(directory, extensions):
-        for subdir, _, files in os.walk(directory):
+        for subdir, dirs, files in os.walk(directory):
+            # Skip if current directory or any parent is a dotdir
+            if should_skip_path(subdir):
+                continue
+
+            # Filter out dot directories from dirs list to prevent os.walk from entering them
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+
             album_name = os.path.basename(subdir)
+
             for file in files:
+                # Skip dotfiles
+                if file.startswith('.'):
+                    continue
                 file_path = os.path.join(subdir, file)
+
+                # Double check the full path doesn't contain dotdirs
+                if should_skip_path(file_path):
+                    continue
+
+                # Skip SVG files
+                if is_svg_file(file_path):
+                    continue
+
                 if file_path.lower().endswith(tuple(extensions)):
                     if not file_exists_in_database(conn, file_path):
                         if check_file_integrity(file_path):
@@ -222,6 +283,12 @@ def get_album_database_paths(conn, album_name):
     valid_paths = []
 
     for path in file_paths:
+        # Skip SVG files and dotfiles during retrieval as well
+        if is_svg_file(path) or should_skip_path(path):
+            print(f"Skipping SVG or dotfile during retrieval: {path}")
+            delete_from_albums(conn, path)
+            continue
+
         if os.path.exists(path):
             valid_paths.append(path)
         else:
@@ -247,6 +314,12 @@ def get_album_media_paths(conn, album_name):
 
         media_paths = []
         for row in rows:
+            # Skip SVG files and dotfiles during retrieval as well
+            if is_svg_file(row[0]) or should_skip_path(row[0]):
+                print(f"Skipping SVG or dotfile during retrieval: {row[0]}")
+                delete_from_albums(conn, row[0])
+                continue
+
             if os.path.exists(row[0]):
                 media_paths.append(row[0])
             else:
@@ -281,8 +354,14 @@ def get_latest_media_path(conn, album_name):
         cur.execute(query, (album_name,))
         row = cur.fetchone()
 
-        if row and os.path.exists(row[0]):
-            return row[0]
+        if row:
+            # Skip SVG files and dotfiles
+            if is_svg_file(row[0]) or should_skip_path(row[0]):
+                print(f"Latest media is SVG or dotfile, skipping: {row[0]}")
+                return None
+
+            if os.path.exists(row[0]):
+                return row[0]
 
         return None
     except Exception as e:
