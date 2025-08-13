@@ -53,7 +53,7 @@ class VideoPlayerWidget(Gtk.Box):
         self.video_click_button.connect("clicked", self.on_video_clicked)
         self.overlay.add_overlay(self.video_click_button)
 
-        (self.control_box, self.play_pause_button, self.play_pause_image, 
+        (self.control_box, self.play_pause_button, self.play_pause_image,
          self.duration_label, self.mute_button, self.mute_image, self.seeker) = create_video_controls()
 
         self.play_pause_button.connect("clicked", self.on_play_pause)
