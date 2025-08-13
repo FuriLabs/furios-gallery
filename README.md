@@ -30,8 +30,8 @@ A modern GTK4/Adw-based media gallery for FuriOS, featuring real-time indexing, 
 
 ## Screenshots
 
-![Gallery](images/gallery.png)
-![Photo](images/photo.png)
+![Gallery](data/images/gallery.png)
+![Photo](data/images/photo.png)
 
 ---
 
