@@ -16,58 +16,43 @@ import pyinotify
 from concurrent.futures import ThreadPoolExecutor
 from furios_gallery.thumbnail_utils import ensure_cache_dir, generate_thumbnail, has_thumbnail
 from furios_gallery.media_manager import (
-    extract_file_date, get_file_creation_date,
     PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
 )
-from furios_gallery.database_manager import (
-    create_connection, create_tables, insert_file_and_albums, delete_from_albums
-)
+from furios_gallery.database_manager import should_skip_path, is_svg_file
 
-class BaseDaemon:
+class ThumbnailDaemon:
     WATCH_DIRS = [
-        os.path.expanduser("~/Pictures"),
-        os.path.expanduser("~/Videos")
+        os.path.expanduser("~")
     ]
 
     def __init__(self, loop):
-        super().__init__()
         self.wm = pyinotify.WatchManager()
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.loop = loop
         self.setup()
 
     def setup(self):
-        pass
-
-    def run(self):
-        raise NotImplementedError
-
-class ThumbnailDaemon(BaseDaemon):
-    def setup(self):
         ensure_cache_dir()
 
-    def process_existing_files(self):
-        tasks = []
+    def should_process_file(self, file_path):
+        """Check if a file should be processed (not a dotfile, not SVG)"""
+        path_str = str(file_path)
 
-        def process_files():
-            for watch_dir in self.WATCH_DIRS:
-                path = Path(watch_dir)
-                for file_path in path.rglob("*"):
-                    if file_path.is_file() and extract_extension(file_path) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
-                        if not has_thumbnail(str(file_path)):
-                            print(f"Processing thumbnail for: {file_path}")
-                            tasks.append(self.executor.submit(generate_thumbnail, str(file_path)))
-
-            if tasks:
-                for task in tasks:
-                    task.result()
+        # Skip dotfiles and files in dot directories
+        if should_skip_path(path_str):
             return False
 
-        GLib.idle_add(process_files)
+        # Skip SVG files
+        if is_svg_file(path_str):
+            return False
+
+        # Skip if filename starts with dot
+        if Path(path_str).name.startswith('.'):
+            return False
+        return True
 
     def run(self):
         print("Starting thumbnail daemon...")
-        self.process_existing_files()
 
         class EventHandler(pyinotify.ProcessEvent):
             def __init__(self, daemon):
@@ -75,7 +60,8 @@ class ThumbnailDaemon(BaseDaemon):
                 self.daemon = daemon
 
             def process_IN_CLOSE_WRITE(self, event):
-                if extract_extension(event.pathname) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
+                if (self.daemon.should_process_file(event.pathname) and
+                    extract_extension(event.pathname) in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS)):
                     print(f"Generating thumbnail for: {event.pathname}")
                     self.daemon.executor.submit(generate_thumbnail, event.pathname)
 
@@ -95,124 +81,9 @@ class ThumbnailDaemon(BaseDaemon):
 
         GLib.io_add_watch(notifier._fd, GLib.IO_IN, glib_inotify_handler)
 
-class DatabaseDaemon(BaseDaemon):
-    def setup(self):
-        app_dir = Path(os.path.expanduser("~/.local/share/io.FuriOS.Gallery"))
-        app_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = str(app_dir / "gallery-albums.db")
-        conn = create_connection(self.db_path)
-        if conn is not None:
-            create_tables(conn)
-            conn.close()
-
-    def _process_file(self, file_path, file_type, albums):
-        conn = create_connection(self.db_path)
-        try:
-            insert_file_and_albums(conn, str(file_path), file_type, albums)
-        finally:
-            conn.close()
-
-    def process_existing_files(self):
-        tasks = []
-        conn = create_connection(self.db_path)
-        try:
-            cur = conn.cursor()
-            for watch_dir in self.WATCH_DIRS:
-                path = Path(watch_dir)
-                for file_path in path.rglob("*"):
-                    if check_file_integrity(file_path):
-                        file_suffix = extract_extension(file_path)
-                        if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
-                            cur.execute("SELECT file_id FROM files WHERE file_path = ?", (str(file_path),))
-                            if not cur.fetchone():
-                                print(f"Adding to database: {file_path}")
-                                file_type = 'video' if file_suffix in VIDEO_EXTENSIONS else 'picture'
-                                albums = [file_path.parent.name]
-                                if file_type == "video":
-                                    albums.append("Videos")
-                                if file_type == "picture":
-                                    albums.append("Pictures")
-                                albums.append("Recents")
-                                tasks.append((file_path, file_type, albums))
-        finally:
-            conn.close()
-
-        if tasks:
-            def process_tasks():
-                for task in tasks:
-                    self.executor.submit(self._process_file, *task).result()
-                print("Finished processing existing files.")
-                return False
-
-            GLib.idle_add(process_tasks)
-
-    def run(self):
-        print("Starting database daemon...")
-        self.process_existing_files()
-
-        class EventHandler(pyinotify.ProcessEvent):
-            def __init__(self, daemon):
-                super().__init__()
-                self.daemon = daemon
-
-            def process_IN_CLOSE_WRITE(self, event):
-                if check_file_integrity(event.pathname):
-                    file_suffix = extract_extension(event.pathname)
-                    if file_suffix in (PICTURE_EXTENSIONS + VIDEO_EXTENSIONS):
-                        conn = create_connection(self.daemon.db_path)
-                        try:
-                            cur = conn.cursor()
-                            cur.execute("SELECT file_id FROM files WHERE file_path = ?", (event.pathname,))
-                            if not cur.fetchone():
-                                print(f"Adding to database: {event.pathname}")
-                                file_type = 'video' if file_suffix in VIDEO_EXTENSIONS else 'picture'
-                                albums = [Path(event.pathname).parent.name]
-                                if file_type == "video":
-                                    albums.append("Videos")
-                                if file_type == "picture":
-                                    albums.append("Pictures")
-                                albums.append("Recents")
-                                self.daemon.executor.submit(
-                                    self.daemon._process_file,
-                                    Path(event.pathname),
-                                    file_type,
-                                    albums
-                                )
-                        finally:
-                            conn.close()
-
-            def process_IN_DELETE(self, event):
-                print(f"Removing from database: {event.pathname}")
-                conn = create_connection(self.daemon.db_path)
-                try:
-                    delete_from_albums(conn, event.pathname)
-                finally:
-                    conn.close()
-
-        handler = EventHandler(self)
-
-        notifier = pyinotify.Notifier(self.wm, default_proc_fun=handler)
-        mask = pyinotify.IN_CLOSE_WRITE | pyinotify.IN_DELETE
-        for watch_dir in self.WATCH_DIRS:
-            self.wm.add_watch(watch_dir, mask, rec=True, auto_add=True)
-
-        def glib_inotify_handler(fd, condition):
-            if condition == GLib.IO_IN:
-                notifier.process_events()
-                if notifier.check_events():
-                    notifier.read_events()
-                    notifier.process_events()
-            return True
-
-        GLib.io_add_watch(notifier._fd, GLib.IO_IN, glib_inotify_handler)
-
 def main(main_loop):
     thumbnail_daemon = ThumbnailDaemon(main_loop)
-    database_daemon = DatabaseDaemon(main_loop)
-
     thumbnail_daemon.run()
-    database_daemon.run()
-
     main_loop.run()
 
 if __name__ == "__main__":
