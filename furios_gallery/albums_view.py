@@ -8,11 +8,12 @@
 # Luis Garcia <git@luigi311.com>
 
 import gi
+import threading
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GdkPixbuf, Pango
+from gi.repository import Gtk, Adw, GdkPixbuf, Pango, GLib
 
-from .database_manager import get_album_database_paths, list_database_albums, get_latest_media_path
+from .database_manager import get_album_database_paths, list_database_albums, get_latest_media_path, create_connection
 from .thumbnail_generator import ThumbnailGenerator
 from .ui import (
     create_albums_content_box, create_albums_scrolled_window, create_albums_flowbox,
@@ -67,6 +68,62 @@ class Albums(Adw.NavigationPage):
 
             flowbox_child = create_album_item(album, thumbnail_path)
             self.flowbox.append(flowbox_child)
+
+    def load_albums_async(self):
+        # Clear existing items
+        clear_flowbox(self.flowbox)
+
+        # Get albums from database
+        albums = list_database_albums(self.app_window.conn)
+
+        # Add albums immediately without thumbnails
+        for album in albums:
+            flowbox_child = create_album_item(album, None)
+            self.flowbox.append(flowbox_child)
+
+        # Get database file path
+        db_path = self.app_window.conn.execute("PRAGMA database_list").fetchone()[2]
+
+        def generate_thumbnails():
+            thread_conn = create_connection(db_path)
+            if not thread_conn:
+                print("Failed to create thread connection")
+                return
+
+            for album in albums:
+                try:
+                    last_media_url = get_latest_media_path(thread_conn, album)
+                    if last_media_url:
+                        thumbnail_path = self.thumbnail_generator.generate_thumbnail(last_media_url)
+                        if thumbnail_path:
+                            # Update UI on main thread
+                            GLib.idle_add(self.update_album_thumbnail_ui, album, thumbnail_path)
+                except Exception as e:
+                    print(f"Error generating thumbnail for album {album}: {e}")
+
+            thread_conn.close()
+
+        thread = threading.Thread(target=generate_thumbnails, daemon=True)
+        thread.start()
+
+    def update_album_thumbnail_ui(self, album, thumbnail_path):
+        try:
+            for child in self.flowbox:
+                if hasattr(child, "album_name") and child.album_name == album:
+                    album_box = child.get_child()
+                    children = list(album_box)
+                    if children:
+                        # Replace the placeholder with actual thumbnail
+                        image = GdkPixbuf.Pixbuf.new_from_file_at_scale(thumbnail_path, width=400, height=400, preserve_aspect_ratio=False)
+                        picture = Gtk.Picture.new_for_pixbuf(image)
+                        picture.set_css_classes(["rounded-image"])
+
+                        album_box.remove(children[0])
+                        album_box.prepend(picture)
+                    break
+        except Exception as e:
+            print(f"Error updating thumbnail UI for album {album}: {e}")
+        return False
 
     def on_album_selected(self, flowbox):
         if flowbox.get_selection_mode() == Gtk.SelectionMode.SINGLE:

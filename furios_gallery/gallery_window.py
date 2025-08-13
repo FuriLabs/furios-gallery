@@ -25,6 +25,7 @@ from .database_manager import (
     get_album_database_paths,
     create_tables, create_connection,
     delete_from_albums,
+    populate_database_async,
 )
 from .ui import (
     create_gallery_header, create_album_button, create_info_button, create_media_options_button,
@@ -100,7 +101,24 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view.connect('pushed', self.on_navigation_changed)
 
         self.present()
-    
+
+        # Start background database population AFTER window is shown
+        self.start_background_loading(str(app_dir / "gallery-albums.db"))
+
+    def start_background_loading(self, db_file):
+        def on_completion():
+            print("Background database population complete!")
+
+            # Refresh the albums view if it's currently visible
+            current_page = self.navigation_view.get_visible_page()
+            if hasattr(current_page, 'load_albums_async'):
+                GLib.idle_add(current_page.load_albums_async)
+            elif hasattr(current_page, 'load_albums'):
+                GLib.idle_add(current_page.load_albums)
+
+        # Start the background loading
+        populate_database_async(db_file, completion_callback=on_completion)
+
     def on_page_popped(self, navigation_view, page):
         # If it has a FlowBox, remove each child
         if hasattr(page, "flowbox"):
@@ -213,7 +231,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         media_grid_view.set_vexpand(True)
 
         media_grid_view.set_name("mediaGridView-square")
-        media_grid_view.set_tag("gridView")
+        media_grid_view.set_tag(f"gridView-{album_name}")
 
         return media_grid_view
 

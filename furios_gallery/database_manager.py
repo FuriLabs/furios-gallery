@@ -10,6 +10,7 @@
 import os
 from pathlib import Path
 import sqlite3
+import threading
 
 from gi.repository import GLib
 
@@ -71,15 +72,29 @@ def create_tables(conn):
     except sqlite3.Error as e:
         print(f"Error creating tables: {e}")
 
-    # Populate database after tables are guaranteed to exist
-    populate_database(conn)
+def populate_database_async(db_file, completion_callback=None):
+    def background_task():
+        try:
+            background_conn = create_connection(db_file)
+            if background_conn:
+                populate_database(background_conn)
+                background_conn.close()
+            if completion_callback:
+                GLib.idle_add(completion_callback)
+        except Exception as e:
+            print(f"Error in background database population: {e}")
+            if completion_callback:
+                GLib.idle_add(completion_callback)
+
+    thread = threading.Thread(target=background_task, daemon=True)
+    thread.start()
 
 def file_exists_in_database(conn, file_path):
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM files WHERE file_path = ?", (file_path,))
-        exists = cursor.fetchone()[0] > 0
-        cursor.close()
-        return exists
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM files WHERE file_path = ?", (file_path,))
+    exists = cursor.fetchone()[0] > 0
+    cursor.close()
+    return exists
 
 def populate_database(conn):
     """Walk through user Pictures and Videos directories, check their integrity,
@@ -162,7 +177,7 @@ def insert_file_album(conn, file_id, album_id):
     """Link a file to an album (if not already linked)."""
     cursor = conn.cursor()
     cursor.execute("""
-        INSERT OR IGNORE INTO file_albums (file_id, album_id) 
+        INSERT OR IGNORE INTO file_albums (file_id, album_id)
         VALUES (?, ?)
     """
     , (file_id, album_id))
