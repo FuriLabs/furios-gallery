@@ -18,6 +18,11 @@ import os
 import mimetypes
 from datetime import datetime
 from .media_manager import MetadataReader, extract_extension, PICTURE_EXTENSIONS, VIDEO_EXTENSIONS
+from .ui import (
+    create_properties_content, create_properties_scrolled_window, create_properties_groups_box,
+    create_file_info_group, create_media_info_group, create_dates_group, create_camera_info_group,
+    create_map_group
+)
 
 class MediaPropertiesView(Gtk.Box):
     def __init__(self, media_path, app_window):
@@ -26,64 +31,31 @@ class MediaPropertiesView(Gtk.Box):
         self.media_path = media_path
 
         # Main content box with padding
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=24)
-        content.set_margin_top(24)
-        content.set_margin_bottom(24)
-        content.set_margin_start(24)
-        content.set_margin_end(24)
+        content = create_properties_content()
 
         # Init MetadataReader for selected file
         self.metadata_reader = MetadataReader(self.media_path)
 
         # Scrolled Window for content
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_propagate_natural_height(True)
-        scrolled.set_vexpand(True)
+        scrolled = create_properties_scrolled_window()
 
         # Groups box
-        groups_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        groups_box = create_properties_groups_box()
 
         # File Information Group
-        file_group = Adw.PreferencesGroup(title="File Information")
-
-        # Folder row
-        self.folder_row = Adw.ActionRow(title="Folder")
-        folder_button = Gtk.Button(icon_name="folder-open-symbolic")
-        folder_button.add_css_class("flat")
-        folder_button.connect("clicked", self.on_folder_clicked)
-        self.folder_row.add_suffix(folder_button)
-        file_group.add(self.folder_row)
-
-        # Path row
-        self.path_row = Adw.ActionRow(title="Path")
-        file_group.add(self.path_row)
-
+        file_group, self.folder_row, self.path_row = create_file_info_group(self.on_folder_clicked)
         groups_box.append(file_group)
 
         # Media Information Group
-        media_group = Adw.PreferencesGroup(title="Media Information")
-
-        self.format_row = Adw.ActionRow(title="Format")
-        self.filesize_row = Adw.ActionRow(title="File Size")
-
-        for row in [self.format_row, self.filesize_row]:
-            media_group.add(row)
-
+        media_group, self.format_row, self.filesize_row = create_media_info_group()
         groups_box.append(media_group)
 
         # Dates Group
-        dates_group = Adw.PreferencesGroup(title="Dates")
-
-        self.created_row = Adw.ActionRow(title="Created")
-        self.modified_row = Adw.ActionRow(title="Modified")
-
-        for row in [self.created_row, self.modified_row]:
-            dates_group.add(row)
-
+        dates_group, self.created_row, self.modified_row = create_dates_group()
         groups_box.append(dates_group)
 
         # Camera Information Group
-        self.camera_group = Adw.PreferencesGroup(title="Camera Information")
+        self.camera_group = create_camera_info_group()
 
         # Create rows for camera info
         self.camera_rows = self.create_file_rows(extract_extension(self.media_path))
@@ -122,59 +94,8 @@ class MediaPropertiesView(Gtk.Box):
             final_lat = self.convert_gps_to_decimal(latitude, latitude_ref)
             final_lon = self.convert_gps_to_decimal(longitude, longitude_ref)
 
-        # Create a map group
-        map_group = Adw.PreferencesGroup(title="Location")
-
-        # Create a vertical box to stack the map and the button
-        map_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        map_container.set_vexpand(True)
-        map_container.set_hexpand(True)
-
-        # Create map widget
-        map_widget = Shumate.SimpleMap()
-        map_widget.set_vexpand(True)
-        map_widget.set_hexpand(True)
-
-        # Set up the map source
-        registry = Shumate.MapSourceRegistry.new_with_defaults()
-        map_source = registry.get_by_id(Shumate.MAP_SOURCE_OSM_MAPNIK)
-        viewport = map_widget.get_viewport()
-        map_widget.set_map_source(map_source)
-
-        # Reference map source used by MarkerLayer
-        viewport.set_reference_map_source(map_source)
-
-        # Set up marker with visible icon
-        marker_layer = Shumate.MarkerLayer(viewport=viewport)
-        marker = Shumate.Marker()
-        marker.set_location(final_lat, final_lon)
-
-        # Create a visible marker icon
-        marker_icon = Gtk.Image()
-        marker_icon.set_from_icon_name("mark-location-symbolic")
-        marker_icon.add_css_class("map-marker")
-        marker_icon.set_pixel_size(48)
-        marker.set_child(marker_icon)
-
-        marker_layer.add_marker(marker)
-        map_widget.get_map().add_layer(marker_layer)
-
-        map_widget.get_map().go_to(final_lat, final_lon)
-        viewport.set_zoom_level(19)
-
-        # Add the map widget to the container
-        map_container.append(map_widget)
-
-        # Create the "Open Map" button
-        open_map_button = Gtk.Button(label="Open Map")
-        open_map_button.add_css_class("flat")
-        open_map_button.connect("clicked", lambda btn: self.app_window.on_map_clicked(final_lat, final_lon))
-
-        # Add the button to the container (below the map)
-        map_container.append(open_map_button)
-
-        # Add the container to the map group
-        map_group.add(map_container)
+        # Create map group
+        map_group = create_map_group(final_lat, final_lon, self.app_window.on_map_clicked)
 
         # Append the map group to the groups box
         groups_box.append(map_group)

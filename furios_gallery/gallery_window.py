@@ -27,6 +27,12 @@ from .database_manager import (
     create_tables, create_connection,
     delete_from_albums,
 )
+from .ui import (
+    create_gallery_header, create_album_button, create_info_button, create_media_options_button,
+    create_delete_media_button, create_return_button, create_main_window_layout,
+    create_album_create_dialog, create_selection_header_bar, create_delete_confirmation_dialog,
+    create_map_page, clear_flowbox
+)
 
 class GalleryWindow(Adw.ApplicationWindow):
     def __init__(self, *args, **kwargs):
@@ -55,68 +61,39 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.current_index = len(self.media_paths) - 1
 
         # Create toast overlay for notifications
-        self.toast_overlay = Adw.ToastOverlay()
+        self.toast_overlay, self.toolbar_view, self.bottom_sheet, self.navigation_view = create_main_window_layout()
 
         # Header bar setup
-        self.header = Adw.HeaderBar()
-        self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+        self.header = create_gallery_header()
 
-        # Create navigation view for swipe gestures
-        self.navigation_view = Adw.NavigationView()
-        self.navigation_view.connect("popped", self.on_page_popped)
+        # Create album button
+        self.create_album_btn = create_album_button(self.create_album)
+        self.header.pack_start(self.create_album_btn)
+
+        # Info button (initially hidden)
+        self.info_btn = create_info_button(self.on_info_clicked)
+        self.header.pack_end(self.info_btn)
+
+        # Media view buttons (initially hidden)
+        self.media_options_btn = create_media_options_button(self.on_media_options_clicked)
+        self.header.pack_end(self.media_options_btn)
+
+        # Delete media button
+        self.delete_media_btn = create_delete_media_button(self.open_delete_popup)
+        self.header.pack_end(self.delete_media_btn)
+
+        # Return button
+        self.return_btn = create_return_button(self.on_return_clicked)
+        self.header.pack_start(self.return_btn)
 
         # Create initial albums page
         self.initial_albums_page = self.create_albums_page()
         self.navigation_view.add(self.initial_albums_page)
 
-        # Toolbar view setup
-        self.toolbar_view = Adw.ToolbarView()
-
-        # Create album button
-        self.create_album_btn = Gtk.Button(icon_name="folder-new-symbolic")
-        self.create_album_btn.connect("clicked", self.create_album)
-        self.header.pack_start(self.create_album_btn)
-
-        # Info button (initially hidden)
-        self.info_btn = Gtk.Button(icon_name="help-about-symbolic")
-        self.info_btn.connect("clicked", self.on_info_clicked)
-        self.info_btn.set_visible(False)
-        self.header.pack_end(self.info_btn)
-
-        # Media view buttons (initially hidden)
-        self.media_options_btn = Gtk.Button(icon_name="view-more-symbolic")
-        self.media_options_btn.connect("clicked", self.on_media_options_clicked)
-        self.media_options_btn.set_visible(False)
-        self.header.pack_end(self.media_options_btn)
-
-        # Delete media button
-        self.delete_media_btn = Gtk.Button(icon_name="user-trash-symbolic")
-        self.delete_media_btn.connect("clicked", self.open_delete_popup)
-        self.delete_media_btn.add_css_class("delete-btn")
-        self.header.pack_end(self.delete_media_btn)
-
-        # Return button
-        self.return_btn = Gtk.Button(icon_name="go-previous-symbolic")
-        self.return_btn.connect("clicked", self.on_return_clicked)
-        self.return_btn.set_visible(False)
-        self.header.pack_start(self.return_btn)
-
-        # Bottom sheet setup
-        self.bottom_sheet = Adw.BottomSheet()
-        self.bottom_sheet.set_modal(True)
-        self.bottom_sheet.set_can_open(True)
-
         # Add header to toolbar view
         self.toolbar_view.add_top_bar(self.header)
 
-        # Set navigation view as bottom sheet content
-        self.bottom_sheet.set_content(self.navigation_view)
-
-        # Set bottom sheet as toolbar view content
-        self.toolbar_view.set_content(self.bottom_sheet)
-
         # Set toast overlay as main content
-        self.toast_overlay.set_child(self.toolbar_view)
         self.set_content(self.toast_overlay)
 
         # Navigation view state changes
@@ -128,15 +105,10 @@ class GalleryWindow(Adw.ApplicationWindow):
     def on_page_popped(self, navigation_view, page):
         # If it has a FlowBox, remove each child
         if hasattr(page, "flowbox"):
-            child = page.flowbox.get_first_child()
-            while child is not None:
-                next_child = child.get_next_sibling()
-                page.flowbox.remove(child)
-                child = next_child
+            clear_flowbox(page.flowbox)
 
         # Finally unparent the page itself from the nav‐view
         navigation_view.remove(page)
-
 
     def on_navigation_changed(self, navigation_view, page=None):
         visible_page = navigation_view.get_visible_page()
@@ -213,42 +185,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         current_page = self.navigation_view.get_visible_page()
         if isinstance(current_page, MediaView):
             # Create a navigation page for the map
-            map_page = Adw.NavigationPage()
-            map_page.set_title("Location")
-
-            # Create map widget
-            map_widget = Shumate.SimpleMap()
-            map_widget.set_vexpand(True)
-            map_widget.set_hexpand(True)
-
-            # Set up the map source
-            registry = Shumate.MapSourceRegistry.new_with_defaults()
-            map_source = registry.get_by_id(Shumate.MAP_SOURCE_OSM_MAPNIK)
-            viewport = map_widget.get_viewport()
-            map_widget.set_map_source(map_source)
-
-            # Reference map source used by MarkerLayer
-            viewport.set_reference_map_source(map_source)
-
-            # Set up marker with visible icon
-            marker_layer = Shumate.MarkerLayer(viewport=viewport)
-            marker = Shumate.Marker()
-            marker.set_location(lat, lon)
-
-            # Create a visible marker icon
-            marker_icon = Gtk.Image()
-            marker_icon.set_from_icon_name("mark-location-symbolic")
-            marker_icon.add_css_class("map-marker")
-            marker_icon.set_pixel_size(48)
-            marker.set_child(marker_icon)
-
-            marker_layer.add_marker(marker)
-            map_widget.get_map().add_layer(marker_layer)
-            map_widget.get_map().go_to(lat, lon)
-            viewport.set_zoom_level(19)
-
-            # Set map as the page content
-            map_page.set_child(map_widget)
+            map_page = create_map_page(lat, lon)
 
             # Push the map page to the navigation stack
             self.navigation_view.push(map_page)
@@ -298,21 +235,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view.push(media_page)
 
     def create_album(self, button):
-        dialog = Adw.MessageDialog(
-            transient_for=self,
-            heading="Create New Album",
-            body="Enter the name of your new album:",
-        )
-
-        entry = Gtk.Entry()
-        entry.set_placeholder_text("Album Name")
-        entry.set_margin_top(10)
-        entry.set_margin_bottom(10)
-        dialog.set_extra_child(entry)
-
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("create", "Create")
-        dialog.set_response_appearance("create", Adw.ResponseAppearance.SUGGESTED)
+        dialog, entry = create_album_create_dialog(self)
 
         dialog.connect("response", lambda dialog, response: self.on_album_create_response(dialog, response, entry))
 
@@ -363,27 +286,13 @@ class GalleryWindow(Adw.ApplicationWindow):
             flowbox.set_selection_mode(Gtk.SelectionMode.MULTIPLE)
 
             # Create selection bar
-            selection_bar = Adw.HeaderBar()
-
-            # Selection count label
-            self.selected_files_label = Gtk.Label(label=label_text)
-            selection_bar.set_title_widget(self.selected_files_label)
-
-            # Cancel button
-            self.cancel_btn = Gtk.Button(label="Cancel")
-            self.cancel_btn.connect("clicked", self.on_cancel_selection)
-            selection_bar.pack_start(self.cancel_btn)
-
-            # Delete confirmation button
-            self.delete_confirm_btn = Gtk.Button(label="Delete")
-            self.delete_confirm_btn.add_css_class("destructive-action")
-            self.delete_confirm_btn.connect("clicked", self.on_delete_confirmation)
-            selection_bar.pack_end(self.delete_confirm_btn)
+            self.selection_bar, self.selected_files_label = create_selection_header_bar(
+                label_text, self.on_cancel_selection, self.on_delete_confirmation
+            )
 
             # Restore original header
             self.toolbar_view.remove(self.header)
-            self.toolbar_view.add_top_bar(selection_bar)
-            self.selection_bar = selection_bar
+            self.toolbar_view.add_top_bar(self.selection_bar)
 
     def on_cancel_selection(self, btn):
         current_page = self.navigation_view.get_visible_page()
@@ -425,15 +334,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             print("Unsupported view type for delete confirmation")
             return
 
-        dialog = Adw.MessageDialog(
-            transient_for=self,
-            heading=heading,
-            body=body
-        )
-
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("delete", "Delete")
-        dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog = create_delete_confirmation_dialog(self, heading, body)
         dialog.connect("response", response_handler)
         dialog.present()
 

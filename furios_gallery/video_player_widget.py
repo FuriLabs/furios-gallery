@@ -13,6 +13,7 @@ import time
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gst", "1.0")
 from gi.repository import Gtk, Gst, GLib, Gdk
+from .ui import create_video_player_css, create_video_controls, create_video_overlay_and_button
 
 class VideoPlayerWidget(Gtk.Box):
     def __init__(self, file_path):
@@ -26,24 +27,7 @@ class VideoPlayerWidget(Gtk.Box):
     def init_ui(self):
         Gst.init(None)
 
-        css_provider = Gtk.CssProvider()
-
-        css_provider.load_from_data(b"""
-        .control-box {
-            background-color: rgba(0, 0, 0, 0.7); /* Black with 70% opacity */
-            border-radius: 10px;
-            padding: 10px;
-        }
-        .control-box-button, .control-box-label {
-            color: white; /* Text color */
-            background-color: transparent; /* Transparent background */
-            border: none; /* No border */
-        }
-        """
-        )
-
-        display = Gdk.Display.get_default()
-        Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        create_video_player_css()
 
         self.playbin = Gst.ElementFactory.make("playbin", None)
         gtk_sink = Gst.ElementFactory.make("gtk4paintablesink", None)
@@ -62,60 +46,21 @@ class VideoPlayerWidget(Gtk.Box):
         video_widget.set_hexpand(True)
         video_widget.set_vexpand(True)
 
-        self.overlay = Gtk.Overlay()
+        self.overlay, self.video_click_button = create_video_overlay_and_button()
         self.overlay.set_child(video_widget)
         self.append(self.overlay)
 
-        self.video_click_button = Gtk.Button()
-        self.video_click_button.set_opacity(0)
-        self.video_click_button.set_can_focus(False)
         self.video_click_button.connect("clicked", self.on_video_clicked)
         self.overlay.add_overlay(self.video_click_button)
 
-        self.control_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        self.control_box.set_margin_bottom(50)
-        self.control_box.set_hexpand(True)
-        self.control_box.set_halign(Gtk.Align.FILL)
-        self.control_box.add_css_class("control-box")
-        self.control_box.set_valign(Gtk.Align.END)
-        self.overlay.add_overlay(self.control_box)
+        (self.control_box, self.play_pause_button, self.play_pause_image, 
+         self.duration_label, self.mute_button, self.mute_image, self.seeker) = create_video_controls()
 
-        play_duration_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        play_duration_box.set_hexpand(True)
-        play_duration_box.set_halign(Gtk.Align.FILL)
-        self.control_box.append(play_duration_box)
-
-        self.play_pause_button = Gtk.Button()
-        self.play_pause_button.add_css_class("control-box-button")
-        self.play_pause_image = Gtk.Image.new_from_icon_name("media-playback-start-symbolic")
-        self.play_pause_image.set_pixel_size(25)
-        self.play_pause_button.set_child(self.play_pause_image)
         self.play_pause_button.connect("clicked", self.on_play_pause)
-        play_duration_box.append(self.play_pause_button)
-
-        self.duration_label = Gtk.Label(label="00:00/00:00")
-        self.duration_label.add_css_class("control-box-label")
-        play_duration_box.append(self.duration_label)
-
-        spacer = Gtk.Box()
-        spacer.set_size_request(40, 50)
-        spacer.set_hexpand(True)
-        play_duration_box.append(spacer)
-
-        self.mute_button = Gtk.Button()
-        self.mute_button.add_css_class("control-box-button")
-        self.mute_image = Gtk.Image.new_from_icon_name("audio-volume-high-symbolic")
-        self.mute_image.set_pixel_size(25)
-        self.mute_button.set_child(self.mute_image)
         self.mute_button.connect("clicked", self.on_mute_toggle)
-        self.mute_button.set_halign(Gtk.Align.END)
-        play_duration_box.append(self.mute_button)
-
-        self.seeker = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
-        self.seeker.set_draw_value(False)
         self.seeker.connect("value-changed", self.on_seek)
-        self.seeker.set_hexpand(True)
-        self.control_box.append(self.seeker)
+
+        self.overlay.add_overlay(self.control_box)
 
         self.setup_video()
 

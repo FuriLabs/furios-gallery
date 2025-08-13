@@ -10,6 +10,10 @@
 import asyncio
 from gi.repository import Gtk, GLib, Adw, Gdk
 from furios_gallery.media_manager import check_file_integrity
+from .ui import (
+    create_grid_view_main_box, create_grid_view_placeholder, create_grid_view_scrolled_window,
+    create_grid_view_flowbox, setup_grid_view_css
+)
 
 class GridView(Adw.NavigationPage):
     def __init__(self, app, thumbnails, album_name="Media", items_per_load=200):
@@ -20,21 +24,17 @@ class GridView(Adw.NavigationPage):
         self.items_per_load = items_per_load
 
         # Main box to hold the grid view
-        self.main_grid_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.main_grid_box.set_hexpand(True)
-        self.main_grid_box.set_vexpand(True)
-        self.main_grid_box.set_halign(Gtk.Align.FILL)
-        self.main_grid_box.set_valign(Gtk.Align.FILL)
+        self.main_grid_box = create_grid_view_main_box()
 
         # Placeholder while loading
-        self.placeholder = Gtk.Label(label="Loading...")
+        self.placeholder = create_grid_view_placeholder()
         self.main_grid_box.append(self.placeholder)
 
         # Set the main grid box as the child of the NavigationPage
         self.set_child(self.main_grid_box)
 
         # Setup CSS
-        self.setup_css()
+        setup_grid_view_css()
 
         # Flowbox will be None initially
         self.flowbox = None
@@ -44,19 +44,6 @@ class GridView(Adw.NavigationPage):
         # Async setup of widget
         asyncio.create_task(self.setup_widget())
 
-    def setup_css(self):
-        css_provider = Gtk.CssProvider()
-
-        css_provider.load_from_data(b"""
-        .delete-btn {
-            padding: 5px;
-        }
-        """
-        )
-
-        display = Gdk.Display.get_default()
-        Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-
     async def setup_widget(self):
         await self.create_widget()
         GLib.idle_add(self._replace_placeholder_with_widget)
@@ -65,29 +52,14 @@ class GridView(Adw.NavigationPage):
         self.main_grid_box.remove(self.placeholder)
 
     async def create_widget(self):
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled_window.set_hexpand(True)
-        scrolled_window.set_vexpand(True)
+        scrolled_window = create_grid_view_scrolled_window()
 
-        self.flowbox = Gtk.FlowBox()
-        self.flowbox.set_valign(Gtk.Align.START)
-        self.flowbox.set_column_spacing(0)
-        self.flowbox.set_row_spacing(0)
-        self.flowbox.set_max_children_per_line(5)
-        self.flowbox.set_min_children_per_line(5)
-        self.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.flowbox.set_sort_func(lambda child1, child2: child2.media_index - child1.media_index)
-        self.flowbox.set_homogeneous(True)
+        self.flowbox = create_grid_view_flowbox(self.on_child_selected, self.update_selected_count)
 
         scrolled_window.set_child(self.flowbox)
 
         # Load initial items
         asyncio.create_task(self.load_more_items())
-
-        # Connect signals
-        self.flowbox.connect("selected-children-changed", self.on_child_selected)
-        self.flowbox.connect("selected-children-changed", self.update_selected_count)
 
         # Connect scroll event
         adjustment = scrolled_window.get_vadjustment()
@@ -133,7 +105,7 @@ class GridView(Adw.NavigationPage):
             # Update the start_index to move on to the next chunk
             start_index = chunk_end
 
-        # We’ve now loaded up to end_index
+        # We've now loaded up to end_index
         self.app.current_index = end_index
         self._loading = False
 

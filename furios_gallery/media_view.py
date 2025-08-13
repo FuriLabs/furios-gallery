@@ -15,6 +15,12 @@ from .video_player_widget import VideoPlayerWidget
 from .image_viewer_widget import ImageViewerWidget
 from .media_manager import get_file_creation_date
 from .database_manager import delete_from_albums, delete_file_from_album, list_database_albums, add_file_to_album
+from .ui import (
+    create_media_view_main_box, create_media_view_overlay, create_media_view_carousel,
+    create_media_navigation_buttons, create_media_options_dialog, create_media_options_content,
+    create_option_button, create_album_selection_dialog, create_album_selection_content,
+    create_delete_confirmation_dialog
+)
 
 class MediaView(Adw.NavigationPage):
     def __init__(self, app):
@@ -26,27 +32,13 @@ class MediaView(Adw.NavigationPage):
 
     def setup_content(self):
         # Main content box
-        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        self.main_box.set_halign(Gtk.Align.FILL)
-        self.main_box.set_valign(Gtk.Align.FILL)
-        self.main_box.set_hexpand(True)
-        self.main_box.set_vexpand(True)
+        self.main_box = create_media_view_main_box()
 
         # Overlay for additional UI elements
-        self.overlay = Gtk.Overlay()
-        self.overlay.set_halign(Gtk.Align.FILL)
-        self.overlay.set_valign(Gtk.Align.FILL)
-        self.overlay.set_hexpand(True)
-        self.overlay.set_vexpand(True)
+        self.overlay = create_media_view_overlay()
 
         # Create the carousel
-        self.carousel = Adw.Carousel()
-        self.carousel.set_spacing(20)
-        self.carousel.set_valign(Gtk.Align.FILL)
-        self.carousel.set_halign(Gtk.Align.FILL)
-        self.carousel.set_vexpand(True)
-        self.carousel.set_hexpand(True)
-        self.carousel.connect("page-changed", self.on_page_changed)
+        self.carousel = create_media_view_carousel(self.on_page_changed)
 
         # Populate the carousel
         self.populate_carousel(self.carousel, self.app.current_index)
@@ -78,32 +70,17 @@ class MediaView(Adw.NavigationPage):
         self.app.update_properties_view()
 
     def open_menu_popup(self, btn):
-        dialog = Adw.MessageDialog(
-            transient_for=self.get_root(),
-            modal=True,
-            heading="Media Options"
-        )
+        dialog = create_media_options_dialog(self.get_root())
 
-        media_options = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        media_options.set_margin_top(10)
-        media_options.set_margin_bottom(10)
-        media_options.set_margin_start(10)
-        media_options.set_margin_end(10)
+        media_options = create_media_options_content()
 
-        def create_button(label, on_click, *args):
-            button = Gtk.Button(label=label)
-            button.set_hexpand(True)
-            button.set_halign(Gtk.Align.FILL)
-            button.connect("clicked", on_click, *args)
-            return button
-
-        add_to_album_btn = create_button("Add to Album", lambda btn: self.add_to_album(btn, None, dialog))
+        add_to_album_btn = create_option_button("Add to Album", lambda btn: self.add_to_album(btn, None, dialog))
         media_options.append(add_to_album_btn)
 
-        remove_from_album_btn = create_button("Remove from Album", self.delete_from_album, dialog)
+        remove_from_album_btn = create_option_button("Remove from Album", self.delete_from_album, dialog)
         media_options.append(remove_from_album_btn)
 
-        close_media_options_btn = create_button("Cancel", self.on_close_media_options, dialog)
+        close_media_options_btn = create_option_button("Cancel", self.on_close_media_options, dialog)
         media_options.append(close_media_options_btn)
 
         dialog.set_extra_child(media_options)
@@ -111,20 +88,13 @@ class MediaView(Adw.NavigationPage):
         dialog.present()
 
     def add_to_album(self, btn, add_album_box, first_dialog):
-        dialog = Adw.MessageDialog(
-            transient_for=self.get_root(),
-            heading="Add to Album",
-            body="Select an album to add the file to:",
+        dialog = create_album_selection_dialog(
+            self.get_root(),
+            "Add to Album",
+            "Select an album to add the file to:"
         )
 
-        scrolled_window = Gtk.ScrolledWindow()
-        scrolled_window.set_min_content_height(200)
-        scrolled_window.set_min_content_width(300)
-
-        flowbox = Gtk.FlowBox()
-        flowbox.set_valign(Gtk.Align.START)
-        flowbox.set_max_children_per_line(3)
-        flowbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        scrolled_window, flowbox = create_album_selection_content()
 
         albums = list_database_albums(self.app.conn)
         for album in albums:
@@ -132,7 +102,6 @@ class MediaView(Adw.NavigationPage):
             button.connect("clicked", self.on_album_button_clicked, album, first_dialog, dialog)
             flowbox.append(button)
 
-        scrolled_window.set_child(flowbox)
         dialog.set_extra_child(scrolled_window)
 
         dialog.add_response("cancel", "Cancel")
@@ -175,15 +144,11 @@ class MediaView(Adw.NavigationPage):
         dialog.destroy()
 
     def open_delete_popup(self, btn):
-        dialog = Adw.MessageDialog(
-            transient_for=self.get_root(),
-            heading="Delete File?",
-            body="This will permanently delete the file from your system"
+        dialog = create_delete_confirmation_dialog(
+            self.get_root(),
+            "Delete File?",
+            "This will permanently delete the file from your system"
         )
-
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("delete", "Delete")
-        dialog.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
 
         dialog.connect("response", self.on_delete_media)
 
@@ -318,27 +283,7 @@ class MediaView(Adw.NavigationPage):
         self.previous_index = index
 
     def setup_buttons(self):
-        buttons_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        buttons_box.set_halign(Gtk.Align.FILL)
-        buttons_box.set_valign(Gtk.Align.CENTER)
-        buttons_box.set_hexpand(True)
-        buttons_box.set_vexpand(True)
-
-        left_button = Gtk.Button(icon_name="go-previous-symbolic")
-        left_button.connect('clicked', self.update_media_left)
-        left_button.set_hexpand(False)
-        buttons_box.append(left_button)
-
-        spacer = Gtk.Box()
-        spacer.set_halign(Gtk.Align.FILL)
-        spacer.set_hexpand(True)
-        buttons_box.append(spacer)
-
-        right_button = Gtk.Button(icon_name="go-next-symbolic")
-        right_button.connect('clicked', self.update_media_right)
-        right_button.set_hexpand(False)
-        buttons_box.append(right_button)
-
+        buttons_box = create_media_navigation_buttons(self.update_media_left, self.update_media_right)
         self.overlay.add_overlay(buttons_box)
 
     def update_media_left(self, btn):
