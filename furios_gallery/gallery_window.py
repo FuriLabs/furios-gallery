@@ -10,9 +10,8 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-gi.require_version('Shumate', '1.0')
 
-from gi.repository import Gtk, Adw, GLib, Shumate
+from gi.repository import Gtk, Adw, GLib
 from os.path import expanduser
 from pathlib import Path
 import os
@@ -23,7 +22,7 @@ from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
 from .media_properties_view import MediaPropertiesView
 from .database_manager import (
-    get_album_database_paths, get_album_media_paths,
+    get_album_database_paths,
     create_tables, create_connection,
     delete_from_albums,
 )

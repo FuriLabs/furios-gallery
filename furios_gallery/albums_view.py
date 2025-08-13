@@ -10,9 +10,9 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, Gdk, GdkPixbuf, Pango
+from gi.repository import Gtk, Adw, GdkPixbuf, Pango
 
-from .database_manager import get_album_database_paths, list_database_albums, get_album_media_paths, get_latest_media_path
+from .database_manager import get_album_database_paths, list_database_albums, get_latest_media_path
 from .thumbnail_generator import ThumbnailGenerator
 from .ui import (
     create_albums_content_box, create_albums_scrolled_window, create_albums_flowbox,

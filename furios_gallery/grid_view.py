@@ -8,8 +8,7 @@
 # Luis Garcia <git@luigi311.com>
 
 import asyncio
-from gi.repository import Gtk, GLib, Adw, Gdk
-from furios_gallery.media_manager import check_file_integrity
+from gi.repository import Gtk, GLib, Adw
 from .ui import (
     create_grid_view_main_box, create_grid_view_placeholder, create_grid_view_scrolled_window,
     create_grid_view_flowbox, setup_grid_view_css

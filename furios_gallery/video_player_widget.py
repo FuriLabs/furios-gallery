@@ -12,7 +12,7 @@ import os
 import time
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gst", "1.0")
-from gi.repository import Gtk, Gst, GLib, Gdk
+from gi.repository import Gtk, Gst, GLib
 from .ui import create_video_player_css, create_video_controls, create_video_overlay_and_button
 
 class VideoPlayerWidget(Gtk.Box):

@@ -50,7 +50,6 @@ def has_thumbnail(media_path):
 
         # If the stored metadata matches the current file's metadata
         return (stored_mtime == current_mtime and stored_size == current_size)
-    
     except Exception:
         print(f"Error reading thumbnail metadata for {media_path}")
 

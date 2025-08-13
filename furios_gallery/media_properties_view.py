@@ -10,10 +10,7 @@
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-gi.require_version('Shumate', '1.0')
-from gi.repository import Gtk, Adw, GLib, Shumate
-from PIL import Image
-from PIL.ExifTags import TAGS
+from gi.repository import Gtk, Adw, GLib
 import os
 import mimetypes
 from datetime import datetime
