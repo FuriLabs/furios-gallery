@@ -1,6 +1,6 @@
 furios_gallery /usr/lib/furios-gallery
 main.py /usr/lib/furios-gallery
-gallery_daemon.py /usr/lib/furios-gallery
+furios-gallery-daemon/gallery_daemon.py /usr/lib/furios-gallery
 data/io.FuriOS.Gallery.desktop /usr/share/applications
 data/io.FuriOS.Gallery.svg /usr/share/icons/hicolor/scalable/apps
 data/furios-gallery-daemon.service /usr/lib/systemd/user/
