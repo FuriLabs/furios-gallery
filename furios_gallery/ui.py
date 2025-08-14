@@ -69,7 +69,7 @@ def create_albums_scrolled_window() -> Gtk.ScrolledWindow:
     scrolled_window.set_vexpand(True)
     return scrolled_window
 
-def create_albums_flowbox(selection_callback: Callable) -> Gtk.FlowBox:
+def create_albums_flowbox(selection_callback: Callable, update_callback: Callable = None) -> Gtk.FlowBox:
     """Create flowbox for albums."""
     flowbox = Gtk.FlowBox()
     flowbox.set_valign(Gtk.Align.START)
@@ -80,6 +80,9 @@ def create_albums_flowbox(selection_callback: Callable) -> Gtk.FlowBox:
     flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
     flowbox.set_homogeneous(True)
     flowbox.connect("selected-children-changed", selection_callback)
+    # Connect the update callback if provided
+    if update_callback:
+        flowbox.connect("selected-children-changed", update_callback)
     return flowbox
 
 def create_album_item(album_name: str, thumbnail_path: str = None) -> Gtk.FlowBoxChild:

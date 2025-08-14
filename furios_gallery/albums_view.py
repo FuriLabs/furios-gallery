@@ -34,7 +34,7 @@ class Albums(Adw.NavigationPage):
         scrolled_window = create_albums_scrolled_window()
 
         # Flowbox for albums
-        self.flowbox = create_albums_flowbox(self.on_album_selected)
+        self.flowbox = create_albums_flowbox(self.on_album_selected, self.update_selected_count)
 
         # Setup CSS for album items
         setup_albums_css()
@@ -51,6 +51,10 @@ class Albums(Adw.NavigationPage):
 
         # Give focus to the album_view page
         self.app_window.present()
+
+    def update_selected_count(self, flowbox):
+        if hasattr(self.app_window, 'selected_files_label') and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
+            self.app_window.selected_files_label.set_text(f"Selected Albums: {len(self.flowbox.get_selected_children())}")
 
     def load_albums(self):
         # Clear existing items
@@ -69,6 +73,9 @@ class Albums(Adw.NavigationPage):
             flowbox_child = create_album_item(album, thumbnail_path)
             self.flowbox.append(flowbox_child)
 
+        # Setup click handlers for toggle selection
+        self.setup_flowbox_click_handlers()
+
     def load_albums_async(self):
         # Clear existing items
         clear_flowbox(self.flowbox)
@@ -80,6 +87,9 @@ class Albums(Adw.NavigationPage):
         for album in albums:
             flowbox_child = create_album_item(album, None)
             self.flowbox.append(flowbox_child)
+
+        # Setup click handlers for toggle selection
+        self.setup_flowbox_click_handlers()
 
         # Get database file path
         db_path = self.app_window.conn.execute("PRAGMA database_list").fetchone()[2]
@@ -126,6 +136,10 @@ class Albums(Adw.NavigationPage):
         return False
 
     def on_album_selected(self, flowbox):
+        if flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
+            # In multiple selection mode, just update the count
+            return
+
         if flowbox.get_selection_mode() == Gtk.SelectionMode.SINGLE:
             selected_children = flowbox.get_selected_children()
             if selected_children:
@@ -149,6 +163,25 @@ class Albums(Adw.NavigationPage):
                 self.app_window.navigation_view.push(grid_view_page)
 
             self.flowbox.unselect_all()
+
+    def setup_flowbox_click_handlers(self):
+        for child in self.flowbox:
+            # Remove existing handlers to avoid duplicates
+            gesture = Gtk.GestureClick.new()
+            gesture.connect("pressed", self.on_flowbox_child_clicked, child)
+            child.add_controller(gesture)
+
+    def on_flowbox_child_clicked(self, gesture, n_press, x, y, child):
+        if self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
+            # Stop the gesture from propagating to prevent double-handling
+            gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+
+            if child.is_selected():
+                self.flowbox.unselect_child(child)
+            else:
+                self.flowbox.select_child(child)
+            return True
+        return False
 
     def update_album_thumbnail(self, album):
         last_media_url = get_latest_media_path(self.app_window.conn, album)

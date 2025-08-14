@@ -123,6 +123,12 @@ class GridView(Adw.NavigationPage):
             )
 
             GLib.idle_add(self.flowbox.append, flowbox_child)
+            GLib.idle_add(self.setup_single_child_click_handler, flowbox_child)
+
+    def setup_single_child_click_handler(self, child):
+        gesture = Gtk.GestureClick.new()
+        gesture.connect("pressed", self.on_flowbox_child_clicked, child)
+        child.add_controller(gesture)
 
     def delete_media_from_flowbox(self, media_index):
         child = self.flowbox.get_first_child()
@@ -134,6 +140,10 @@ class GridView(Adw.NavigationPage):
             child = child.get_next_sibling()
 
     def on_child_selected(self, flowbox):
+        if self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
+            # In multiple selection mode, just update the count
+            return
+
         if self.flowbox.get_selection_mode() == Gtk.SelectionMode.SINGLE:
             selected = flowbox.get_selected_children()
             if selected:  # Check if there are selected items
@@ -141,3 +151,22 @@ class GridView(Adw.NavigationPage):
                 self.app.current_index = item.media_index
                 self.app.open_media_at_index(item.media_index)
             self.flowbox.unselect_all()
+
+    def setup_flowbox_click_handlers(self):
+        for child in self.flowbox:
+            # Remove existing handlers to avoid duplicates
+            gesture = Gtk.GestureClick.new()
+            gesture.connect("pressed", self.on_flowbox_child_clicked, child)
+            child.add_controller(gesture)
+
+    def on_flowbox_child_clicked(self, gesture, n_press, x, y, child):
+        if self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
+            # Stop the gesture from propagating to prevent double-handling
+            gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+
+            if child.is_selected():
+                self.flowbox.unselect_child(child)
+            else:
+                self.flowbox.select_child(child)
+            return True
+        return False
