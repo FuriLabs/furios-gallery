@@ -9,7 +9,7 @@ INSTALL_DIR = $(LIBDIR)/furios-gallery
 DESKTOP_DIR = $(DATADIR)/applications
 ICON_DIR = $(DATADIR)/icons/hicolor/scalable/apps
 
-.PHONY: all install uninstall clean
+.PHONY: all install uninstall
 
 all:
 	@echo "Run 'make install' to install the files."
