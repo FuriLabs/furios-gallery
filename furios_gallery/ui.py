@@ -492,11 +492,9 @@ def create_video_player_css():
 def create_video_controls() -> tuple[Gtk.Box, Gtk.Button, Gtk.Image, Gtk.Label, Gtk.Button, Gtk.Image, Gtk.Scale]:
     """Create video player controls."""
     control_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-    control_box.set_margin_bottom(50)
     control_box.set_hexpand(True)
     control_box.set_halign(Gtk.Align.FILL)
     control_box.add_css_class("control-box")
-    control_box.set_valign(Gtk.Align.END)
 
     play_duration_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
     play_duration_box.set_hexpand(True)

@@ -12,7 +12,7 @@ import os
 import time
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gst", "1.0")
-from gi.repository import Gtk, Gst, GLib
+from gi.repository import Gtk, Gst, GLib, Adw
 from .ui import create_video_player_css, create_video_controls, create_video_overlay_and_button
 
 class VideoPlayerWidget(Gtk.Box):
@@ -20,8 +20,9 @@ class VideoPlayerWidget(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.file_path = file_path
         self.playbin = None
-        self.control_box_opacity = 1.0
         self.control_box = None
+        self.controls_visible = True
+        self.controls_revealer = None
         self.init_ui()
 
     def init_ui(self):
@@ -46,21 +47,42 @@ class VideoPlayerWidget(Gtk.Box):
         video_widget.set_hexpand(True)
         video_widget.set_vexpand(True)
 
-        self.overlay, self.video_click_button = create_video_overlay_and_button()
-        self.overlay.set_child(video_widget)
-        self.append(self.overlay)
-
+        # Create a clickable overlay just for the video area
+        self.video_overlay = Gtk.Overlay()
+        self.video_click_button = Gtk.Button()
+        self.video_click_button.set_opacity(0)
+        self.video_click_button.set_can_focus(False)
         self.video_click_button.connect("clicked", self.on_video_clicked)
-        self.overlay.add_overlay(self.video_click_button)
 
+        self.video_overlay.set_child(video_widget)
+        self.video_overlay.add_overlay(self.video_click_button)
+
+        # Add video to the main vertical box
+        self.append(self.video_overlay)
+
+        # Create controls and add them to a revealer
         (self.control_box, self.play_pause_button, self.play_pause_image,
          self.duration_label, self.mute_button, self.mute_image, self.seeker) = create_video_controls()
+
+        # Add margins to the control box
+        self.control_box.set_margin_bottom(10)
+        self.control_box.set_margin_top(10)
+        self.control_box.set_margin_start(10)
+        self.control_box.set_margin_end(10)
+
+        # Create a revealer
+        self.controls_revealer = Gtk.Revealer()
+        self.controls_revealer.set_reveal_child(True)
+        self.controls_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_UP)
+        self.controls_revealer.set_transition_duration(300)  # 300ms animation
+        self.controls_revealer.set_child(self.control_box)
 
         self.play_pause_button.connect("clicked", self.on_play_pause)
         self.mute_button.connect("clicked", self.on_mute_toggle)
         self.seeker.connect("value-changed", self.on_seek)
 
-        self.overlay.add_overlay(self.control_box)
+        # Add revealer containing controls, below the video
+        self.append(self.controls_revealer)
 
         self.setup_video()
 
@@ -89,50 +111,27 @@ class VideoPlayerWidget(Gtk.Box):
         self.play_pause_image.set_from_icon_name("media-playback-pause-symbolic")
         self.play_pause_button.connect("clicked", self.on_play_pause)
 
-    def fade_out_controls(self):
-        def update_opacity():
-            self.control_box_opacity -= 0.05
-            if self.control_box_opacity <= 0:
-                self.control_box_opacity = 0
-                self.control_box.set_opacity(self.control_box_opacity)
-                return False
-            self.control_box.set_opacity(self.control_box_opacity)
-            return True
-
-        if self.control_box:
-            GLib.timeout_add(50, update_opacity)
+    def toggle_controls_visibility(self):
+        if self.controls_visible:
+            # Hide controls
+            self.controls_revealer.set_reveal_child(False)
+            self.controls_visible = False
         else:
-            # show a toast once the initializatin of all classes is fixed
-            print("Cannot play the video")
-
-    def fade_in_controls(self):
-        def update_opacity():
-            self.control_box_opacity += 0.05
-            if self.control_box_opacity >= 1:
-                self.control_box_opacity = 1
-                self.control_box.set_opacity(self.control_box_opacity)
-                return False
-            self.control_box.set_opacity(self.control_box_opacity)
-            return True
-
-        GLib.timeout_add(50, update_opacity)
+            # Show controls
+            self.controls_revealer.set_reveal_child(True)
+            self.controls_visible = True
 
     def on_video_clicked(self, button):
-        if self.control_box_opacity == 1.0:
-            self.fade_out_controls()
-        else:
-            self.fade_in_controls()
+        self.toggle_controls_visibility()
 
     def on_play_pause(self, button):
         state = self.playbin.get_state(0).state
         if state != Gst.State.PLAYING:
             self.playbin.set_state(Gst.State.PLAYING)
             self.play_pause_image.set_from_icon_name("media-playback-pause-symbolic")
-            self.fade_out_controls()
         else:
             self.playbin.set_state(Gst.State.PAUSED)
             self.play_pause_image.set_from_icon_name("media-playback-start-symbolic")
-            self.fade_in_controls()
 
     def on_mute_toggle(self, button):
         current_volume = self.playbin.get_property("volume")
