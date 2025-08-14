@@ -18,7 +18,6 @@ from pathlib import Path
 from furios_gallery.media_manager import PICTURE_EXTENSIONS, VIDEO_EXTENSIONS, extract_extension, check_file_integrity
 
 THUMBNAIL_SIZE = (256, 256)
-DISPLAY_SIZE = (25, 25)
 CACHE_DIR = os.path.expanduser("~/.cache/thumbnails/large")
 
 def thumbnail_uri(media_path):
@@ -33,7 +32,6 @@ def ensure_cache_dir():
 
 def has_thumbnail(media_path):
     thumbnail_path = os.path.join(CACHE_DIR, f"{thumbnail_hash(media_path)}.png")
-
     if not os.path.exists(thumbnail_path):
         return False
 
@@ -52,7 +50,6 @@ def has_thumbnail(media_path):
         return (stored_mtime == current_mtime and stored_size == current_size)
     except Exception:
         print(f"Error reading thumbnail metadata for {media_path}")
-
     return False
 
 def generate_thumbnail(media_path):
@@ -76,27 +73,29 @@ def generate_thumbnail(media_path):
 
             # Process Images thumbnails
             if extract_extension(media_path) in PICTURE_EXTENSIONS:
-                with Image.open(media_path) as img:
-                    img.thumbnail(THUMBNAIL_SIZE)
-                    if img.mode == 'RGBA':
-                        img = img.convert('RGB')
-
-                    img.save(thumbnail_path, format="PNG", pnginfo=metadata)
+                try:
+                    with Image.open(media_path) as img:
+                        img.thumbnail(THUMBNAIL_SIZE)
+                        if img.mode == 'RGBA':
+                            img = img.convert('RGB')
+                        img.save(thumbnail_path, format="PNG", pnginfo=metadata)
+                except (OSError, IOError) as e:
+                    print(f"Failed to process image {media_path}: {e}")
+                    return None
             # Process Video thumbnails
             elif extract_extension(media_path) in VIDEO_EXTENSIONS:
-                with av.open(media_path) as container:
-                    frame = next(container.decode(video=0))
-                    img = frame.to_image()
-
-                    img.thumbnail(THUMBNAIL_SIZE)
-                    img.save(thumbnail_path, format="PNG", pnginfo=metadata)
+                try:
+                    with av.open(media_path) as container:
+                        frame = next(container.decode(video=0))
+                        img = frame.to_image()
+                        img.thumbnail(THUMBNAIL_SIZE)
+                        img.save(thumbnail_path, format="PNG", pnginfo=metadata)
+                except (ValueError, RuntimeError, StopIteration, OSError, IOError) as e:
+                    print(f"Error processing video {media_path}: {e}")
+                    return None
             else:
                 return None
-        except (av.AVError, IOError) as e:
-                print(f"Error processing video: {e}")
-                return None
-        except IOError as e:
-            print(f"Failed to open or process {media_path}: {e}")
+        except Exception as e:
+            print(f"Unexpected error processing {media_path}: {e}")
             return None
-
     return thumbnail_path
