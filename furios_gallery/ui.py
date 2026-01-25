@@ -190,6 +190,24 @@ def setup_grid_view_css():
     display = Gdk.Display.get_default()
     Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
+def create_edit_view_main_box() -> Gtk.Box:
+    """Create main content box for edit view."""
+    main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    main_box.set_halign(Gtk.Align.FILL)
+    main_box.set_valign(Gtk.Align.FILL)
+    main_box.set_hexpand(True)
+    main_box.set_vexpand(True)
+    return main_box
+
+def create_edit_view_overlay() -> Gtk.Overlay:
+    """Create overlay for edit view."""
+    overlay = Gtk.Overlay()
+    overlay.set_halign(Gtk.Align.FILL)
+    overlay.set_valign(Gtk.Align.FILL)
+    overlay.set_hexpand(True)
+    overlay.set_vexpand(True)
+    return overlay
+
 def create_media_view_main_box() -> Gtk.Box:
     """Create main content box for media view."""
     main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)

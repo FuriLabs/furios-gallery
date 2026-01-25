@@ -7,6 +7,7 @@
 # Jesús Higueras <jesus@furilabs.com>
 # Luis Garcia <git@luigi311.com>
 
+import os
 import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
@@ -14,9 +15,9 @@ gi.require_version('Adw', '1')
 from gi.repository import Gtk, Adw, GLib
 from os.path import expanduser
 from pathlib import Path
-import os
 
 from .media_view import MediaView
+from .edit_view import EditView
 from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator
@@ -154,6 +155,15 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(True)
+            elif visible_page.get_title() == "Edit":
+                # Edit view header
+                curr_file = f"Editing {os.path.basename(self.media_paths[self.current_index])}"
+                self.header.set_title_widget(Adw.WindowTitle(title=curr_file))
+                self.create_album_btn.set_visible(False)
+                self.delete_media_btn.set_visible(False)
+                self.media_options_btn.set_visible(False)
+                self.info_btn.set_visible(False)
+                self.return_btn.set_visible(True)
             else:
                 # Grid view header
                 self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
@@ -223,6 +233,16 @@ class GalleryWindow(Adw.ApplicationWindow):
         media_view.set_tag("mediaView")
         return media_view
 
+    def create_edit_media_view_page(self, curr_pix_buff):
+        edit_view = EditView(self, curr_pix_buff)
+        edit_view.set_halign(Gtk.Align.FILL)
+        edit_view.set_valign(Gtk.Align.FILL)
+        edit_view.set_hexpand(True)
+        edit_view.set_vexpand(True)
+        edit_view.set_name("editView-square")
+        edit_view.set_tag("editView")
+        return edit_view
+
     def create_grid_view_page(self, album_name=None):
         media_grid_view = GridView(self, self.thumbnails)
         media_grid_view.set_halign(Gtk.Align.FILL)
@@ -250,6 +270,11 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.current_index = media_index
         media_page = self.create_media_view_page()
         self.navigation_view.push(media_page)
+
+    def open_media_edit(self, media_index: int, media_path: str):
+        self.current_index = media_index
+        edit_page = self.create_edit_media_view_page(media_path)
+        self.navigation_view.push(edit_page)
 
     def create_album(self, button):
         dialog, entry = create_album_create_dialog(self)
