@@ -26,6 +26,13 @@ def create_album_button(callback: Callable) -> Gtk.Button:
     button.connect("clicked", callback)
     return button
 
+def create_change_file_name_button(callback: Callable) -> Gtk.Button:
+    """Create change file name button for header."""
+    button = Gtk.Button(icon_name="text-editor-symbolic")
+    button.connect("clicked", callback)
+    button.set_visible(False)
+    return button
+
 def create_info_button(callback: Callable) -> Gtk.Button:
     """Create info button for header."""
     button = Gtk.Button(icon_name="help-about-symbolic")
@@ -84,6 +91,52 @@ def create_albums_flowbox(selection_callback: Callable, update_callback: Callabl
     if update_callback:
         flowbox.connect("selected-children-changed", update_callback)
     return flowbox
+
+def create_rename_dialog(parent, initial_name: str):
+    entry = Gtk.Entry()
+    entry.set_hexpand(True)
+    entry.set_text(initial_name)
+    entry.set_activates_default(True)
+
+    hint = Gtk.Label(label="Only the file name will change, not the extension.")
+    hint.set_halign(Gtk.Align.START)
+    hint.set_wrap(True)
+    hint.add_css_class("dim-label")
+
+    error_label = Gtk.Label()
+    error_label.set_halign(Gtk.Align.START)
+    error_label.set_wrap(True)
+    error_label.set_visible(False)
+    error_label.add_css_class("error")
+
+    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    content.set_margin_top(12)
+    content.set_margin_bottom(12)
+    content.set_margin_start(12)
+    content.set_margin_end(12)
+    content.append(entry)
+    content.append(hint)
+    content.append(error_label)
+
+    cancel_btn = Gtk.Button(label="Cancel")
+    rename_btn = Gtk.Button(label="Rename")
+    rename_btn.add_css_class("suggested-action")
+
+    entry.connect("activate", lambda _e: rename_btn.emit("clicked"))
+
+    header = Adw.HeaderBar()
+    header.pack_start(cancel_btn)
+    header.pack_end(rename_btn)
+
+    toolbar = Adw.ToolbarView()
+    toolbar.add_top_bar(header)
+    toolbar.set_content(content)
+
+    dlg = Adw.Dialog()
+    dlg.set_title("Rename file")
+    dlg.set_child(toolbar)
+
+    return dlg, entry, error_label, rename_btn, cancel_btn
 
 def create_album_item(album_name: str, thumbnail_path: str = None) -> Gtk.FlowBoxChild:
     """Create an album item for the flowbox."""

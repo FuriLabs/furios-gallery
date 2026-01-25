@@ -10,12 +10,14 @@
 import os
 import gi
 gi.require_version('Gtk', '4.0')
+gi.require_version('Gdk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Adw, GLib
+from gi.repository import Gtk, Gdk, Adw, GLib
 from os.path import expanduser
 from pathlib import Path
 
+from .furios_media_tools import FuriOSMediaTools
 from .media_view import MediaView
 from .edit_view import EditView
 from .grid_view import GridView
@@ -32,7 +34,7 @@ from .ui import (
     create_gallery_header, create_album_button, create_info_button, create_media_options_button,
     create_delete_media_button, create_return_button, create_main_window_layout,
     create_album_create_dialog, create_selection_header_bar, create_delete_confirmation_dialog,
-    create_map_page, clear_flowbox
+    create_map_page, clear_flowbox, create_change_file_name_button, create_rename_dialog
 )
 
 class GalleryWindow(Adw.ApplicationWindow):
@@ -87,6 +89,10 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.return_btn = create_return_button(self.on_return_clicked)
         self.header.pack_start(self.return_btn)
 
+        # Create change Name button (initially hidden)
+        self.create_change_name_btn = create_change_file_name_button(self.change_file_name)
+        self.header.pack_start(self.create_change_name_btn)
+
         # Create initial albums page
         self.initial_albums_page = self.create_albums_page()
         self.navigation_view.add(self.initial_albums_page)
@@ -134,6 +140,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             if isinstance(visible_page, MediaView):
                 # Media view header
                 self.header.set_title_widget(Adw.WindowTitle(title="Media"))
+                self.create_change_name_btn.set_visible(True)
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(True)
                 self.media_options_btn.set_visible(True)
@@ -142,6 +149,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             elif visible_page.get_title() == "Albums":
                 # Album view header
                 self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+                self.create_change_name_btn.set_visible(False)
                 self.create_album_btn.set_visible(True)
                 self.delete_media_btn.set_visible(True)
                 self.media_options_btn.set_visible(False)
@@ -150,6 +158,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             elif visible_page.get_title() == "Location":
                 # Map view header
                 self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
+                self.create_change_name_btn.set_visible(False)
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(False)
                 self.media_options_btn.set_visible(False)
@@ -159,6 +168,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                 # Edit view header
                 curr_file = f"Editing {os.path.basename(self.media_paths[self.current_index])}"
                 self.header.set_title_widget(Adw.WindowTitle(title=curr_file))
+                self.create_change_name_btn.set_visible(True)
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(False)
                 self.media_options_btn.set_visible(False)
@@ -463,3 +473,37 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         current_page.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         dialog.destroy()
+
+    def change_file_name(self, _button):
+        curr_file_path = self.media_paths[self.current_index]
+        initial = FuriOSMediaTools._basename_without_ext(curr_file_path)
+
+        dlg, entry, error_label, rename_btn, cancel_btn = create_rename_dialog(
+            self.get_root(),
+            initial
+        )
+
+        entry.connect("changed", lambda *_: error_label.set_visible(False))
+
+        def do_rename():
+            success, text = FuriOSMediaTools.change_file_name(
+                curr_file_path,
+                entry.get_text().strip()
+            )
+            if not success:
+                error_label.set_text(text)
+                error_label.set_visible(True)
+                entry.grab_focus()
+                entry.select_region(0, -1)
+                return
+
+            self.media_paths[self.current_index] = text
+            print(f"File renamed to: {text}")
+            dlg.close()
+
+        rename_btn.connect("clicked", lambda _b: do_rename())
+        cancel_btn.connect("clicked", lambda _b: dlg.close())
+
+        dlg.present(self.get_root())
+        entry.grab_focus()
+        entry.select_region(0, -1)
