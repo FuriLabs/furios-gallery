@@ -498,7 +498,6 @@ class GalleryWindow(Adw.ApplicationWindow):
                 return
 
             self.media_paths[self.current_index] = text
-            print(f"File renamed to: {text}")
             dlg.close()
 
         rename_btn.connect("clicked", lambda _b: do_rename())

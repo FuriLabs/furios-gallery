@@ -41,7 +41,6 @@ class FuriOSMediaTools:
 
         try:
             os.rename(src_path, new_path)
-            #TBD: Update any media database, refresh header, refresh carousel and gridview.
             return True, new_path
         except OSError as e:
             return False, str(e)
