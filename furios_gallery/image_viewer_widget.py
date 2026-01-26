@@ -21,11 +21,18 @@ class ImageViewerWidget(Gtk.Widget):
         self.min_scale = 0
         self.scale = 1.0
         self.scale_at_start = 1.0
+        self.zoom_enabled = True
         self.scrolled_win = scrolled_win
         self.win = win
 
         # Calculate the initial scale to fit the image within the window
         self.calculate_initial_scale()
+
+    def set_zoom_enabled(self, enabled: bool):
+        self.zoom_enabled = enabled
+        if not enabled and getattr(self, "zoom_gesture", None):
+            # drop any in-progress gesture cleanly
+            self.zoom_gesture.reset()
 
     def calculate_initial_scale(self):
         win_width = self.win.get_width()
@@ -61,9 +68,13 @@ class ImageViewerWidget(Gtk.Widget):
         self.scrolled_win.add_controller(self.zoom_gesture)
 
     def on_zoom_begin(self, gesture, sequence):
+        if not self.zoom_enabled:
+            return
         self.scale_at_start = self.scale
 
     def on_zoom(self, gesture, scale_delta):
+        if not self.zoom_enabled:
+            return
         zoom_factor = (scale_delta * self.scale_at_start) / self.scale
         self.queue_resize()
 
