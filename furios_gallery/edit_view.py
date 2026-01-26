@@ -20,6 +20,7 @@ class EditView(Adw.NavigationPage):
         super().__init__(title="Edit")
         self.app = app
         self.media_path = media_path
+        self.zoomable_image = None
         self.texture: Gdk.Texture | None = None
         self.picture: Gtk.ScrolledWindow | None = None
         self.crop_overlay = None
@@ -31,7 +32,7 @@ class EditView(Adw.NavigationPage):
 
         viewer = self.setup_picture_to_edit(self.media_path)
 
-        # self.image_overlay.set_child(viewer)
+        # self.overlay.set_child(viewer)
         self.main_box.append(viewer)
 
         # bottom tools bar on OUTER overlay (so it stays visible)
@@ -71,78 +72,54 @@ class EditView(Adw.NavigationPage):
         scrolled.set_halign(Gtk.Align.FILL)
         scrolled.set_valign(Gtk.Align.FILL)
 
-        zoomable_image = ImageViewerWidget(media_path, self.app, scrolled)
-        zoomable_image.set_hexpand(True)
-        zoomable_image.set_vexpand(True)
-        zoomable_image.set_halign(Gtk.Align.CENTER)
-        zoomable_image.set_valign(Gtk.Align.CENTER)
+        self.zoomable_image = ImageViewerWidget(media_path, self.app, scrolled)
+        self.zoomable_image.set_hexpand(True)
+        self.zoomable_image.set_vexpand(True)
+        self.zoomable_image.set_halign(Gtk.Align.CENTER)
+        self.zoomable_image.set_valign(Gtk.Align.CENTER)
 
-        scrolled.set_child(zoomable_image)
-        zoomable_image.init_gestures()
-
-        self.picture = scrolled
-
-        return scrolled
-
-    def setup_picture_to_edit(self, media_path: str | None) -> Gtk.Widget:
-        if not media_path or not os.path.exists(media_path):
-            empty = Gtk.Label(label="No media found.")
-            empty.set_hexpand(True)
-            empty.set_vexpand(True)
-            empty.set_halign(Gtk.Align.CENTER)
-            empty.set_valign(Gtk.Align.CENTER)
-            return empty
-
-        try:
-            self.texture = Gdk.Texture.new_from_filename(media_path)
-        except GLib.Error:
-            error = Gtk.Label(label="Failed to load image.")
-            error.set_hexpand(True)
-            error.set_vexpand(True)
-            error.set_halign(Gtk.Align.CENTER)
-            error.set_valign(Gtk.Align.CENTER)
-            return error
-
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_hexpand(True)
-        scrolled.set_vexpand(True)
-        scrolled.set_halign(Gtk.Align.FILL)
-        scrolled.set_valign(Gtk.Align.FILL)
-
-        zoomable_image = ImageViewerWidget(media_path, self.app, scrolled)
-        zoomable_image.set_hexpand(True)
-        zoomable_image.set_vexpand(True)
-        zoomable_image.set_halign(Gtk.Align.CENTER)
-        zoomable_image.set_valign(Gtk.Align.CENTER)
-
-        scrolled.set_child(zoomable_image)
-        zoomable_image.init_gestures()
+        scrolled.set_child(self.zoomable_image)
+        self.zoomable_image.init_gestures()
 
         self.picture = scrolled
 
         return scrolled
+
+    '''
+    * Editing Bar *
+    '''
     
     def setup_editing_tools_bar(self):
-        def on_crop_clicked(_btn):
+        def on_crop_clicked(btn):
             if not self.texture or not self.picture:
                 return
 
+            # Return image to original size
+            self.zoomable_image.reset_view_fit()
+
+            # Disable zoom
+            self.zoomable_image.set_zoom_enabled(not self.zoomable_image.zoom_enabled)
+
+            # Hide the edit bar
+            self.set_edit_bar_visible(False)
+
             if self.crop_overlay is None:
                 self.crop_overlay = CropOverlay(self.picture, self.texture)
-
-                self.image_overlay.add_overlay(self.crop_overlay)
-                self.crop_overlay.queue_draw()
+                self.overlay.add_overlay(self.crop_overlay)
+                self.show_crop_bar()
             else:
-                self.image_overlay.remove_overlay(self.crop_overlay)
+                self.overlay.remove_overlay(self.crop_overlay)
                 self.crop_overlay = None
+                self.hide_crop_bar()
+                self.set_edit_bar_visible(True)
 
-        def on_filters_clicked(_btn):
+        def on_filters_clicked(btn):
             return
 
-        def on_fine_tunes_clicked(_btn):
+        def on_fine_tunes_clicked(btn):
             return
 
-        def on_drawing_clicked(_btn):
+        def on_drawing_clicked(btn):
             return
 
         bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -181,3 +158,72 @@ class EditView(Adw.NavigationPage):
 
         self.overlay.add_overlay(bar)
         bar.set_can_target(True)
+        self.edit_bar = bar
+
+    def set_edit_bar_visible(self, visible: bool):
+        if getattr(self, "edit_bar", None):
+            self.edit_bar.set_visible(visible)
+            self.edit_bar.set_can_target(visible)
+
+    '''
+    * Crop Feature *
+    '''
+    def show_crop_bar(self):
+        if getattr(self, "crop_bar", None):
+            return
+
+        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        bar.set_halign(Gtk.Align.FILL)
+        bar.set_valign(Gtk.Align.END)
+        bar.set_hexpand(True)
+        bar.set_margin_start(12)
+        bar.set_margin_end(12)
+        bar.set_margin_bottom(12)
+        bar.set_margin_top(6)
+
+        bar.add_css_class("osd")
+        bar.add_css_class("toolbar")
+
+        cancel = Gtk.Button(label="Cancel")
+        cancel.set_hexpand(True)
+        cancel.set_halign(Gtk.Align.FILL)
+        cancel.connect("clicked", self.on_crop_cancel_clicked)
+
+        crop = Gtk.Button(label="Crop")
+        crop.set_hexpand(True)
+        crop.set_halign(Gtk.Align.FILL)
+        crop.add_css_class("suggested-action")
+        crop.connect("clicked", self.on_crop_apply_clicked)
+
+        bar.append(cancel)
+        bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
+        bar.append(crop)
+
+        self.crop_bar = bar
+        self.overlay.add_overlay(bar)
+        bar.set_can_target(True)
+
+    def hide_crop_bar(self):
+        if getattr(self, "crop_bar", None):
+            self.overlay.remove_overlay(self.crop_bar)
+            self.crop_bar = None
+
+    def on_crop_cancel_clicked(self, btn):
+        if self.crop_overlay:
+            self.overlay.remove_overlay(self.crop_overlay)
+            self.crop_overlay = None
+        self.hide_crop_bar()
+        self.set_edit_bar_visible(True)
+        self.zoomable_image.set_zoom_enabled(True)
+
+    def on_crop_apply_clicked(self, btn):
+        if not self.crop_overlay:
+            return
+        x, y, w, h = self.crop_overlay.get_crop_in_image_pixels()
+        print("CROP:", x, y, w, h)
+
+        # TODO: perform crop, update texture, replace viewer content, etc.
+
+        self.on_crop_cancel_clicked(btn)
+        self.set_edit_bar_visible(True)
+        self.zoomable_image.set_zoom_enabled(True)
