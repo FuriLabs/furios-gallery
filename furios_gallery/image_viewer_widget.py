@@ -28,6 +28,28 @@ class ImageViewerWidget(Gtk.Widget):
         # Calculate the initial scale to fit the image within the window
         self.calculate_initial_scale()
 
+    def reset_view_fit(self, center=True):
+        self.calculate_initial_scale()
+        self.scale_at_start = self.scale
+
+        hadj = self.scrolled_win.get_hadjustment()
+        vadj = self.scrolled_win.get_vadjustment()
+        if not hadj or not vadj:
+            return
+
+        if not center:
+            hadj.set_value(0.0)
+            vadj.set_value(0.0)
+            return
+
+        hx = max(0.0, (hadj.get_upper() - hadj.get_page_size()) / 2.0)
+        vy = max(0.0, (vadj.get_upper() - vadj.get_page_size()) / 2.0)
+        hadj.set_value(hx)
+        vadj.set_value(vy)
+
+        self.queue_resize()
+        self.queue_draw()
+
     def set_zoom_enabled(self, enabled: bool):
         self.zoom_enabled = enabled
         if not enabled and getattr(self, "zoom_gesture", None):
