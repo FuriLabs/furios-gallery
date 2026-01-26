@@ -259,12 +259,16 @@ class EditView(Adw.NavigationPage):
                     x, y, w, h,
                     overwrite=overwrite,
                     out_path=out_path,
-                    suffix="_cropped",
-                    jpeg_quality=95,
+                    suffix="_cropped"
                 )
                 print("Cropped written to:", written_path)
+                # Remove old viewer
+                if self.picture:
+                    self.main_box.remove(self.picture)
 
-                # TODO: Refresh all the viewers with the new cropped image
+                # Create and add new viewer
+                self.picture = self.setup_picture_to_edit(written_path)
+                self.main_box.append(self.picture)
 
             except Exception as e:
                 print("Crop failed:", e)
