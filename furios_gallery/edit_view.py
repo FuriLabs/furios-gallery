@@ -11,6 +11,7 @@ gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 
 from .crop_overlay import CropOverlay
+from .furios_media_tools import FuriOSMediaTools
 from .image_viewer_widget import ImageViewerWidget
 from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene
 from .ui import (create_edit_view_main_box, create_edit_view_overlay)
@@ -219,11 +220,60 @@ class EditView(Adw.NavigationPage):
     def on_crop_apply_clicked(self, btn):
         if not self.crop_overlay:
             return
+
         x, y, w, h = self.crop_overlay.get_crop_in_image_pixels()
-        print("CROP:", x, y, w, h)
 
-        # TODO: perform crop, update texture, replace viewer content, etc.
+        dialog = Adw.MessageDialog.new(
+            self.get_root(),
+            "Save cropped image?",
+            "Do you want to overwrite the original file or save a new copy?"
+        )
 
-        self.on_crop_cancel_clicked(btn)
-        self.set_edit_bar_visible(True)
-        self.zoomable_image.set_zoom_enabled(True)
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("copy", "Save Copy")
+        dialog.add_response("overwrite", "Overwrite")
+
+        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
+
+        dialog.set_default_response("copy")
+        dialog.set_close_response("cancel")
+
+        def _on_response(dlg, response_id: str):
+            if response_id == "cancel":
+                dlg.close()
+                return
+
+            overwrite = (response_id == "overwrite")
+
+            out_path = FuriOSMediaTools.compute_output_path(
+                self.media_path,
+                overwrite=overwrite,
+                out_path=None,
+                suffix="_cropped",
+            )
+
+            try:
+                written_path = FuriOSMediaTools.crop_image_to_disk(
+                    self.media_path,
+                    x, y, w, h,
+                    overwrite=overwrite,
+                    out_path=out_path,
+                    suffix="_cropped",
+                    jpeg_quality=95,
+                )
+                print("Cropped written to:", written_path)
+
+                # TODO: Refresh all the viewers with the new cropped image
+
+            except Exception as e:
+                print("Crop failed:", e)
+
+            self.on_crop_cancel_clicked(btn)
+            self.set_edit_bar_visible(True)
+            self.zoomable_image.set_zoom_enabled(True)
+
+            dlg.close()
+
+        dialog.connect("response", _on_response)
+        dialog.present()
