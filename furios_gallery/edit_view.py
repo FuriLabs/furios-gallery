@@ -254,7 +254,7 @@ class EditView(Adw.NavigationPage):
         dialog.set_default_response("copy")
         dialog.set_close_response("cancel")
 
-        def _on_response(dlg, response_id: str):
+        def on_response(dlg, response_id: str):
             if response_id == "cancel":
                 dlg.close()
                 return
@@ -294,7 +294,7 @@ class EditView(Adw.NavigationPage):
 
             dlg.close()
 
-        dialog.connect("response", _on_response)
+        dialog.connect("response", on_response)
         dialog.present()
 
     '''
@@ -459,11 +459,71 @@ class EditView(Adw.NavigationPage):
         self.set_edit_bar_visible(True)
         self.zoomable_image.set_zoom_enabled(True)
 
-    def on_drawing_done_clicked(self, _btn):
-        # TODO: Actually save the strokes into the image
-        if getattr(self, "drawing_bar", None):
-            self.overlay.remove_overlay(self.drawing_bar)
-            self.drawing_bar = None
+    def on_drawing_done_clicked(self, btn):
+        if not getattr(self, "draw_overlay", None):
+            self.on_drawing_cancel_clicked(btn)
+            return
 
-        self.set_edit_bar_visible(True)
-        self.zoomable_image.set_zoom_enabled(True)
+        strokes = getattr(self.draw_overlay, "strokes", None) or []
+        if not strokes:
+            self.on_drawing_cancel_clicked(btn)
+            return
+
+        dialog = Adw.MessageDialog.new(
+            self.get_root(),
+            "Save drawing?",
+            "Do you want to overwrite the original file or save a new copy?"
+        )
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("copy", "Save Copy")
+        dialog.add_response("overwrite", "Overwrite")
+
+        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
+
+        dialog.set_default_response("copy")
+        dialog.set_close_response("cancel")
+
+        def on_response(dlg, response_id: str):
+            if response_id == "cancel":
+                dlg.close()
+                return
+
+            overwrite = (response_id == "overwrite")
+
+            out_path = FuriOSMediaTools.compute_output_path(
+                self.media_path,
+                overwrite=overwrite,
+                out_path=None,
+                suffix="_drawn",
+            )
+
+            try:
+                written_path = FuriOSMediaTools.rasterize_strokes_to_disk_cairo(
+                    self.media_path,
+                    strokes,
+                    overwrite=overwrite,
+                    out_path=out_path,
+                    suffix="_drawn",
+                )
+                print("Drawing written to:", written_path)
+                if self.picture:
+                    self.main_box.remove(self.picture)
+
+                self.media_path = written_path
+                self.picture = self.setup_picture_to_edit(written_path)
+                self.main_box.append(self.picture)
+
+            except Exception as e:
+                print("Failed to apply drawing:", e)
+
+            self.on_drawing_cancel_clicked(btn)
+            self.set_edit_bar_visible(True)
+            self.zoomable_image.set_zoom_enabled(True)
+
+            dlg.close()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
