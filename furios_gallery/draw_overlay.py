@@ -90,7 +90,9 @@ class DrawOverlay(Gtk.Widget):
     '''
     def do_snapshot(self, snapshot: Gtk.Snapshot):
         for s in self.strokes:
-            self.snapshot_stroke(snapshot, s["pts"], s["width"], s["color"])
+            scale = self.image_scale_in_widget()
+            width_widget = s["width_img"] * scale
+            self.snapshot_stroke(snapshot, s["pts"], width_widget, s["color"])
 
         if self.current_pts and len(self.current_pts) >= 2:
             self.snapshot_stroke(snapshot, self.current_pts, self.line_width, self.color)
@@ -183,9 +185,12 @@ class DrawOverlay(Gtk.Widget):
 
         if len(self.current_pts) >= 2:
             # capture style NOW so future changes don't affect this stroke
+            scale = self.image_scale_in_widget()
+            width_img = (self.line_width / scale) if scale > 0 else self.line_width
+
             self.strokes.append({
-                "pts": self.current_pts,
-                "width": float(self.line_width),
+                "pts": self.current_pts, # image coords
+                "width_img": float(width_img), # image-pixel width
                 "color": self.color.copy() if hasattr(self.color, "copy") else self.color,
             })
 
