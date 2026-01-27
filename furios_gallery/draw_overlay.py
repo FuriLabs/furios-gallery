@@ -170,3 +170,45 @@ class DrawOverlay(Gtk.Widget):
 
         self.current_pts = None
         self.queue_draw()
+
+    '''
+    * Coordinate Transform Helpers *
+    '''
+    def image_scale_in_widget(self) -> float:
+        # widget pixels per image pixel (same in x/y for "contain")
+        _, _, iw, _ = self.image_rect_in_widget()
+        tw = float(self.texture.get_width())
+        return (iw / tw) if tw else 1.0
+
+    # Since we are using Gsk Path builder and this one uses widget coordinates, we need to transform into image coordiiantes:
+    def widget_to_image(self, xw: float, yw: float) -> tuple[float, float] | None:
+        ix, iy, iw, ih = self.image_rect_in_widget()
+        tw = float(self.texture.get_width())
+        th = float(self.texture.get_height())
+
+        if iw <= 0 or ih <= 0 or tw <= 0 or th <= 0:
+            return None
+
+        if not (ix <= xw <= ix + iw and iy <= yw <= iy + ih):
+            return None
+
+        # normalized within displayed image rect
+        u = (xw - ix) / iw
+        v = (yw - iy) / ih
+
+        # convert to texture pixels
+        xi = u * tw
+        yi = v * th
+        return (xi, yi)
+
+    def image_to_widget(self, xi: float, yi: float) -> tuple[float, float]:
+        ix, iy, iw, ih = self.image_rect_in_widget()
+        tw = float(self.texture.get_width())
+        th = float(self.texture.get_height())
+
+        u = xi / tw if tw else 0.0
+        v = yi / th if th else 0.0
+
+        xw = ix + u * iw
+        yw = iy + v * ih
+        return (xw, yw)
