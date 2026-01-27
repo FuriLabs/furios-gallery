@@ -102,10 +102,13 @@ class DrawOverlay(Gtk.Widget):
         if len(pts) < 2:
             return
 
+        # convert IMAGE pts -> WIDGET pts for drawing
+        wpts = [self.image_to_widget(xi, yi) for (xi, yi) in pts]
+
         path = Gsk.PathBuilder.new()
-        x0, y0 = pts[0]
+        x0, y0 = wpts[0]
         path.move_to(x0, y0)
-        for (x, y) in pts[1:]:
+        for (x, y) in wpts[1:]:
             path.line_to(x, y)
 
         gsk_path = path.to_path()
@@ -126,34 +129,52 @@ class DrawOverlay(Gtk.Widget):
         return (ix <= x <= ix + iw) and (iy <= y <= iy + ih)
 
     def on_drag_begin(self, gesture: Gtk.GestureDrag, start_x: float, start_y: float):
-        x = float(start_x)
-        y = float(start_y)
+        xw = float(start_x)
+        yw = float(start_y)
 
-        if not self.inside_image(x, y):
+        img_pt = self.widget_to_image(xw, yw)
+
+        if self.clamp_to_image and img_pt is None:
             self.current_pts = None
             return
 
-        self.current_pts = [(x, y)]
+        if img_pt is None:
+            self.current_pts = None
+            return
+
+        self.drag_begin_widget = (xw, yw) # widget coords for offsets
+        self.current_pts = [img_pt] # image coords for storage
         self.queue_draw()
 
     def on_drag_update(self, gesture: Gtk.GestureDrag, offset_x: float, offset_y: float):
         if not self.current_pts:
             return
 
-        x0, y0 = self.current_pts[0]
-        x = x0 + float(offset_x)
-        y = y0 + float(offset_y)
+        # GestureDrag gives offsets from drag-begin point in WIDGET space
+        # We need current widget point first, then convert to image.
+        # We can reconstruct current widget point from the begin point:
+        # BUT we stored image begin point, so we must keep the begin widget point too.
+        if not hasattr(self, "drag_begin_widget"):
+            return
 
-        if not self.inside_image(x, y):
+        xw0, yw0 = self.drag_begin_widget
+        xw = xw0 + float(offset_x)
+        yw = yw0 + float(offset_y)
+
+        img_pt = self.widget_to_image(xw, yw)
+        if img_pt is None:
             return
 
         lx, ly = self.current_pts[-1]
-        dx = x - lx
-        dy = y - ly
-        if (dx * dx + dy * dy) < self.min_point_dist2:
+        scale = self.image_scale_in_widget()
+        min_img_dist2 = (self.min_point_dist2 / (scale * scale)) if scale > 0 else self.min_point_dist2
+
+        dx = img_pt[0] - lx
+        dy = img_pt[1] - ly
+        if (dx*dx + dy*dy) < min_img_dist2:
             return
 
-        self.current_pts.append((x, y))
+        self.current_pts.append(img_pt)
         self.queue_draw()
 
     def on_drag_end(self, gesture: Gtk.GestureDrag, offset_x: float, offset_y: float):
@@ -169,6 +190,8 @@ class DrawOverlay(Gtk.Widget):
             })
 
         self.current_pts = None
+        if hasattr(self, "drag_begin_widget"):
+            delattr(self, "drag_begin_widget")
         self.queue_draw()
 
     '''
