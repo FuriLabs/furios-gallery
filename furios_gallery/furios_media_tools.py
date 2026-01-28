@@ -473,3 +473,29 @@ class FuriOSMediaTools:
 
         out = (1.0 - amount) * x + amount * sepia
         return np.clip(out, 0.0, 255.0).astype(np.uint8)
+
+    @staticmethod
+    def apply_saturate(rgb: np.ndarray, amount: float) -> np.ndarray:
+        if not isinstance(rgb, np.ndarray):
+            raise TypeError("rgb must be a numpy ndarray")
+        if rgb.ndim != 3 or rgb.shape[-1] != 3:
+            raise ValueError("rgb must have shape (H, W, 3)")
+
+        x = rgb.astype(np.float32, copy=False)
+
+        s = amount
+        inv = 1.0 - s
+
+        lr = ColorSpaceStandards.Y_R
+        lg = ColorSpaceStandards.Y_G
+        lb = ColorSpaceStandards.Y_B
+
+        # Saturation Matrix
+        M = np.array([
+            [inv * lr + s, inv * lg,       inv * lb      ],
+            [inv * lr,     inv * lg + s,   inv * lb      ],
+            [inv * lr,     inv * lg,       inv * lb + s  ],
+        ], dtype=np.float32)
+
+        out = x @ M.T
+        return np.clip(out, 0.0, 255.0).astype(np.uint8)
