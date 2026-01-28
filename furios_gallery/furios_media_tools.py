@@ -379,3 +379,13 @@ class FuriOSMediaTools:
         Y = Y * brightness
         out = ImageColorStandards.ycbcr_to_rgb(Y, Cb, Cr)
         return np.clip(out, 0.0, 255.0).astype(np.uint8)
+
+    @staticmethod
+    def grayscale(rgb: np.ndarray, *, three_channel: bool = True):
+        Y, _, _ = ImageColorStandards.rgb_to_ycbcr(rgb)
+
+        Y8 = np.clip(Y, 0.0, 255.0).astype(np.uint8)
+
+        if three_channel:
+            return np.stack([Y8, Y8, Y8], axis=-1)
+        return Y8
