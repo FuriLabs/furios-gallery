@@ -14,6 +14,12 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, Gdk
 
 class ColorSpaceStandards:
+    SEPIA_MATRIX = np.array([
+        [0.393, 0.769, 0.189],
+        [0.349, 0.686, 0.168],
+        [0.272, 0.534, 0.131],
+    ], dtype=np.float32)
+
     #All coefficients follow ITU-R BT.601 (full-range, approximate).
 
     # RGB -> Y (luma) coefficients
@@ -455,4 +461,15 @@ class FuriOSMediaTools:
         inverted = 255.0 - x
         out = (1.0 - amount) * x + amount * inverted
 
+        return np.clip(out, 0.0, 255.0).astype(np.uint8)
+
+    @staticmethod
+    def apply_sepia(rgb: np.ndarray, amount: float = 1.0) -> np.ndarray:
+        if not (0.0 <= amount <= 1.0):
+            raise ValueError("amount must be in [0, 1]")
+
+        x = rgb.astype(np.float32, copy=False)
+        sepia = x @ FuriOSMediaTools.SEPIA_MATRIX.T
+
+        out = (1.0 - amount) * x + amount * sepia
         return np.clip(out, 0.0, 255.0).astype(np.uint8)
