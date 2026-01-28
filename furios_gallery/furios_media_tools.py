@@ -389,3 +389,58 @@ class FuriOSMediaTools:
         if three_channel:
             return np.stack([Y8, Y8, Y8], axis=-1)
         return Y8
+
+    @staticmethod
+    def gaussian_kernel1d(sigma: float, radius: int | None = None) -> np.ndarray:
+        if sigma <= 0:
+            raise ValueError("sigma must be > 0")
+
+        if radius is None:
+            radius = int(np.ceil(3.0 * sigma))
+
+        if radius < 0:
+            raise ValueError("radius must be >= 0")
+
+        x = np.arange(-radius, radius + 1, dtype=np.float32)
+        kernel = np.exp(-(x * x) / (2.0 * sigma * sigma)).astype(np.float32)
+        kernel /= kernel.sum()
+
+        return kernel
+
+    @staticmethod
+    def convolve1d_axis(img: np.ndarray, kernel: np.ndarray, axis: int):
+        kernel = np.asarray(kernel, dtype=np.float32)
+        radius = kernel.size // 2
+
+        pad_width = [(0, 0)] * img.ndim
+        pad_width[axis] = (radius, radius)
+        padded = np.pad(img.astype(np.float32, copy=False), pad_width, mode="edge")
+
+        out = np.zeros_like(img, dtype=np.float32)
+
+        base = [slice(None)] * img.ndim
+        n = img.shape[axis]
+
+        # Loop only over kernel taps (K), not pixels
+        for i, k in enumerate(kernel):
+            base[axis] = slice(i, i + n)
+            out += k * padded[tuple(base)]
+
+        return out
+
+    @staticmethod
+    def apply_gaussian_blur(img: np.ndarray, sigma: float) -> np.ndarray:
+        if not isinstance(img, np.ndarray):
+            raise TypeError("img must be a numpy ndarray")
+
+        if sigma <= 0:
+            return img.copy()
+
+        x = img.astype(np.float32, copy=False)
+
+        kernel = FuriOSMediaTools.gaussian_kernel1d(sigma)
+
+        x = convolve1d_axis(x, kernel, axis=1)
+        x = convolve1d_axis(x, kernel, axis=0)
+
+        return np.clip(x, 0.0, 255.0).astype(np.uint8)
