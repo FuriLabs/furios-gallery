@@ -444,3 +444,15 @@ class FuriOSMediaTools:
         x = convolve1d_axis(x, kernel, axis=0)
 
         return np.clip(x, 0.0, 255.0).astype(np.uint8)
+
+    @staticmethod
+    def apply_invert(img: np.ndarray, amount: float = 1.0):
+        if not (0.0 <= amount <= 1.0):
+            raise ValueError("amount must be in range [0, 1]")
+
+        x = img.astype(np.float32, copy=False)
+
+        inverted = 255.0 - x
+        out = (1.0 - amount) * x + amount * inverted
+
+        return np.clip(out, 0.0, 255.0).astype(np.uint8)
