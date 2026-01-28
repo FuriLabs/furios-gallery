@@ -6,11 +6,84 @@
 
 import cairo
 import gi, os
+import numpy as np
 
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 
 from gi.repository import GdkPixbuf, Gdk
+
+class ColorSpaceStandards:
+    #All coefficients follow ITU-R BT.601 (full-range, approximate).
+
+    # RGB -> Y (luma) coefficients
+    # Contribution of each RGB channel to perceived brightness
+    Y_R = 0.2990 # Red contribution to luma
+    Y_G = 0.5870 # Green contribution to luma (dominant for human vision)
+    Y_B = 0.1140 # Blue contribution to luma
+
+    # RGB -> Cb coefficients
+    # Blue-difference chroma channel
+    CB_R = -0.168736 # Red contribution to Cb
+    CB_G = -0.331264 # Green contribution to Cb
+    CB_B = 0.500000 # Blue contribution to Cb
+    CB_OFFSET = 128.0 # Center chroma around mid-range for 8-bit storage
+
+    # RGB -> Cr coefficients
+    # Red-difference chroma channel
+    CR_R = 0.500000 # Red contribution to Cr
+    CR_G = -0.418688 # Green contribution to Cr
+    CR_B = -0.081312 # Blue contribution to Cr
+    CR_OFFSET = 128.0 # Center chroma around mid-range for 8-bit storage
+
+    # YCbCr -> RGB coefficients
+    # Inverse transform constants
+    R_CR = 1.402000 # Cr contribution back to Red
+    G_CB = 0.344136 # Cb contribution back to Green
+    G_CR = 0.714136 # Cr contribution back to Green
+    B_CB = 1.772000 # Cb contribution back to Blue
+
+    @staticmethod
+    def rgb_to_ycbcr(rgb: np.ndarray):
+        x = rgb.astype(np.float32, copy=False)
+
+        R = x[..., 0]
+        G = x[..., 1]
+        B = x[..., 2]
+
+        Y = (
+            ColorSpaceStandards.Y_R * R +
+            ColorSpaceStandards.Y_G * G +
+            ColorSpaceStandards.Y_B * B
+        )
+
+        Cb = (
+            ColorSpaceStandards.CB_R * R +
+            ColorSpaceStandards.CB_G * G +
+            ColorSpaceStandards.CB_B * B +
+            ColorSpaceStandards.CB_OFFSET
+        )
+
+        Cr = (
+            ColorSpaceStandards.CR_R * R +
+            ColorSpaceStandards.CR_G * G +
+            ColorSpaceStandards.CR_B * B +
+            ColorSpaceStandards.CR_OFFSET
+        )
+
+        return Y, Cb, Cr
+
+    @staticmethod
+    def ycbcr_to_rgb(Y: np.ndarray, Cb: np.ndarray, Cr: np.ndarray):
+        R = Y + ColorSpaceStandards.R_CR * (Cr - ColorSpaceStandards.CR_OFFSET)
+        G = (
+            Y -
+            ColorSpaceStandards.G_CB * (Cb - ColorSpaceStandards.CB_OFFSET) -
+            ColorSpaceStandards.G_CR * (Cr - ColorSpaceStandards.CR_OFFSET)
+        )
+        B = Y + ColorSpaceStandards.B_CB * (Cb - ColorSpaceStandards.CB_OFFSET)
+
+        return np.stack([R, G, B], axis=-1)
 
 class FuriOSMediaTools:
     @staticmethod
