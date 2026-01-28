@@ -329,6 +329,9 @@ class FuriOSMediaTools:
 
         return out_path
 
+    '''
+    * Computational Imaging Functions *
+    '''
     @staticmethod
     def apply_linear_contrast(rbg, contrast, reference_intensity):
         r = ((rgb[0] - reference_intensity) * contrast) + reference_intensity
@@ -340,3 +343,22 @@ class FuriOSMediaTools:
         b = max(0, min(255, b))
 
         return (int(r), int(g), int(b))
+
+    @staticmethod
+    def apply_luma_contrast(rgb, contrast, reference_intensity):
+        if not isinstance(rgb, np.ndarray):
+            raise TypeError("rgb must be a numpy ndarray")
+        if rgb.ndim != 3 or rgb.shape[-1] != 3:
+            raise ValueError(f"rgb must have shape (H, W, 3); got {rgb.shape}")
+
+        # RGB -> YCbCr
+        Y, Cb, Cr = ImageColorStandards.rgb_to_ycbcr(rgb)
+
+        # Apply contrast ONLY to luma
+        Y = contrast * (Y - reference_intensity) + reference_intensity
+
+        # YCbCr -> RGB
+        out = ImageColorStandards.ycbcr_to_rgb(Y, Cb, Cr)
+
+        # Clip + convert for output
+        return np.clip(out, 0.0, 255.0).astype(np.uint8)
