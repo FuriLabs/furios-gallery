@@ -333,16 +333,16 @@ class FuriOSMediaTools:
     * Computational Imaging Functions *
     '''
     @staticmethod
-    def apply_linear_contrast(rbg, contrast, reference_intensity):
+    def apply_linear_contrast(rgb, contrast, reference_intensity):
         r = ((rgb[0] - reference_intensity) * contrast) + reference_intensity
-        b = ((rgb[1] - reference_intensity) * contrast) + reference_intensity
-        g = ((rgb[2] - reference_intensity) * contrast) + reference_intensity
+        g = ((rgb[1] - reference_intensity) * contrast) + reference_intensity
+        b = ((rgb[2] - reference_intensity) * contrast) + reference_intensity
 
         r = max(0, min(255, r))
         g = max(0, min(255, g))
         b = max(0, min(255, b))
 
-        return (int(r), int(g), int(b))
+        return (int(round(r)), int(round(g)), int(round(b)))
 
     @staticmethod
     def apply_luma_contrast(rgb, contrast, reference_intensity):
@@ -361,4 +361,21 @@ class FuriOSMediaTools:
         out = ImageColorStandards.ycbcr_to_rgb(Y, Cb, Cr)
 
         # Clip + convert for output
+        return np.clip(out, 0.0, 255.0).astype(np.uint8)
+
+    @staticmethod
+    def apply_brightness(rgb, brightness):
+        r = rgb[0] * brightness
+        g = rgb[1] * brightness
+        b = rgb[2] * brightness
+        r = max(0, min(255, r))
+        g = max(0, min(255, g))
+        b = max(0, min(255, b))
+        return (int(round(r)), int(round(g)), int(round(b)))
+
+    @staticmethod
+    def apply_luma_brightness(rgb_img, brightness):
+        Y, Cb, Cr = ImageColorStandards.rgb_to_ycbcr(rgb_img)
+        Y = Y * brightness
+        out = ImageColorStandards.ycbcr_to_rgb(Y, Cb, Cr)
         return np.clip(out, 0.0, 255.0).astype(np.uint8)
