@@ -256,3 +256,14 @@ class FuriOSMediaTools:
 
         return out_path
 
+    @staticmethod
+    def apply_linear_contrast(rbg, contrast, reference_intensity):
+        r = ((rgb[0] - reference_intensity) * contrast) + reference_intensity
+        b = ((rgb[1] - reference_intensity) * contrast) + reference_intensity
+        g = ((rgb[2] - reference_intensity) * contrast) + reference_intensity
+
+        r = max(0, min(255, r))
+        g = max(0, min(255, g))
+        b = max(0, min(255, b))
+
+        return (int(r), int(g), int(b))
