@@ -7,11 +7,12 @@
 import cairo
 import gi, os
 import numpy as np
+from PIL import Image
 
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 
-from gi.repository import GdkPixbuf, Gdk
+from gi.repository import GdkPixbuf, Gdk, GLib
 
 class ColorSpaceStandards:
     SEPIA_MATRIX = np.array([
@@ -335,6 +336,62 @@ class FuriOSMediaTools:
 
         return out_path
 
+    @staticmethod
+    def save_rgb_numpy(rgb: np.ndarray, out_path: str) -> None:
+        if rgb.dtype != np.uint8 or rgb.ndim != 3 or rgb.shape[2] != 3:
+            raise ValueError(f"Expected uint8 (H,W,3), got {rgb.dtype} {rgb.shape}")
+
+        ext = os.path.splitext(out_path)[1].lower()
+        im = Image.fromarray(rgb, mode="RGB")
+
+        if ext in [".jpg", ".jpeg"]:
+            im.save(out_path, format="JPEG", quality=95)
+        elif ext == ".png":
+            im.save(out_path, format="PNG")
+        elif ext == ".webp":
+            im.save(out_path, format="WEBP", quality=95, method=6)
+        else:
+            im.save(out_path, format="PNG")
+
+    @staticmethod
+    def apply_filter_to_rgb(rgb: np.ndarray, css_class: str) -> np.ndarray:
+        css_class = (css_class or "filter-original").strip()
+
+        if css_class == "filter-original":
+            return rgb.copy()
+
+        if css_class == "filter-bw":
+            return FuriOSMediaTools.grayscale(rgb)
+
+        if css_class == "filter-invert":
+            return FuriOSMediaTools.apply_invert(rgb, amount=1.0)
+
+        if css_class == "filter-vivid":
+            x = FuriOSMediaTools.apply_saturate(rgb, 1.7)
+            x = FuriOSMediaTools.apply_luma_contrast(x, contrast=1.15, reference_intensity=128.0)
+            return x
+
+        if css_class == "filter-warm":
+            x = FuriOSMediaTools.apply_sepia(rgb, amount=0.35)
+            x = FuriOSMediaTools.apply_saturate(x, 1.3)
+            x = FuriOSMediaTools.apply_brightness(x, 1.05)
+            return x
+
+        if css_class == "filter-soft":
+            x = FuriOSMediaTools.apply_gaussian_blur(rgb, sigma=0.7)
+            x = FuriOSMediaTools.apply_brightness(x, 1.02)
+            return x
+
+        return rgb
+
+    @staticmethod
+    def bake_filter_to_file(in_path: str, out_path: str, css_class: str):
+        with Image.open(in_path) as im:
+            rgb = np.array(im.convert("RGB"), dtype=np.uint8)
+
+        out_rgb = FuriOSMediaTools.apply_filter_to_rgb(rgb, css_class)
+        FuriOSMediaTools.save_rgb_numpy(out_rgb, out_path)
+
     '''
     * Computational Imaging Functions *
     '''
@@ -358,37 +415,33 @@ class FuriOSMediaTools:
             raise ValueError(f"rgb must have shape (H, W, 3); got {rgb.shape}")
 
         # RGB -> YCbCr
-        Y, Cb, Cr = ImageColorStandards.rgb_to_ycbcr(rgb)
+        Y, Cb, Cr = ColorSpaceStandards.rgb_to_ycbcr(rgb)
 
         # Apply contrast ONLY to luma
         Y = contrast * (Y - reference_intensity) + reference_intensity
 
         # YCbCr -> RGB
-        out = ImageColorStandards.ycbcr_to_rgb(Y, Cb, Cr)
+        out = ColorSpaceStandards.ycbcr_to_rgb(Y, Cb, Cr)
 
         # Clip + convert for output
         return np.clip(out, 0.0, 255.0).astype(np.uint8)
 
     @staticmethod
-    def apply_brightness(rgb, brightness):
-        r = rgb[0] * brightness
-        g = rgb[1] * brightness
-        b = rgb[2] * brightness
-        r = max(0, min(255, r))
-        g = max(0, min(255, g))
-        b = max(0, min(255, b))
-        return (int(round(r)), int(round(g)), int(round(b)))
+    def apply_brightness(rgb: np.ndarray, brightness: float):
+        x = rgb.astype(np.float32) * float(brightness)
+        x = np.clip(x, 0, 255)
+        return x.astype(np.uint8)
 
     @staticmethod
     def apply_luma_brightness(rgb_img, brightness):
-        Y, Cb, Cr = ImageColorStandards.rgb_to_ycbcr(rgb_img)
+        Y, Cb, Cr = ColorSpaceStandards.rgb_to_ycbcr(rgb_img)
         Y = Y * brightness
-        out = ImageColorStandards.ycbcr_to_rgb(Y, Cb, Cr)
+        out = ColorSpaceStandards.ycbcr_to_rgb(Y, Cb, Cr)
         return np.clip(out, 0.0, 255.0).astype(np.uint8)
 
     @staticmethod
     def grayscale(rgb: np.ndarray, *, three_channel: bool = True):
-        Y, _, _ = ImageColorStandards.rgb_to_ycbcr(rgb)
+        Y, _, _ = ColorSpaceStandards.rgb_to_ycbcr(rgb)
 
         Y8 = np.clip(Y, 0.0, 255.0).astype(np.uint8)
 
@@ -469,7 +522,7 @@ class FuriOSMediaTools:
             raise ValueError("amount must be in [0, 1]")
 
         x = rgb.astype(np.float32, copy=False)
-        sepia = x @ FuriOSMediaTools.SEPIA_MATRIX.T
+        sepia = x @ ColorSpaceStandards.SEPIA_MATRIX.T
 
         out = (1.0 - amount) * x + amount * sepia
         return np.clip(out, 0.0, 255.0).astype(np.uint8)

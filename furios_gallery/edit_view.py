@@ -5,6 +5,7 @@
 # Joaquin Philco <joaquin@furilabs.com>
 
 import gi, os
+import traceback
 gi.require_version('Adw', '1')
 gi.require_version('Gtk', '4.0')
 gi.require_version("Gdk", "4.0")
@@ -365,9 +366,7 @@ class EditView(Adw.NavigationPage):
             )
 
             try:
-                # TODO: This must bake the filter into pixels.
-                print("Clicked Apply")
-
+                FuriOSMediaTools.bake_filter_to_file(self.media_path, out_path, css_class)
             except Exception as e:
                 print("Failed to apply filter:", e)
 
