@@ -14,6 +14,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from .draw_overlay import DrawOverlay
 from .crop_overlay import CropOverlay
 from .filters_overlay import FiltersOverlay
+from .image_transformations_overlay import ImageTransformationsOverlay
 from .furios_media_tools import FuriOSMediaTools
 from .image_viewer_widget import ImageViewerWidget
 from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene, GLib
@@ -139,7 +140,25 @@ class EditView(Adw.NavigationPage):
             self.overlay.add_overlay(self.filters_overlay.get_bar_widget())
 
         def on_fine_tunes_clicked(btn):
-            return
+            if not self.texture or not self.picture:
+                return
+
+            self.zoomable_image.reset_view_fit()
+            self.zoomable_image.set_zoom_enabled(False)
+            self.set_edit_bar_visible(False)
+
+            if getattr(self, "image_transformations_overlay", None):
+                self.overlay.remove_overlay(self.image_transformations_overlay)
+                self.image_transformations_overlay = None
+
+            target_widget = getattr(self.zoomable_image, "picture", self.zoomable_image)
+
+            self.image_transforamtions_overlay = ImageTransformationsOverlay(target_widget, media_path=self.media_path)
+
+            self.image_transforamtions_overlay.on_cancel = lambda: self.on_filters_cancel_clicked(btn)
+            self.image_transforamtions_overlay.on_apply  = lambda selected: self.on_filters_apply_clicked(btn)
+
+            self.overlay.add_overlay(self.image_transforamtions_overlay.get_bar_widget())
 
         def on_drawing_clicked(btn):
             if not self.texture or not self.picture:
