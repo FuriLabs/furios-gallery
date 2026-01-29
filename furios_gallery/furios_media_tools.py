@@ -499,8 +499,8 @@ class FuriOSMediaTools:
 
         kernel = FuriOSMediaTools.gaussian_kernel1d(sigma)
 
-        x = convolve1d_axis(x, kernel, axis=1)
-        x = convolve1d_axis(x, kernel, axis=0)
+        x = FuriOSMediaTools.convolve1d_axis(x, kernel, axis=1)
+        x = FuriOSMediaTools.convolve1d_axis(x, kernel, axis=0)
 
         return np.clip(x, 0.0, 255.0).astype(np.uint8)
 
