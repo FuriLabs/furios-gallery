@@ -40,6 +40,53 @@ class CropOverlay(Gtk.Widget):
         drag.connect("drag-end", self.on_drag_end)
         self.add_controller(drag)
 
+        self.bar = self.build_crop_bar()
+        self.bar.set_can_target(True)
+
+    def get_bar_widget(self) -> Gtk.Widget:
+        return self.bar
+
+    def build_crop_bar(self):
+        if getattr(self, "crop_bar", None):
+            return
+
+        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        bar.set_halign(Gtk.Align.FILL)
+        bar.set_valign(Gtk.Align.END)
+        bar.set_hexpand(True)
+        bar.set_margin_start(12)
+        bar.set_margin_end(12)
+        bar.set_margin_bottom(12)
+        bar.set_margin_top(6)
+
+        bar.add_css_class("osd")
+        bar.add_css_class("toolbar")
+
+        cancel = Gtk.Button(label="Cancel")
+        cancel.set_hexpand(True)
+        cancel.set_halign(Gtk.Align.FILL)
+        cancel.connect("clicked", self.on_cancel_clicked)
+
+        crop = Gtk.Button(label="Crop")
+        crop.set_hexpand(True)
+        crop.set_halign(Gtk.Align.FILL)
+        crop.add_css_class("suggested-action")
+        crop.connect("clicked", self.on_apply_clicked)
+
+        bar.append(cancel)
+        bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
+        bar.append(crop)
+
+        return bar
+
+    def on_cancel_clicked(self, btn=None):
+        if callable(getattr(self, "on_cancel", None)):
+            self.on_cancel()
+
+    def on_apply_clicked(self, btn=None):
+        if callable(getattr(self, "on_apply", None)):
+            self.on_apply(getattr(self, "selected_filter", "filter-original"))
+
     def image_rect_in_widget(self) -> tuple[float, float, float, float]:
         w = float(self.get_allocated_width())
         h = float(self.get_allocated_height())
