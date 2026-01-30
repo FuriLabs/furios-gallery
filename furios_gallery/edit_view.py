@@ -143,27 +143,6 @@ class EditView(Adw.NavigationPage):
         dialog.present()
     
     def setup_editing_tools_bar(self):
-        def on_filters_clicked(btn):
-            if not self.texture or not self.zoomable_image:
-                return
-
-            self.zoomable_image.reset_view_fit()
-            self.zoomable_image.set_zoom_enabled(False)
-            self.set_edit_bar_visible(False)
-
-            if getattr(self, "filters_overlay", None):
-                self.overlay.remove_overlay(self.filters_overlay.get_bar_widget())
-                self.filters_overlay = None
-
-            target_widget = getattr(self.zoomable_image, "picture", self.zoomable_image)
-
-            self.filters_overlay = FiltersOverlay(target_widget, media_path=self.media_path, thumbnails=self.app.thumbnails)
-
-            self.filters_overlay.on_cancel = lambda: self.on_filters_cancel_clicked(btn)
-            self.filters_overlay.on_apply  = lambda selected: self.on_filters_apply_clicked(btn)
-
-            self.overlay.add_overlay(self.filters_overlay.get_bar_widget())
-
         def on_fine_tunes_clicked(btn):
             if not self.texture or not self.picture:
                 return
@@ -230,7 +209,7 @@ class EditView(Adw.NavigationPage):
             return btn
 
         crop_btn = _icon_button("zoom-fit-best", "Crop", self.on_crop_clicked)
-        filters_btn = _icon_button("color-select", "Filters", on_filters_clicked)
+        filters_btn = _icon_button("color-select", "Filters", self.on_filters_clicked)
         fine_tunes_btn = _icon_button("preferences-system", "Fine tunes", on_fine_tunes_clicked)
         drawing_btn = _icon_button("document-edit", "Drawing", on_drawing_clicked)
 
@@ -312,6 +291,27 @@ class EditView(Adw.NavigationPage):
     '''
     * Filters Feature *
     '''
+    def on_filters_clicked(self, btn):
+        if not self.texture or not self.zoomable_image:
+            return
+
+        self.zoomable_image.reset_view_fit()
+        self.zoomable_image.set_zoom_enabled(False)
+        self.set_edit_bar_visible(False)
+
+        if getattr(self, "filters_overlay", None):
+            self.overlay.remove_overlay(self.filters_overlay.get_bar_widget())
+            self.filters_overlay = None
+
+        target_widget = getattr(self.zoomable_image, "picture", self.zoomable_image)
+
+        self.filters_overlay = FiltersOverlay(target_widget, media_path=self.media_path, thumbnails=self.app.thumbnails)
+
+        self.filters_overlay.on_cancel = lambda: self.on_filters_cancel_clicked(btn)
+        self.filters_overlay.on_apply  = lambda selected: self.on_filters_apply_clicked(btn)
+
+        self.overlay.add_overlay(self.filters_overlay.get_bar_widget())
+
     def on_filters_cancel_clicked(self, btn=None):
         if getattr(self, "filters_overlay", None):
             self.overlay.remove_overlay(self.filters_overlay.get_bar_widget())
