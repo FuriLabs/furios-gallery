@@ -254,11 +254,13 @@ class ImageTransformationsOverlay(Gtk.Widget):
         self.css_provider.load_from_data(css)
         return False
 
-    def on_cancel_clicked(self, _btn=None):
+    def on_cancel_clicked(self, btn=None):
         self.brightness, self.contrast, self.saturation, self.temperature, self.blur = self.defaults
         self.update_preview()
 
-    def on_apply_clicked(self, _btn=None):
-        # TODO
-        pass
+        if callable(getattr(self, "on_cancel", None)):
+            self.on_cancel()
 
+    def on_apply_clicked(self, btn=None):
+        if callable(getattr(self, "on_apply", None)):
+            self.on_apply(getattr(self, "selected_filter", "filter-original"))

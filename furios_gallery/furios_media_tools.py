@@ -385,6 +385,35 @@ class FuriOSMediaTools:
         return rgb
 
     @staticmethod
+    def apply_custom_filters(in_path: str, out_path: str, brightness: float | None, contrast: float | None, saturation: float | None, sepia: float | None, blur: float | None):
+        with Image.open(in_path) as im:
+            rgb = np.array(im.convert("RGB"), dtype=np.uint8)
+
+        out_rgb = rgb
+
+        if not brightness == 1.0:
+           out_rgb =  FuriOSMediaTools.apply_brightness(out_rgb, brightness)
+           print(f"applied brigthness: {brightness}")
+
+        if not contrast == 1.0:
+            out_rgb = FuriOSMediaTools.apply_luma_contrast(out_rgb, contrast, 128)
+            print(f"applied contrast: {contrast}")
+
+        if not saturation == 1.0:
+            out_rgb = FuriOSMediaTools.apply_saturate(out_rgb, saturation)
+            print(f"applied saturation: {saturation}")
+
+        if not sepia == 0.0:
+            out_rgb = FuriOSMediaTools.apply_sepia(out_rgb, sepia)
+            print(f"applied temperature: {sepia}")
+
+        if not blur == 0.0:
+            print(f"applied blur: {blur}")
+            out_rgb = FuriOSMediaTools.apply_gaussian_blur(out_rgb, blur)
+
+        FuriOSMediaTools.save_rgb_numpy(out_rgb, out_path)
+
+    @staticmethod
     def bake_filter_to_file(in_path: str, out_path: str, css_class: str):
         with Image.open(in_path) as im:
             rgb = np.array(im.convert("RGB"), dtype=np.uint8)

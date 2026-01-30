@@ -148,17 +148,20 @@ class EditView(Adw.NavigationPage):
             self.set_edit_bar_visible(False)
 
             if getattr(self, "image_transformations_overlay", None):
-                self.overlay.remove_overlay(self.image_transformations_overlay)
+                self.overlay.remove_overlay(self.image_transformations_overlay.get_bar_widget())
                 self.image_transformations_overlay = None
 
             target_widget = getattr(self.zoomable_image, "picture", self.zoomable_image)
 
-            self.image_transforamtions_overlay = ImageTransformationsOverlay(target_widget, media_path=self.media_path)
+            self.image_transformations_overlay = ImageTransformationsOverlay(
+                target_widget,
+                media_path=self.media_path
+            )
 
-            self.image_transforamtions_overlay.on_cancel = lambda: self.on_filters_cancel_clicked(btn)
-            self.image_transforamtions_overlay.on_apply  = lambda selected: self.on_filters_apply_clicked(btn)
+            self.image_transformations_overlay.on_cancel = lambda: self.on_it_cancel_clicked(btn)
+            self.image_transformations_overlay.on_apply  = lambda payload=None: self.on_it_apply_clicked(btn)
 
-            self.overlay.add_overlay(self.image_transforamtions_overlay.get_bar_widget())
+            self.overlay.add_overlay(self.image_transformations_overlay.get_bar_widget())
 
         def on_drawing_clicked(btn):
             if not self.texture or not self.picture:
@@ -394,6 +397,71 @@ class EditView(Adw.NavigationPage):
             self.set_edit_bar_visible(True)
             self.zoomable_image.set_zoom_enabled(True)
 
+            dlg.close()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    '''
+    * Image Transformations Feature *
+    '''
+    def on_it_cancel_clicked(self, btn=None):
+        if getattr(self, "image_transformations_overlay", None):
+            self.overlay.remove_overlay(self.image_transformations_overlay.get_bar_widget())
+            self.image_transformations_overlay = None
+
+        self.set_edit_bar_visible(True)
+        self.zoomable_image.set_zoom_enabled(True)
+
+    def on_it_apply_clicked(self, btn=None):
+        it = getattr(self, "image_transformations_overlay", None)
+        if not it:
+            self.on_it_cancel_clicked(btn)
+            return
+
+        params = getattr(it, "get_params", lambda: {})()
+
+        dialog = Adw.MessageDialog.new(
+            self.get_root(),
+            "Save transformed image?",
+            "Do you want to overwrite the original file or save a new copy?"
+        )
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("copy", "Save Copy")
+        dialog.add_response("overwrite", "Overwrite")
+        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("copy")
+        dialog.set_close_response("cancel")
+
+        def on_response(dlg, response_id: str):
+            if response_id == "cancel":
+                dlg.close()
+                return
+
+            overwrite = (response_id == "overwrite")
+
+            out_path = FuriOSMediaTools.compute_output_path(
+                self.media_path,
+                overwrite=overwrite,
+                out_path=None,
+                suffix="_copy",
+            )
+
+            try:
+                FuriOSMediaTools.apply_custom_filters(
+                    in_path = self.media_path, 
+                    out_path = out_path, 
+                    brightness = it.brightness,
+                    contrast = it.contrast,
+                    saturation = it.saturation,
+                    sepia = it.temperature,
+                    blur = it.blur
+                )
+            except Exception as e:
+                print("Failed to apply filter:", e)
+
+            self.on_it_cancel_clicked(btn)
             dlg.close()
 
         dialog.connect("response", on_response)
