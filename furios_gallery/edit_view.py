@@ -93,6 +93,55 @@ class EditView(Adw.NavigationPage):
     '''
     * Editing Bar *
     '''
+
+    def on_apply_btn_clicked(self, btn, title: str, body: str, operation, reload_after: bool):
+        dialog = Adw.MessageDialog.new(self.get_root(), title, body)
+
+        dialog.add_response("cancel", "Cancel")
+        dialog.add_response("copy", "Save Copy")
+        dialog.add_response("overwrite", "Overwrite")
+        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("copy")
+        dialog.set_close_response("cancel")
+
+        def on_response(dlg, response_id: str):
+            if response_id == "cancel":
+                dlg.close()
+                return
+
+            overwrite = (response_id == "overwrite")
+
+            out_path = FuriOSMediaTools.compute_output_path(
+                self.media_path,
+                overwrite=overwrite,
+                out_path=None,
+                suffix="_copy",
+            )
+
+            try:
+                maybe_written = operation(self.media_path, out_path, overwrite)
+
+                if reload_after:
+                    new_path = maybe_written or out_path
+
+                    if self.picture:
+                        self.main_box.remove(self.picture)
+
+                    self.media_path = new_path
+                    self.picture = self.setup_picture_to_edit(new_path)
+                    self.main_box.append(self.picture)
+
+            except Exception as e:
+                print("Failed to apply drawing:", e)
+
+            self.set_edit_bar_visible(True)
+            self.zoomable_image.set_zoom_enabled(True)
+
+            dlg.close()
+
+        dialog.connect("response", on_response)
+        dialog.present()
     
     def setup_editing_tools_bar(self):
         def on_crop_clicked(btn):
@@ -274,70 +323,29 @@ class EditView(Adw.NavigationPage):
         self.set_edit_bar_visible(True)
         self.zoomable_image.set_zoom_enabled(True)
 
-    def on_crop_apply_clicked(self, btn):
-        if not self.crop_overlay:
+    def on_crop_apply_clicked(self, btn=None):
+        if not getattr(self, "crop_overlay", None):
             return
 
         x, y, w, h = self.crop_overlay.get_crop_in_image_pixels()
 
-        dialog = Adw.MessageDialog.new(
-            self.get_root(),
-            "Save cropped image?",
-            "Do you want to overwrite the original file or save a new copy?"
-        )
-
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("copy", "Save Copy")
-        dialog.add_response("overwrite", "Overwrite")
-
-        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
-
-        dialog.set_default_response("copy")
-        dialog.set_close_response("cancel")
-
-        def on_response(dlg, response_id: str):
-            if response_id == "cancel":
-                dlg.close()
-                return
-
-            overwrite = (response_id == "overwrite")
-
-            out_path = FuriOSMediaTools.compute_output_path(
-                self.media_path,
+        def op(in_path: str, out_path: str, overwrite: bool):
+            return FuriOSMediaTools.crop_image_to_disk(
+                in_path, x, y, w, h,
                 overwrite=overwrite,
-                out_path=None,
+                out_path=out_path,
                 suffix="_cropped",
             )
 
-            try:
-                written_path = FuriOSMediaTools.crop_image_to_disk(
-                    self.media_path,
-                    x, y, w, h,
-                    overwrite=overwrite,
-                    out_path=out_path,
-                    suffix="_cropped"
-                )
-                print("Cropped written to:", written_path)
-                # Remove old viewer
-                if self.picture:
-                    self.main_box.remove(self.picture)
+        self.on_apply_btn_clicked(
+            btn=btn,
+            title="Save cropped image?",
+            body="Do you want to overwrite the original file or save a new copy?",
+            operation=op,
+            reload_after=True,
+        )
 
-                # Create and add new viewer
-                self.picture = self.setup_picture_to_edit(written_path)
-                self.main_box.append(self.picture)
-
-            except Exception as e:
-                print("Crop failed:", e)
-
-            self.on_crop_cancel_clicked(btn)
-            self.set_edit_bar_visible(True)
-            self.zoomable_image.set_zoom_enabled(True)
-
-            dlg.close()
-
-        dialog.connect("response", on_response)
-        dialog.present()
+        self.on_crop_cancel_clicked(btn)
 
     '''
     * Filters Feature *
@@ -351,56 +359,25 @@ class EditView(Adw.NavigationPage):
         self.zoomable_image.set_zoom_enabled(True)
 
     def on_filters_apply_clicked(self, btn=None):
-        if not getattr(self, "filters_overlay", None):
+        overlay = getattr(self, "filters_overlay", None)
+        if not overlay:
             self.on_filters_cancel_clicked(btn)
             return
 
-        css_class = getattr(self.filters_overlay, "selected_filter", "filter-original")
+        css_class = getattr(overlay, "selected_filter", "filter-original")
 
-        dialog = Adw.MessageDialog.new(
-            self.get_root(),
-            "Save filtered image?",
-            "Do you want to overwrite the original file or save a new copy?"
+        def op(in_path: str, out_path: str, overwrite: bool):
+            return FuriOSMediaTools.bake_filter_to_file(in_path, out_path, css_class)
+
+        self.on_apply_btn_clicked(
+            btn=btn,
+            title="Save filtered image?",
+            body="Do you want to overwrite the original file or save a new copy?",
+            operation=op,
+            reload_after=True,
         )
 
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("copy", "Save Copy")
-        dialog.add_response("overwrite", "Overwrite")
-
-        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
-
-        dialog.set_default_response("copy")
-        dialog.set_close_response("cancel")
-
-        def on_response(dlg, response_id: str):
-            if response_id == "cancel":
-                dlg.close()
-                return
-
-            overwrite = (response_id == "overwrite")
-
-            out_path = FuriOSMediaTools.compute_output_path(
-                self.media_path,
-                overwrite=overwrite,
-                out_path=None,
-                suffix="_filtered",
-            )
-
-            try:
-                FuriOSMediaTools.bake_filter_to_file(self.media_path, out_path, css_class)
-            except Exception as e:
-                print("Failed to apply filter:", e)
-
-            # Exit filter mode + restore UI
-            self.on_filters_cancel_clicked(btn)
-            self.set_edit_bar_visible(True)
-            self.zoomable_image.set_zoom_enabled(True)
-
-            dlg.close()
-
-        dialog.connect("response", on_response)
-        dialog.present()
+        self.on_filters_cancel_clicked(btn)
 
     '''
     * Image Transformations Feature *
@@ -419,53 +396,26 @@ class EditView(Adw.NavigationPage):
             self.on_it_cancel_clicked(btn)
             return
 
-        params = getattr(it, "get_params", lambda: {})()
-
-        dialog = Adw.MessageDialog.new(
-            self.get_root(),
-            "Save transformed image?",
-            "Do you want to overwrite the original file or save a new copy?"
-        )
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("copy", "Save Copy")
-        dialog.add_response("overwrite", "Overwrite")
-        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
-        dialog.set_default_response("copy")
-        dialog.set_close_response("cancel")
-
-        def on_response(dlg, response_id: str):
-            if response_id == "cancel":
-                dlg.close()
-                return
-
-            overwrite = (response_id == "overwrite")
-
-            out_path = FuriOSMediaTools.compute_output_path(
-                self.media_path,
-                overwrite=overwrite,
-                out_path=None,
-                suffix="_copy",
+        def op(in_path: str, out_path: str, overwrite: bool):
+            return FuriOSMediaTools.apply_custom_filters(
+                in_path=in_path,
+                out_path=out_path,
+                brightness=it.brightness,
+                contrast=it.contrast,
+                saturation=it.saturation,
+                sepia=it.temperature,
+                blur=it.blur,
             )
 
-            try:
-                FuriOSMediaTools.apply_custom_filters(
-                    in_path = self.media_path, 
-                    out_path = out_path, 
-                    brightness = it.brightness,
-                    contrast = it.contrast,
-                    saturation = it.saturation,
-                    sepia = it.temperature,
-                    blur = it.blur
-                )
-            except Exception as e:
-                print("Failed to apply filter:", e)
+        self.on_apply_btn_clicked(
+            btn=btn,
+            title="Save transformed image?",
+            body="Do you want to overwrite the original file or save a new copy?",
+            operation=op,
+            reload_after=True,
+        )
 
-            self.on_it_cancel_clicked(btn)
-            dlg.close()
-
-        dialog.connect("response", on_response)
-        dialog.present()
+        self.on_it_cancel_clicked(btn)
 
     '''
     * Drawing Feature *
@@ -629,71 +579,33 @@ class EditView(Adw.NavigationPage):
         self.set_edit_bar_visible(True)
         self.zoomable_image.set_zoom_enabled(True)
 
-    def on_drawing_done_clicked(self, btn):
-        if not getattr(self, "draw_overlay", None):
+    def on_drawing_done_clicked(self, btn=None):
+        draw = getattr(self, "draw_overlay", None)
+        if not draw:
             self.on_drawing_cancel_clicked(btn)
             return
 
-        strokes = getattr(self.draw_overlay, "strokes", None) or []
+        strokes = getattr(draw, "strokes", None) or []
         if not strokes:
             self.on_drawing_cancel_clicked(btn)
             return
 
-        dialog = Adw.MessageDialog.new(
-            self.get_root(),
-            "Save drawing?",
-            "Do you want to overwrite the original file or save a new copy?"
-        )
-
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("copy", "Save Copy")
-        dialog.add_response("overwrite", "Overwrite")
-
-        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
-
-        dialog.set_default_response("copy")
-        dialog.set_close_response("cancel")
-
-        def on_response(dlg, response_id: str):
-            if response_id == "cancel":
-                dlg.close()
-                return
-
-            overwrite = (response_id == "overwrite")
-
-            out_path = FuriOSMediaTools.compute_output_path(
-                self.media_path,
+        def op(in_path: str, out_path: str, overwrite: bool):
+            return FuriOSMediaTools.rasterize_strokes_to_disk_cairo(
+                in_path,
+                strokes,
                 overwrite=overwrite,
-                out_path=None,
+                out_path=out_path,
                 suffix="_drawn",
             )
 
-            try:
-                written_path = FuriOSMediaTools.rasterize_strokes_to_disk_cairo(
-                    self.media_path,
-                    strokes,
-                    overwrite=overwrite,
-                    out_path=out_path,
-                    suffix="_drawn",
-                )
-                print("Drawing written to:", written_path)
-                if self.picture:
-                    self.main_box.remove(self.picture)
+        self.on_apply_btn_clicked(
+            btn=btn,
+            title="Save drawing?",
+            body="Do you want to overwrite the original file or save a new copy?",
+            operation=op,
+            reload_after=True,
+        )
 
-                self.media_path = written_path
-                self.picture = self.setup_picture_to_edit(written_path)
-                self.main_box.append(self.picture)
-
-            except Exception as e:
-                print("Failed to apply drawing:", e)
-
-            self.on_drawing_cancel_clicked(btn)
-            self.set_edit_bar_visible(True)
-            self.zoomable_image.set_zoom_enabled(True)
-
-            dlg.close()
-
-        dialog.connect("response", on_response)
-        dialog.present()
+        self.on_drawing_cancel_clicked(btn)
 
