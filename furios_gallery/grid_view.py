@@ -86,6 +86,16 @@ class GridView(Adw.NavigationPage):
 
         start_index = self.app.current_index
         end_index = max(self.app.current_index - self.items_per_load, 0)
+
+        # Handle the case in which there is only one item:
+        if start_index == end_index == 0:
+            media_path = self.app.media_paths[0]
+
+            if not media_path:
+                return
+
+            self.add_media_to_flowbox(media_path, 0)
+
         # We go from start_index down to end_index, in steps of batch_size
         while start_index > end_index:
             chunk_end = max(start_index - batch_size, end_index)
