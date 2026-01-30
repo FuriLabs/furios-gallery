@@ -17,9 +17,9 @@ from gi.repository import Gtk, Gdk, Adw, GLib
 from os.path import expanduser
 from pathlib import Path
 
-from .furios_media_tools import FuriOSMediaTools
+from .edit_view.furios_media_tools import FuriOSMediaTools
 from .media_view import MediaView
-from .edit_view import EditView
+from .edit_view.edit_view import EditView
 from .grid_view import GridView
 from .albums_view import Albums
 from .thumbnail_generator import ThumbnailGenerator

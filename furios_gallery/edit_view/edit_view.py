@@ -16,9 +16,9 @@ from .crop_overlay import CropOverlay
 from .filters_overlay import FiltersOverlay
 from .image_transformations_overlay import ImageTransformationsOverlay
 from .furios_media_tools import FuriOSMediaTools
-from .image_viewer_widget import ImageViewerWidget
+from ..image_viewer_widget import ImageViewerWidget
 from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene, GLib
-from .ui import (create_edit_view_main_box, create_edit_view_overlay)
+from ..ui import (create_edit_view_main_box, create_edit_view_overlay)
 
 class EditView(Adw.NavigationPage):
     def __init__(self, app, media_path: str):
