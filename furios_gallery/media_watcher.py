@@ -89,6 +89,7 @@ class MediaWatcher():
 
             # TODO: From here, we need to signal the rest of the UI pages to updates gridview album views and so on
             self.app.media_paths.append(str(p))
+            self.app.on_new_file_created(str(p))
 
             print(f"Inserted new file: {p} (album candidate: {candidate_album}, linked: {albums_to_link})")
 
