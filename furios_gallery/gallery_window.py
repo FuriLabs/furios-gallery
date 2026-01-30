@@ -22,6 +22,7 @@ from .media_view import MediaView
 from .edit_view.edit_view import EditView
 from .grid_view import GridView
 from .albums_view import Albums
+from .media_watcher import MediaWatcher
 from .thumbnail_generator import ThumbnailGenerator
 from .media_properties_view import MediaPropertiesView
 from .database_manager import (
@@ -108,6 +109,10 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view.connect('pushed', self.on_navigation_changed)
 
         self.present()
+
+        # Start Directory Watcher
+        self.media_watcher = MediaWatcher(self.conn, self)
+        self.media_watcher.start_media_monitors()
 
         # Start background database population AFTER window is shown
         self.start_background_loading(str(app_dir / "gallery-albums.db"))
