@@ -7,7 +7,9 @@
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
+
 from gi.repository import Gtk, Gdk, Graphene, Gsk
+from .ui import (create_main_bar_body, create_cancel_btn, create_crop_btn)
 
 class CropOverlay(Gtk.Widget):
     HANDLE = 12
@@ -50,28 +52,11 @@ class CropOverlay(Gtk.Widget):
         if getattr(self, "crop_bar", None):
             return
 
-        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        bar.set_halign(Gtk.Align.FILL)
-        bar.set_valign(Gtk.Align.END)
-        bar.set_hexpand(True)
-        bar.set_margin_start(12)
-        bar.set_margin_end(12)
-        bar.set_margin_bottom(12)
-        bar.set_margin_top(6)
+        bar = create_main_bar_body(12, 12, 12, 12, 6, "horizontal")
 
-        bar.add_css_class("osd")
-        bar.add_css_class("toolbar")
+        cancel = create_cancel_btn(self.on_cancel_clicked)
 
-        cancel = Gtk.Button(label="Cancel")
-        cancel.set_hexpand(True)
-        cancel.set_halign(Gtk.Align.FILL)
-        cancel.connect("clicked", self.on_cancel_clicked)
-
-        crop = Gtk.Button(label="Crop")
-        crop.set_hexpand(True)
-        crop.set_halign(Gtk.Align.FILL)
-        crop.add_css_class("suggested-action")
-        crop.connect("clicked", self.on_apply_clicked)
+        crop = create_crop_btn(self.on_apply_clicked)
 
         bar.append(cancel)
         bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))

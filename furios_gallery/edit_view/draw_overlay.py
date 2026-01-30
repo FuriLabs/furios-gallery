@@ -8,6 +8,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gtk, Gdk, Gsk
+from .ui import create_drawing_bar
 
 class DrawOverlay(Gtk.Widget):
     def __init__(
@@ -47,150 +48,19 @@ class DrawOverlay(Gtk.Widget):
         drag.connect("drag-end", self.on_drag_end)
         self.add_controller(drag)
 
-        self.bar = self.build_drawing_bar()
+        self.bar = create_drawing_bar(
+            on_cancel=self.on_cancel_clicked,
+            on_done=self.on_apply_clicked,
+            on_undo=self.undo_last_stroke,
+            on_color_changed=self.set_color,
+            initial_rgba=self.color,
+            on_size_changed=self.set_line_width,
+            initial_size=self.line_width,
+            size_range=(1.0, 100.0),
+        )
 
     def get_bar_widget(self) -> Gtk.Widget:
         return self.bar
-
-    def build_drawing_bar(self):
-        if getattr(self, "draw_bar", None):
-            return
-
-        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
-        bar.set_halign(Gtk.Align.FILL)
-        bar.set_valign(Gtk.Align.END)
-        bar.set_hexpand(True)
-        bar.set_margin_start(5)
-        bar.set_margin_end(5)
-        bar.set_margin_bottom(12)
-        bar.set_margin_top(6)
-
-        bar.add_css_class("osd")
-        bar.add_css_class("toolbar")
-        bar.set_can_target(True)
-
-        # Cancel button
-        cancel = Gtk.Button(label="Cancel")
-        cancel.set_hexpand(True)
-        cancel.set_halign(Gtk.Align.FILL)
-        cancel.connect("clicked", self.on_cancel_clicked)
-
-        # Color popover button
-        color_menu = Gtk.MenuButton()
-        color_menu.set_tooltip_text("Stroke color")
-        color_menu.set_valign(Gtk.Align.CENTER)
-        color_menu.set_has_frame(True)
-
-        color_icon = Gtk.Image.new_from_icon_name("color-select")
-        color_icon.set_pixel_size(18)
-        color_menu.set_child(color_icon)
-
-        color_pop = Gtk.Popover()
-        color_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        color_box.set_margin_top(10)
-        color_box.set_margin_bottom(10)
-        color_box.set_margin_start(10)
-        color_box.set_margin_end(10)
-
-        color_label = Gtk.Label(label="Stroke color")
-        color_label.set_halign(Gtk.Align.START)
-
-        color_dialog = Gtk.ColorDialog()
-        color_btn = Gtk.ColorDialogButton.new(color_dialog)
-        color_btn.set_rgba(self.color)
-
-        def _on_color_changed(btn, _pspec=None):
-            self.set_color(btn.get_rgba())
-
-        color_btn.connect("notify::rgba", _on_color_changed)
-
-        color_box.append(color_label)
-        color_box.append(color_btn)
-        color_pop.set_child(color_box)
-        color_menu.set_popover(color_pop)
-
-        # Size popover button
-        size_btn = Gtk.MenuButton()
-        size_btn.set_tooltip_text("Stroke size")
-        size_btn.set_valign(Gtk.Align.CENTER)
-        size_btn.set_has_frame(True)
-
-        size_icon = Gtk.Image.new_from_icon_name("find-location")
-        size_icon.set_pixel_size(18)
-        size_btn.set_child(size_icon)
-
-        size_pop = Gtk.Popover()
-        size_pop.set_has_arrow(True)
-
-        size_pop.set_size_request(220, -1)
-
-        size_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        size_box.set_margin_top(10)
-        size_box.set_margin_bottom(10)
-        size_box.set_margin_start(12)
-        size_box.set_margin_end(12)
-        size_box.set_hexpand(True)
-
-        size_label = Gtk.Label(label="Size")
-        size_label.set_valign(Gtk.Align.CENTER)
-        size_label.add_css_class("dim-label")
-
-        adj = Gtk.Adjustment(value=4.0, lower=1.0, upper=100.0, step_increment=1.0, page_increment=2.0)
-
-        scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj)
-        scale.set_draw_value(True)
-        scale.set_digits(0)
-        scale.set_valign(Gtk.Align.CENTER)
-        scale.set_hexpand(True)
-
-        scale.set_size_request(150, -1)
-
-        adj.set_value(float(self.line_width))
-
-        def _on_size_changed(s):
-            self.set_line_width(s.get_value())
-
-        scale.connect("value-changed", _on_size_changed)
-
-        size_box.append(size_label)
-        size_box.append(scale)
-
-        size_pop.set_child(size_box)
-        size_btn.set_popover(size_pop)
-
-        # Delete / Undo last stroke button
-        undo_btn = Gtk.MenuButton()
-        undo_btn.set_has_frame(True)
-        undo_btn.set_valign(Gtk.Align.CENTER)
-        undo_btn.set_tooltip_text("Undo last stroke")
-
-        undo_icon = Gtk.Image.new_from_icon_name("edit-undo-symbolic")
-        undo_icon.set_pixel_size(18)
-        undo_btn.set_child(undo_icon)
-
-        gesture = Gtk.GestureClick.new()
-        gesture.connect("pressed", lambda *_: self and self.undo_last_stroke())
-        undo_btn.add_controller(gesture)
-
-        # Done Button
-        done = Gtk.Button(label="Done")
-        done.set_hexpand(True)
-        done.set_halign(Gtk.Align.FILL)
-        done.add_css_class("suggested-action")
-        done.connect("clicked", self.on_apply_clicked)
-
-        # Layout
-        bar.append(cancel)
-        bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
-        bar.append(color_menu)
-        bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
-        bar.append(size_btn)
-        bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
-        bar.append(undo_btn)
-        bar.append(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL))
-        bar.append(done)
-
-        return bar
 
     def on_cancel_clicked(self, btn=None):
         if callable(getattr(self, "on_cancel", None)):

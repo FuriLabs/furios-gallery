@@ -10,6 +10,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 
 from gi.repository import Gtk, Gdk, GLib
+from .ui import (create_main_bar_body, create_cancel_btn, create_apply_btn, make_slider_menu_button)
 
 class ImageTransformationsOverlay(Gtk.Widget):
     def __init__(self, picture_widget: Gtk.Widget, media_path: str):
@@ -46,64 +47,8 @@ class ImageTransformationsOverlay(Gtk.Widget):
     def get_bar_widget(self) -> Gtk.Widget:
         return self.bar
 
-    def make_slider_menu_button(self, icon_name: str, tooltip: str, title: str, value: float, lower: float, upper: float, step: float, digits: int, on_change) -> Gtk.MenuButton:
-        btn = Gtk.MenuButton()
-        btn.set_tooltip_text(tooltip)
-        btn.set_valign(Gtk.Align.CENTER)
-        btn.set_has_frame(True)
-
-        icon = Gtk.Image.new_from_icon_name(icon_name)
-        icon.set_pixel_size(18)
-        btn.set_child(icon)
-
-        pop = Gtk.Popover()
-        pop.set_has_arrow(True)
-        pop.set_size_request(260, -1)
-
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        box.set_margin_top(10)
-        box.set_margin_bottom(10)
-        box.set_margin_start(12)
-        box.set_margin_end(12)
-        box.set_hexpand(True)
-
-        label = Gtk.Label(label=title)
-        label.set_valign(Gtk.Align.CENTER)
-        label.add_css_class("dim-label")
-
-        adj = Gtk.Adjustment(
-            value=float(value),
-            lower=float(lower),
-            upper=float(upper),
-            step_increment=float(step),
-            page_increment=float(step) * 10.0,
-        )
-
-        scale = Gtk.Scale(orientation=Gtk.Orientation.HORIZONTAL, adjustment=adj)
-        scale.set_draw_value(True)
-        scale.set_digits(int(digits))
-        scale.set_valign(Gtk.Align.CENTER)
-        scale.set_hexpand(True)
-
-        adj.connect("value-changed", lambda a: on_change(float(a.get_value())))
-
-        box.append(label)
-        box.append(scale)
-        pop.set_child(box)
-        btn.set_popover(pop)
-
-        return btn
-
     def build_imtr_bar(self) -> Gtk.Widget:
-        bar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        bar.set_hexpand(True)
-        bar.set_halign(Gtk.Align.FILL)
-        bar.set_valign(Gtk.Align.END)
-        bar.set_margin_start(6)
-        bar.set_margin_end(6)
-        bar.set_margin_bottom(12)
-        bar.add_css_class("osd")
-        bar.add_css_class("toolbar")
+        bar = create_main_bar_body(8, 6, 6, 12, 6, "vertical")
 
         outer = Gtk.ScrolledWindow()
         outer.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
@@ -116,7 +61,7 @@ class ImageTransformationsOverlay(Gtk.Widget):
         outer.set_child(row)
 
         # Brigthness, Contrast, Saturation, Temperature, Blur
-        row.append(self.make_slider_menu_button(
+        row.append(make_slider_menu_button(
             icon_name="weather-clear-symbolic",
             tooltip="Brightness",
             title="Brightness",
@@ -128,7 +73,7 @@ class ImageTransformationsOverlay(Gtk.Widget):
             on_change=self.on_brightness_changed,
         ))
 
-        row.append(self.make_slider_menu_button(
+        row.append(make_slider_menu_button(
             icon_name="semi-starred-symbolic",
             tooltip="Contrast",
             title="Contrast",
@@ -140,7 +85,7 @@ class ImageTransformationsOverlay(Gtk.Widget):
             on_change=self.on_contrast_changed,
         ))
 
-        row.append(self.make_slider_menu_button(
+        row.append(make_slider_menu_button(
             icon_name="color-select-symbolic",
             tooltip="Saturation",
             title="Saturation",
@@ -152,7 +97,7 @@ class ImageTransformationsOverlay(Gtk.Widget):
             on_change=self.on_saturation_changed,
         ))
 
-        row.append(self.make_slider_menu_button(
+        row.append(make_slider_menu_button(
             icon_name="temperature-symbolic",
             tooltip="Temperature",
             title="Temperature",
@@ -164,7 +109,7 @@ class ImageTransformationsOverlay(Gtk.Widget):
             on_change=self.on_temperature_changed,
         ))
 
-        row.append(self.make_slider_menu_button(
+        row.append(make_slider_menu_button(
             icon_name="edit-select-all-symbolic",
             tooltip="Blur",
             title="Blur",
@@ -179,14 +124,9 @@ class ImageTransformationsOverlay(Gtk.Widget):
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         actions.set_hexpand(True)
 
-        cancel = Gtk.Button(label="Cancel")
-        cancel.set_hexpand(True)
-        cancel.connect("clicked", self.on_cancel_clicked)
+        cancel = create_cancel_btn(self.on_cancel_clicked)
 
-        apply = Gtk.Button(label="Apply")
-        apply.set_hexpand(True)
-        apply.add_css_class("suggested-action")
-        apply.connect("clicked", self.on_apply_clicked)
+        apply = create_apply_btn(self.on_apply_clicked)
 
         actions.append(cancel)
         actions.append(apply)

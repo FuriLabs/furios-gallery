@@ -9,6 +9,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 
 from gi.repository import Gtk, Gdk, GLib
+from .ui import (create_main_bar_body, create_cancel_btn, create_apply_btn)
 
 FILTERS = [
     ("Original", "filter-original"),
@@ -93,15 +94,7 @@ class FiltersOverlay(Gtk.Widget):
         return btn
 
     def build_bar(self) -> Gtk.Widget:
-        filters_bar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        filters_bar.set_hexpand(True)
-        filters_bar.set_halign(Gtk.Align.FILL)
-        filters_bar.set_valign(Gtk.Align.END)
-        filters_bar.set_margin_start(6)
-        filters_bar.set_margin_end(6)
-        filters_bar.set_margin_bottom(12)
-        filters_bar.add_css_class("osd")
-        filters_bar.add_css_class("toolbar")
+        filters_bar = create_main_bar_body(8, 6, 6, 12, 6, "vertical")
 
         outer = Gtk.ScrolledWindow()
         outer.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.NEVER)
@@ -120,14 +113,9 @@ class FiltersOverlay(Gtk.Widget):
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         actions.set_hexpand(True)
 
-        cancel = Gtk.Button(label="Cancel")
-        cancel.set_hexpand(True)
-        cancel.connect("clicked", self.on_cancel_clicked)
+        cancel = create_cancel_btn(self.on_cancel_clicked)
 
-        apply = Gtk.Button(label="Apply")
-        apply.set_hexpand(True)
-        apply.add_css_class("suggested-action")
-        apply.connect("clicked", self.on_apply_clicked)
+        apply = create_apply_btn(self.on_apply_clicked)
 
         actions.append(cancel)
         actions.append(apply)
@@ -152,5 +140,3 @@ class FiltersOverlay(Gtk.Widget):
         for c in ALL_FILTER_CLASSES:
             self.picture_widget.remove_css_class(c)
         self.picture_widget.add_css_class(css_class)
-
-        #TODO: Actully save the fitlered imaged to DISK

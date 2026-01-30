@@ -19,6 +19,7 @@ from .furios_media_tools import FuriOSMediaTools
 from ..image_viewer_widget import ImageViewerWidget
 from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene, GLib
 from ..ui import (create_edit_view_main_box, create_edit_view_overlay)
+from .ui import (create_main_bar_body, create_confirmation_dialog, create_icon_btn)
 
 class EditView(Adw.NavigationPage):
     def __init__(self, app, media_path: str):
@@ -94,15 +95,7 @@ class EditView(Adw.NavigationPage):
     * Editing Bar *
     '''
     def on_apply_btn_clicked(self, btn, title: str, body: str, operation, reload_after: bool):
-        dialog = Adw.MessageDialog.new(self.get_root(), title, body)
-
-        dialog.add_response("cancel", "Cancel")
-        dialog.add_response("copy", "Save Copy")
-        dialog.add_response("overwrite", "Overwrite")
-        dialog.set_response_appearance("overwrite", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.set_response_appearance("copy", Adw.ResponseAppearance.SUGGESTED)
-        dialog.set_default_response("copy")
-        dialog.set_close_response("cancel")
+        dialog = create_confirmation_dialog(self.get_root(), title, body)
 
         def on_response(dlg, response_id: str):
             if response_id == "cancel":
@@ -143,34 +136,12 @@ class EditView(Adw.NavigationPage):
         dialog.present()
     
     def setup_editing_tools_bar(self):
-        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        bar.set_hexpand(True)
-        bar.set_halign(Gtk.Align.FILL)
-        bar.set_valign(Gtk.Align.END)
-        bar.set_margin_start(12)
-        bar.set_margin_end(12)
-        bar.set_margin_bottom(12)
-        bar.set_margin_top(6)
+        bar = create_main_bar_body(12, 12, 12, 12, 6, "horizontal")
 
-        bar.add_css_class("toolbar")
-        bar.add_css_class("osd")
-
-        def _icon_button(icon_name: str, tooltip: str, handler):
-            btn = Gtk.Button()
-            btn.set_has_frame(False)
-            btn.set_tooltip_text(tooltip)
-
-            img = Gtk.Image.new_from_icon_name(icon_name)
-            img.set_pixel_size(22)
-            btn.set_child(img)
-
-            btn.connect("clicked", handler)
-            return btn
-
-        crop_btn = _icon_button("zoom-fit-best", "Crop", self.on_crop_clicked)
-        filters_btn = _icon_button("color-select", "Filters", self.on_filters_clicked)
-        fine_tunes_btn = _icon_button("preferences-system", "Fine tunes", self.on_fine_tunes_clicked)
-        drawing_btn = _icon_button("document-edit", "Drawing", self.on_drawing_clicked)
+        crop_btn = create_icon_btn("zoom-fit-best", "Crop", self.on_crop_clicked)
+        filters_btn = create_icon_btn("color-select", "Filters", self.on_filters_clicked)
+        fine_tunes_btn = create_icon_btn("preferences-system", "Fine tunes", self.on_fine_tunes_clicked)
+        drawing_btn = create_icon_btn("document-edit", "Drawing", self.on_drawing_clicked)
 
         for b in (crop_btn, filters_btn, fine_tunes_btn, drawing_btn):
             b.set_hexpand(True)
