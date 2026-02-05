@@ -98,6 +98,9 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.albums_page = self.create_albums_page()
         self.navigation_view.add(self.albums_page)
 
+        # Create initial grid view page
+        self.grid_view_page = self.create_grid_view_page("Recents")
+
         # Add header to toolbar view
         self.toolbar_view.add_top_bar(self.header)
 
@@ -513,9 +516,8 @@ class GalleryWindow(Adw.ApplicationWindow):
         entry.select_region(0, -1)
 
     def on_new_file_created(self, new_media_path: str):
-        visible_page = self.navigation_view.get_visible_page()
-        if visible_page:
-            if visible_page.get_title() == "Albums":
-                visible_page.update_all_album_thumbnails()
-            else: # GridView
-                visible_page.add_media_to_flowbox(new_media_path, len(self.media_paths) + 1)
+        #Update albums thumbnails
+        self.albums_page.update_all_album_thumbnails()
+
+        #Update grid view
+        self.grid_view_page.add_media_to_flowbox(new_media_path, len(self.media_paths) + 1)
