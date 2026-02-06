@@ -8,7 +8,7 @@ import os, gi
 
 from pathlib import Path
 from gi.repository import GLib, Gio
-from .database_manager import (list_database_albums, insert_file_and_albums)
+from .database_manager import (list_database_albums, insert_file_and_albums, file_exists_in_database)
 
 class MediaWatcher():
     def __init__(self, conn, app):
@@ -57,10 +57,16 @@ class MediaWatcher():
             self.monitor_directory(Path(path))
             return
 
-        if event_type != Gio.FileMonitorEvent.CREATED:
+        if not os.path.isfile(path):
             return
 
-        GLib.idle_add(self.handle_new_media_path, path)
+        p = Path(path)
+
+        if event_type == Gio.FileMonitorEvent.CHANGES_DONE_HINT:
+            GLib.idle_add(self.handle_new_media_path, path)
+            return
+        else:
+            return
 
     def handle_new_media_path(self, file_path: str):
         try:
@@ -71,6 +77,10 @@ class MediaWatcher():
 
             root = self.get_root_media_dir(p)
             if root is None:
+                return False
+
+            # If the media already exists, do not insert again
+            if file_exists_in_database(self.conn, str(p)):
                 return False
 
             # Determine candidate album based on folder under root
@@ -84,10 +94,7 @@ class MediaWatcher():
             # Insert + link
             insert_file_and_albums(self.conn, str(p), albums_to_link)
 
-
             self.db_albums = set(list_database_albums(self.conn))
-
-            # TODO: From here, we need to signal the rest of the UI pages to updates gridview album views and so on
             self.app.media_paths.append(str(p))
             self.app.on_new_file_created(str(p))
 
