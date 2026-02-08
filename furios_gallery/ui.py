@@ -18,47 +18,14 @@ def create_gallery_header() -> Adw.HeaderBar:
     """Create the main gallery header bar."""
     header = Adw.HeaderBar()
     header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+    header.add_css_class("osd")
+    header.set_margin_bottom(10)
     return header
 
-def create_album_button(callback: Callable) -> Gtk.Button:
-    """Create album button for header."""
-    button = Gtk.Button(icon_name="folder-new-symbolic")
+def create_header_btn(callback: Callable, icon_name: str, visible: bool = True) -> Gtk.Button:
+    button = Gtk.Button(icon_name=icon_name)
+    button.set_visible(visible)
     button.connect("clicked", callback)
-    return button
-
-def create_change_file_name_button(callback: Callable) -> Gtk.Button:
-    """Create change file name button for header."""
-    button = Gtk.Button(icon_name="text-editor-symbolic")
-    button.connect("clicked", callback)
-    button.set_visible(False)
-    return button
-
-def create_info_button(callback: Callable) -> Gtk.Button:
-    """Create info button for header."""
-    button = Gtk.Button(icon_name="help-about-symbolic")
-    button.connect("clicked", callback)
-    button.set_visible(False)
-    return button
-
-def create_media_options_button(callback: Callable) -> Gtk.Button:
-    """Create media options button for header."""
-    button = Gtk.Button(icon_name="view-more-symbolic")
-    button.connect("clicked", callback)
-    button.set_visible(False)
-    return button
-
-def create_delete_media_button(callback: Callable) -> Gtk.Button:
-    """Create delete media button for header."""
-    button = Gtk.Button(icon_name="user-trash-symbolic")
-    button.connect("clicked", callback)
-    button.add_css_class("delete-btn")
-    return button
-
-def create_return_button(callback: Callable) -> Gtk.Button:
-    """Create return button for header."""
-    button = Gtk.Button(icon_name="go-previous-symbolic")
-    button.connect("clicked", callback)
-    button.set_visible(False)
     return button
 
 def create_albums_content_box() -> Gtk.Box:

@@ -32,10 +32,9 @@ from .database_manager import (
     populate_database_async,
 )
 from .ui import (
-    create_gallery_header, create_album_button, create_info_button, create_media_options_button,
-    create_delete_media_button, create_return_button, create_main_window_layout,
-    create_album_create_dialog, create_selection_header_bar, create_delete_confirmation_dialog,
-    create_map_page, clear_flowbox, create_change_file_name_button, create_rename_dialog
+    create_gallery_header, create_main_window_layout, create_album_create_dialog,
+    create_selection_header_bar, create_delete_confirmation_dialog, create_map_page,
+    clear_flowbox, create_rename_dialog, create_header_btn
 )
 
 class GalleryWindow(Adw.ApplicationWindow):
@@ -71,27 +70,27 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.header = create_gallery_header()
 
         # Create album button
-        self.create_album_btn = create_album_button(self.create_album)
+        self.create_album_btn = create_header_btn(self.create_album, "folder-new-symbolic", True)
         self.header.pack_start(self.create_album_btn)
 
         # Info button (initially hidden)
-        self.info_btn = create_info_button(self.on_info_clicked)
+        self.info_btn = create_header_btn(self.on_info_clicked, "help-about-symbolic", False)
         self.header.pack_end(self.info_btn)
 
         # Media view buttons (initially hidden)
-        self.media_options_btn = create_media_options_button(self.on_media_options_clicked)
+        self.media_options_btn = create_header_btn(self.on_media_options_clicked, "view-more-symbolic", False)
         self.header.pack_end(self.media_options_btn)
 
         # Delete media button
-        self.delete_media_btn = create_delete_media_button(self.open_delete_popup)
+        self.delete_media_btn = create_header_btn(self.open_delete_popup, "user-trash-symbolic", True)
         self.header.pack_end(self.delete_media_btn)
 
         # Return button
-        self.return_btn = create_return_button(self.on_return_clicked)
+        self.return_btn = create_header_btn(self.on_return_clicked, "go-previous-symbolic", False)
         self.header.pack_start(self.return_btn)
 
         # Create change Name button (initially hidden)
-        self.create_change_name_btn = create_change_file_name_button(self.change_file_name)
+        self.create_change_name_btn = create_header_btn(self.change_file_name, "text-editor-symbolic", False)
         self.header.pack_start(self.create_change_name_btn)
 
         # Create initial albums page
