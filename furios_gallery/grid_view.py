@@ -88,7 +88,7 @@ class GridView(Adw.NavigationPage):
         end_index = max(self.app.current_index - self.items_per_load, 0)
 
         # Handle the case in which there is only one item:
-        if start_index == end_index == 0:
+        if len(self.app.media_paths) == 1 and start_index == end_index == 0:
             media_path = self.app.media_paths[0]
 
             if not media_path:
