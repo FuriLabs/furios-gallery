@@ -154,7 +154,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.media_options_btn.set_visible(True)
                 self.info_btn.set_visible(True)
                 self.return_btn.set_visible(True)
-            elif visible_page.get_title() == "Albums":
+            elif isinstance(visible_page, Albums):
                 # Album view header
                 self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
                 self.create_change_name_btn.set_visible(False)
@@ -163,7 +163,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(False)
-            elif visible_page.get_title() == "Location":
+            elif isinstance(visible_page, MediaPropertiesView):
                 # Map view header
                 self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
                 self.create_change_name_btn.set_visible(False)
@@ -172,7 +172,7 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(True)
-            elif visible_page.get_title() == "Edit":
+            elif isinstance(visible_page, EditView):
                 # Edit view header
                 curr_file = f"Editing {os.path.basename(self.media_paths[self.current_index])}"
                 self.header.set_title_widget(Adw.WindowTitle(title=curr_file))
@@ -182,11 +182,20 @@ class GalleryWindow(Adw.ApplicationWindow):
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(True)
-            else:
+            elif isinstance(visible_page, GridView):
                 # Grid view header
                 self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
+                self.create_change_name_btn.set_visible(False)
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(True)
+                self.media_options_btn.set_visible(False)
+                self.info_btn.set_visible(False)
+                self.return_btn.set_visible(True)
+            else:
+                self.header.set_title_widget(Adw.WindowTitle(title="You shouldnt be here"))
+                self.create_change_name_btn.set_visible(False)
+                self.create_album_btn.set_visible(False)
+                self.delete_media_btn.set_visible(False)
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(True)
