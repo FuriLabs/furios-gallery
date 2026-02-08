@@ -529,4 +529,4 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.albums_page.update_all_album_thumbnails()
 
         #Update grid view
-        self.grid_view_page.add_media_to_flowbox(new_media_path, len(self.media_paths) + 1)
+        self.grid_view_page.add_media_to_flowbox(new_media_path, len(self.media_paths) - 1)

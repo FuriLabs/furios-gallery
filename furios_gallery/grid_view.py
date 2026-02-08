@@ -72,7 +72,7 @@ class GridView(Adw.NavigationPage):
 
     def on_scroll(self, adjustment):
         if adjustment.get_value() + adjustment.get_page_size() >= adjustment.get_upper() - 50:
-            if self.app.current_index < len(self.app.media_paths):
+            if self.app.current_index < len(self.app.media_paths) - 1:
                 asyncio.create_task(self.load_more_items())
 
     async def load_more_items(self):
