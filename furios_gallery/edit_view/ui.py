@@ -151,7 +151,7 @@ def create_drawing_bar(
     on_size_changed,
     initial_size: float,
     size_range=(1.0, 100.0),
-    spacing=5,
+    spacing=0,
     mstart=5, mend=5, mbottom=12, mtop=6,
 ) -> Gtk.Widget:
     bar = create_main_bar_body(spacing, mstart, mend, mbottom, mtop, "horizontal")
