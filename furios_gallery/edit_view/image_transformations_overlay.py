@@ -159,7 +159,7 @@ class ImageTransformationsOverlay(Gtk.Widget):
         b = max(0.0, min(2.0, float(self.brightness)))
         c = max(0.0, min(2.0, float(self.contrast)))
         s = max(0.0, min(2.0, float(self.saturation)))
-        bl = max(0.0, min(10.0, float(self.blur)))
+        bl = max(0.0, min(1.5, float(self.blur * 0.5)))
 
         t = max(-1.0, min(1.0, float(self.temperature)))
         sep = max(0.0, t) * 0.6

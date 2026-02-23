@@ -8,6 +8,7 @@ import cairo
 import gi, os
 import numpy as np
 from PIL import Image
+import time
 
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -408,6 +409,7 @@ class FuriOSMediaTools:
             print(f"applied temperature: {sepia}")
 
         if not blur == 0.0:
+            blur = min(blur * 2.2, 10.0)
             print(f"applied blur: {blur}")
             out_rgb = FuriOSMediaTools.apply_gaussian_blur(out_rgb, blur)
 
