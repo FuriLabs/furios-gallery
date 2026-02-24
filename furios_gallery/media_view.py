@@ -184,14 +184,8 @@ class MediaView(Adw.NavigationPage):
                     media_to_delete_index = self.app.current_index
 
                     self.update_carousel()
-
-                    albums_view_page = self.app.navigation_view.find_page("albumsView")
-                    if albums_view_page:
-                        albums_view_page.update_all_album_thumbnails()
-
-                    grid_view_page = self.app.navigation_view.find_page("gridView")
-                    if grid_view_page:
-                        grid_view_page.delete_media_from_flowbox(media_to_delete_index)
+                    self.app.albums_page.update_all_album_thumbnails()
+                    self.app.grid_view_page.delete_media_from_flowbox(media_to_delete_index)
 
                     return True
                 else:
