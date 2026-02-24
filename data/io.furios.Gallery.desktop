@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Gallery
-Exec=io.FuriOS.Gallery
-Icon=io.FuriOS.Gallery
+Exec=io.furios.Gallery
+Icon=io.furios.Gallery
 Terminal=false
 Categories=Utility;Graphics;
 StartupNotify=true

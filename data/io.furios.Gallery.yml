@@ -1,11 +1,11 @@
-app-id: io.FuriOS.Gallery
+app-id: io.furios.Gallery
 runtime: org.gnome.Platform
 runtime-version: '47'
 sdk: org.gnome.Sdk
 sdk-extensions: [
   'org.freedesktop.Sdk.Extension.rust-stable'
 ]
-command: io.FuriOS.Gallery
+command: io.furios.Gallery
 build-options:
   append-path: '/usr/lib/sdk/rust-stable/bin'
 
@@ -20,7 +20,7 @@ finish-args:
   - --env=GI_TYPELIB_PATH=/app/lib/girepository-1.0
   - --env=LD_LIBRARY_PATH=/app/lib:/app/lib64
   - --env=PYTHONPATH=/app/lib/python3.10/site-packages
-  - --talk-name=io.FuriOS.Gallery
+  - --talk-name=io.furios.Gallery
   # Store database
   - --filesystem=xdg-data
   # Store thumbnails
@@ -100,7 +100,7 @@ modules:
       '/lib/gstreamer-1.0/include',
       '/lib/pkgconfig',
       '/share/gtk-doc'
-    ]   
+    ]
 
   - name: furios-gallery
     buildsystem: simple
@@ -115,17 +115,17 @@ modules:
 
       # Install desktop file
       - mkdir -p /app/share/applications
-      - cp data/io.FuriOS.Gallery.desktop /app/share/applications/
+      - cp data/io.furios.Gallery.desktop /app/share/applications/
       # Change desktop name with the FuriLabs prefix per FuriLabs request
-      - sed -i -e 's/Name=/Name=FuriLabs /g' /app/share/applications/io.FuriOS.Gallery.desktop
+      - sed -i -e 's/Name=/Name=FuriLabs /g' /app/share/applications/io.furios.Gallery.desktop
 
       # Install icon
       - mkdir -p /app/share/icons/hicolor/scalable/apps
-      - cp data/io.FuriOS.Gallery.svg /app/share/icons/hicolor/scalable/apps/
+      - cp data/io.furios.Gallery.svg /app/share/icons/hicolor/scalable/apps/
 
       # Create symbolic links for binaries
       - mkdir -p /app/bin
-      - ln -s /app/lib/furios-gallery/main.py /app/bin/io.FuriOS.Gallery
+      - ln -s /app/lib/furios-gallery/main.py /app/bin/io.furios.Gallery
 
       # Install Python dependencies
       - pip install --prefix=/app -r requirements.txt

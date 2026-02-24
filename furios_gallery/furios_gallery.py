@@ -15,7 +15,7 @@ from furios_gallery.gallery_window import GalleryWindow
 
 class GalleryApp(Adw.Application):
     def __init__(self):
-        super().__init__(application_id='io.FuriOS.Gallery')
+        super().__init__(application_id='io.furios.Gallery')
         self.connect('activate', self.on_activate)
 
     def on_activate(self, app):
