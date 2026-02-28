@@ -15,7 +15,6 @@ FILTERS = [
     ("Original", "filter-original"),
     ("B&W", "filter-bw"),
     ("Vivid", "filter-vivid"),
-    ("Warm", "filter-warm"),
     ("Invert", "filter-invert"),
     ("Soft", "filter-soft"),
 ]
@@ -30,7 +29,6 @@ CSS = b"""
     .filter-original { filter: none; }
     .filter-bw { filter: grayscale(1); }
     .filter-vivid { filter: saturate(1.7) contrast(1.15); }
-    .filter-warm { filter: sepia(0.35) saturate(1.3) brightness(1.05); }
     .filter-invert { filter: invert(1); }
     .filter-soft { filter: blur(0.7px) brightness(1.02); }
     """
