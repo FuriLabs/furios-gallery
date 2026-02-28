@@ -188,6 +188,7 @@ def create_grid_view_flowbox(selection_callback: Callable, update_callback: Call
     """Create flowbox for grid view."""
     flowbox = Gtk.FlowBox()
     flowbox.set_valign(Gtk.Align.START)
+    flowbox.add_css_class("furios-tight-grid")
     flowbox.set_column_spacing(0)
     flowbox.set_row_spacing(0)
     flowbox.set_max_children_per_line(5)
@@ -206,7 +207,24 @@ def setup_grid_view_css():
     .delete-btn {
         padding: 5px;
     }
+
+    .furios-tight-grid flowboxchild {
+        padding: 0px;
+        margin: 1px;
+        border: 0px;
+        min-width: 0px;
+        min-height: 0px;
+    }
+
+    .furios-tight-grid frame,
+    .furios-tight-grid button {
+        padding: 0px;
+        margin: 0px;
+        border: 0px;
+        box-shadow: none;
+    }
     """)
+
     display = Gdk.Display.get_default()
     Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
