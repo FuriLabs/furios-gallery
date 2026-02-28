@@ -14,7 +14,6 @@ gi.require_version("GdkPixbuf", "2.0")
 from .draw_overlay import DrawOverlay
 from .crop_overlay import CropOverlay
 from .filters_overlay import FiltersOverlay
-from .image_transformations_overlay import ImageTransformationsOverlay
 from .furios_media_tools import FuriOSMediaTools
 from ..image_viewer_widget import ImageViewerWidget
 from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene, GLib
@@ -140,10 +139,9 @@ class EditView(Adw.NavigationPage):
 
         crop_btn = create_icon_btn("zoom-fit-best", "Crop", self.on_crop_clicked)
         filters_btn = create_icon_btn("color-select", "Filters", self.on_filters_clicked)
-        fine_tunes_btn = create_icon_btn("preferences-system", "Fine tunes", self.on_fine_tunes_clicked)
         drawing_btn = create_icon_btn("document-edit", "Drawing", self.on_drawing_clicked)
 
-        for b in (crop_btn, filters_btn, fine_tunes_btn, drawing_btn):
+        for b in (crop_btn, filters_btn, drawing_btn):
             b.set_hexpand(True)
             b.set_halign(Gtk.Align.CENTER)
             bar.append(b)
@@ -270,68 +268,6 @@ class EditView(Adw.NavigationPage):
         )
 
         self.on_filters_cancel_clicked(btn)
-
-    '''
-    * Image Transformations Feature *
-    '''
-    def on_fine_tunes_clicked(self, btn):
-        if not self.texture or not self.picture:
-            return
-
-        self.zoomable_image.reset_view_fit()
-        self.zoomable_image.set_zoom_enabled(False)
-        self.set_edit_bar_visible(False)
-
-        if getattr(self, "image_transformations_overlay", None):
-            self.overlay.remove_overlay(self.image_transformations_overlay.get_bar_widget())
-            self.image_transformations_overlay = None
-
-        target_widget = getattr(self.zoomable_image, "picture", self.zoomable_image)
-
-        self.image_transformations_overlay = ImageTransformationsOverlay(
-            target_widget,
-            media_path=self.media_path
-        )
-
-        self.image_transformations_overlay.on_cancel = lambda: self.on_it_cancel_clicked(btn)
-        self.image_transformations_overlay.on_apply  = lambda payload=None: self.on_it_apply_clicked(btn)
-
-        self.overlay.add_overlay(self.image_transformations_overlay.get_bar_widget())
-
-    def on_it_cancel_clicked(self, btn=None):
-        if getattr(self, "image_transformations_overlay", None):
-            self.overlay.remove_overlay(self.image_transformations_overlay.get_bar_widget())
-            self.image_transformations_overlay = None
-
-        self.set_edit_bar_visible(True)
-        self.zoomable_image.set_zoom_enabled(True)
-
-    def on_it_apply_clicked(self, btn=None):
-        it = getattr(self, "image_transformations_overlay", None)
-        if not it:
-            self.on_it_cancel_clicked(btn)
-            return
-
-        def op(in_path: str, out_path: str, overwrite: bool):
-            return FuriOSMediaTools.apply_custom_filters(
-                in_path=in_path,
-                out_path=out_path,
-                brightness=it.brightness,
-                contrast=it.contrast,
-                saturation=it.saturation,
-                sepia=it.temperature,
-                blur=it.blur,
-            )
-
-        self.on_apply_btn_clicked(
-            btn=btn,
-            title="Save transformed image?",
-            body="Do you want to overwrite the original file or save a new copy?",
-            operation=op,
-            reload_after=True,
-        )
-
-        self.on_it_cancel_clicked(btn)
 
     '''
     * Drawing Feature *
