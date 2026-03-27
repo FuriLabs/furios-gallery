@@ -80,6 +80,18 @@ class MediaView(Adw.NavigationPage):
         remove_from_album_btn = create_option_button("Remove from Album", self.delete_from_album, dialog)
         media_options.append(remove_from_album_btn)
 
+        media_path = self.app.media_paths[self.app.current_index]
+        if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            edit_medit_btn = create_option_button(
+                "Edit Media",
+                lambda _btn: (
+                    dialog.close(),
+                    self.app.open_media_edit(self.app.current_index, self.app.media_paths[self.app.current_index])
+                )
+            )
+
+            media_options.append(edit_medit_btn)
+
         close_media_options_btn = create_option_button("Cancel", self.on_close_media_options, dialog)
         media_options.append(close_media_options_btn)
 
@@ -172,14 +184,8 @@ class MediaView(Adw.NavigationPage):
                     media_to_delete_index = self.app.current_index
 
                     self.update_carousel()
-
-                    albums_view_page = self.app.navigation_view.find_page("albumsView")
-                    if albums_view_page:
-                        albums_view_page.update_all_album_thumbnails()
-
-                    grid_view_page = self.app.navigation_view.find_page("gridView")
-                    if grid_view_page:
-                        grid_view_page.delete_media_from_flowbox(media_to_delete_index)
+                    self.app.albums_page.update_all_album_thumbnails()
+                    self.app.grid_view_page.delete_media_from_flowbox(media_to_delete_index)
 
                     return True
                 else:

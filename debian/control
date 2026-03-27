@@ -29,4 +29,5 @@ Depends: ${misc:Depends},
          gstreamer1.0-gtk4,
          ffmpeg,
          python3-av,
+         python3-cairo,
 Description: Media gallery application for FuriOS

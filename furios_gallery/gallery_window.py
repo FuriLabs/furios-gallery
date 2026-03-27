@@ -7,18 +7,22 @@
 # Jesús Higueras <jesus@furilabs.com>
 # Luis Garcia <git@luigi311.com>
 
+import os
 import gi
 gi.require_version('Gtk', '4.0')
+gi.require_version('Gdk', '4.0')
 gi.require_version('Adw', '1')
 
-from gi.repository import Gtk, Adw, GLib
+from gi.repository import Gtk, Gdk, Adw, GLib
 from os.path import expanduser
 from pathlib import Path
-import os
 
+from .edit_view.furios_media_tools import FuriOSMediaTools
 from .media_view import MediaView
+from .edit_view.edit_view import EditView
 from .grid_view import GridView
 from .albums_view import Albums
+from .media_watcher import MediaWatcher
 from .thumbnail_generator import ThumbnailGenerator
 from .media_properties_view import MediaPropertiesView
 from .database_manager import (
@@ -28,10 +32,9 @@ from .database_manager import (
     populate_database_async,
 )
 from .ui import (
-    create_gallery_header, create_album_button, create_info_button, create_media_options_button,
-    create_delete_media_button, create_return_button, create_main_window_layout,
-    create_album_create_dialog, create_selection_header_bar, create_delete_confirmation_dialog,
-    create_map_page, clear_flowbox
+    create_gallery_header, create_main_window_layout, create_album_create_dialog,
+    create_selection_header_bar, create_delete_confirmation_dialog, create_map_page,
+    clear_flowbox, create_rename_dialog, create_header_btn
 )
 
 class GalleryWindow(Adw.ApplicationWindow):
@@ -67,28 +70,35 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.header = create_gallery_header()
 
         # Create album button
-        self.create_album_btn = create_album_button(self.create_album)
+        self.create_album_btn = create_header_btn(self.create_album, "folder-new-symbolic", True)
         self.header.pack_start(self.create_album_btn)
 
         # Info button (initially hidden)
-        self.info_btn = create_info_button(self.on_info_clicked)
+        self.info_btn = create_header_btn(self.on_info_clicked, "help-about-symbolic", False)
         self.header.pack_end(self.info_btn)
 
         # Media view buttons (initially hidden)
-        self.media_options_btn = create_media_options_button(self.on_media_options_clicked)
+        self.media_options_btn = create_header_btn(self.on_media_options_clicked, "view-more-symbolic", False)
         self.header.pack_end(self.media_options_btn)
 
         # Delete media button
-        self.delete_media_btn = create_delete_media_button(self.open_delete_popup)
+        self.delete_media_btn = create_header_btn(self.open_delete_popup, "user-trash-symbolic", True)
         self.header.pack_end(self.delete_media_btn)
 
         # Return button
-        self.return_btn = create_return_button(self.on_return_clicked)
+        self.return_btn = create_header_btn(self.on_return_clicked, "go-previous-symbolic", False)
         self.header.pack_start(self.return_btn)
 
+        # Create change Name button (initially hidden)
+        self.create_change_name_btn = create_header_btn(self.change_file_name, "text-editor-symbolic", False)
+        self.header.pack_start(self.create_change_name_btn)
+
         # Create initial albums page
-        self.initial_albums_page = self.create_albums_page()
-        self.navigation_view.add(self.initial_albums_page)
+        self.albums_page = self.create_albums_page()
+        self.navigation_view.add(self.albums_page)
+
+        # Create initial grid view page
+        self.grid_view_page = self.create_grid_view_page("Recents")
 
         # Add header to toolbar view
         self.toolbar_view.add_top_bar(self.header)
@@ -101,6 +111,10 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view.connect('pushed', self.on_navigation_changed)
 
         self.present()
+
+        # Start Directory Watcher
+        self.media_watcher = MediaWatcher(self.conn, self)
+        self.media_watcher.start_media_monitors()
 
         # Start background database population AFTER window is shown
         self.start_background_loading(str(app_dir / "gallery-albums.db"))
@@ -133,32 +147,54 @@ class GalleryWindow(Adw.ApplicationWindow):
             if isinstance(visible_page, MediaView):
                 # Media view header
                 self.header.set_title_widget(Adw.WindowTitle(title="Media"))
+                self.create_change_name_btn.set_visible(True)
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(True)
                 self.media_options_btn.set_visible(True)
                 self.info_btn.set_visible(True)
                 self.return_btn.set_visible(True)
-            elif visible_page.get_title() == "Albums":
+            elif isinstance(visible_page, Albums):
                 # Album view header
                 self.header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+                self.create_change_name_btn.set_visible(False)
                 self.create_album_btn.set_visible(True)
                 self.delete_media_btn.set_visible(True)
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(False)
-            elif visible_page.get_title() == "Location":
+            elif isinstance(visible_page, MediaPropertiesView):
                 # Map view header
                 self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
+                self.create_change_name_btn.set_visible(False)
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(False)
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(True)
-            else:
+            elif isinstance(visible_page, EditView):
+                # Edit view header
+                curr_file = f"Editing {os.path.basename(self.media_paths[self.current_index])}"
+                self.header.set_title_widget(Adw.WindowTitle(title=curr_file))
+                self.create_change_name_btn.set_visible(True)
+                self.create_album_btn.set_visible(False)
+                self.delete_media_btn.set_visible(False)
+                self.media_options_btn.set_visible(False)
+                self.info_btn.set_visible(False)
+                self.return_btn.set_visible(True)
+            elif isinstance(visible_page, GridView):
                 # Grid view header
                 self.header.set_title_widget(Adw.WindowTitle(title=self.current_album))
+                self.create_change_name_btn.set_visible(False)
                 self.create_album_btn.set_visible(False)
                 self.delete_media_btn.set_visible(True)
+                self.media_options_btn.set_visible(False)
+                self.info_btn.set_visible(False)
+                self.return_btn.set_visible(True)
+            else:
+                self.header.set_title_widget(Adw.WindowTitle(title="You shouldnt be here"))
+                self.create_change_name_btn.set_visible(False)
+                self.create_album_btn.set_visible(False)
+                self.delete_media_btn.set_visible(False)
                 self.media_options_btn.set_visible(False)
                 self.info_btn.set_visible(False)
                 self.return_btn.set_visible(True)
@@ -223,6 +259,16 @@ class GalleryWindow(Adw.ApplicationWindow):
         media_view.set_tag("mediaView")
         return media_view
 
+    def create_edit_media_view_page(self, curr_pix_buff):
+        edit_view = EditView(self, curr_pix_buff)
+        edit_view.set_halign(Gtk.Align.FILL)
+        edit_view.set_valign(Gtk.Align.FILL)
+        edit_view.set_hexpand(True)
+        edit_view.set_vexpand(True)
+        edit_view.set_name("editView-square")
+        edit_view.set_tag("editView")
+        return edit_view
+
     def create_grid_view_page(self, album_name=None):
         media_grid_view = GridView(self, self.thumbnails)
         media_grid_view.set_halign(Gtk.Align.FILL)
@@ -250,6 +296,11 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.current_index = media_index
         media_page = self.create_media_view_page()
         self.navigation_view.push(media_page)
+
+    def open_media_edit(self, media_index: int, media_path: str):
+        self.current_index = media_index
+        edit_page = self.create_edit_media_view_page(media_path)
+        self.navigation_view.push(edit_page)
 
     def create_album(self, button):
         dialog, entry = create_album_create_dialog(self)
@@ -438,3 +489,43 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         current_page.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         dialog.destroy()
+
+    def change_file_name(self, _button):
+        curr_file_path = self.media_paths[self.current_index]
+        initial = FuriOSMediaTools._basename_without_ext(curr_file_path)
+
+        dlg, entry, error_label, rename_btn, cancel_btn = create_rename_dialog(
+            self.get_root(),
+            initial
+        )
+
+        entry.connect("changed", lambda *_: error_label.set_visible(False))
+
+        def do_rename():
+            success, text = FuriOSMediaTools.change_file_name(
+                curr_file_path,
+                entry.get_text().strip()
+            )
+            if not success:
+                error_label.set_text(text)
+                error_label.set_visible(True)
+                entry.grab_focus()
+                entry.select_region(0, -1)
+                return
+
+            self.media_paths[self.current_index] = text
+            dlg.close()
+
+        rename_btn.connect("clicked", lambda _b: do_rename())
+        cancel_btn.connect("clicked", lambda _b: dlg.close())
+
+        dlg.present(self.get_root())
+        entry.grab_focus()
+        entry.select_region(0, -1)
+
+    def on_new_file_created(self, new_media_path: str):
+        #Update albums thumbnails
+        self.albums_page.update_all_album_thumbnails()
+
+        #Update grid view
+        self.grid_view_page.add_media_to_flowbox(new_media_path, len(self.media_paths) - 1)

@@ -17,15 +17,45 @@ class ImageViewerWidget(Gtk.Widget):
     def __init__(self, path, win, scrolled_win, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+        self.pixbuf = GdkPixbuf.Pixbuf.apply_embedded_orientation(self.pixbuf)
         self.texture = Gdk.Texture.new_for_pixbuf(self.pixbuf)
         self.min_scale = 0
         self.scale = 1.0
         self.scale_at_start = 1.0
+        self.zoom_enabled = True
         self.scrolled_win = scrolled_win
         self.win = win
 
         # Calculate the initial scale to fit the image within the window
         self.calculate_initial_scale()
+
+    def reset_view_fit(self, center=True):
+        self.calculate_initial_scale()
+        self.scale_at_start = self.scale
+
+        hadj = self.scrolled_win.get_hadjustment()
+        vadj = self.scrolled_win.get_vadjustment()
+        if not hadj or not vadj:
+            return
+
+        if not center:
+            hadj.set_value(0.0)
+            vadj.set_value(0.0)
+            return
+
+        hx = max(0.0, (hadj.get_upper() - hadj.get_page_size()) / 2.0)
+        vy = max(0.0, (vadj.get_upper() - vadj.get_page_size()) / 2.0)
+        hadj.set_value(hx)
+        vadj.set_value(vy)
+
+        self.queue_resize()
+        self.queue_draw()
+
+    def set_zoom_enabled(self, enabled: bool):
+        self.zoom_enabled = enabled
+        if not enabled and getattr(self, "zoom_gesture", None):
+            # drop any in-progress gesture cleanly
+            self.zoom_gesture.reset()
 
     def calculate_initial_scale(self):
         win_width = self.win.get_width()
@@ -61,9 +91,13 @@ class ImageViewerWidget(Gtk.Widget):
         self.scrolled_win.add_controller(self.zoom_gesture)
 
     def on_zoom_begin(self, gesture, sequence):
+        if not self.zoom_enabled:
+            return
         self.scale_at_start = self.scale
 
     def on_zoom(self, gesture, scale_delta):
+        if not self.zoom_enabled:
+            return
         zoom_factor = (scale_delta * self.scale_at_start) / self.scale
         self.queue_resize()
 

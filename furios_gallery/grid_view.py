@@ -21,6 +21,7 @@ class GridView(Adw.NavigationPage):
         self.app = app
         self.thumbnails = thumbnails
         self.items_per_load = items_per_load
+        self.child_by_path = {}
 
         # Main box to hold the grid view
         self.main_grid_box = create_grid_view_main_box()
@@ -72,7 +73,7 @@ class GridView(Adw.NavigationPage):
 
     def on_scroll(self, adjustment):
         if adjustment.get_value() + adjustment.get_page_size() >= adjustment.get_upper() - 50:
-            if self.app.current_index < len(self.app.media_paths):
+            if self.app.current_index < len(self.app.media_paths) - 1:
                 asyncio.create_task(self.load_more_items())
 
     async def load_more_items(self):
@@ -86,6 +87,16 @@ class GridView(Adw.NavigationPage):
 
         start_index = self.app.current_index
         end_index = max(self.app.current_index - self.items_per_load, 0)
+
+        # Handle the case in which there is only one item:
+        if len(self.app.media_paths) == 1 and start_index == end_index == 0:
+            media_path = self.app.media_paths[0]
+
+            if not media_path:
+                return
+
+            self.add_media_to_flowbox(media_path, 0)
+
         # We go from start_index down to end_index, in steps of batch_size
         while start_index > end_index:
             chunk_end = max(start_index - batch_size, end_index)
@@ -114,6 +125,7 @@ class GridView(Adw.NavigationPage):
         if thumbnail_path:
             flowbox_child = Gtk.FlowBoxChild()
             flowbox_child.media_index = media_index
+            flowbox_child.media_path = media_path
             flowbox_child.set_size_request(50, 90)
 
             GLib.idle_add(
@@ -121,6 +133,8 @@ class GridView(Adw.NavigationPage):
                 flowbox_child,
                 thumbnail_path
             )
+
+            self.child_by_path[media_path] = flowbox_child
 
             GLib.idle_add(self.flowbox.append, flowbox_child)
             GLib.idle_add(self.setup_single_child_click_handler, flowbox_child)
@@ -130,14 +144,20 @@ class GridView(Adw.NavigationPage):
         gesture.connect("pressed", self.on_flowbox_child_clicked, child)
         child.add_controller(gesture)
 
-    def delete_media_from_flowbox(self, media_index):
-        child = self.flowbox.get_first_child()
+    def delete_media_from_flowbox(self, media_path):
+        child = self.child_by_path.pop(media_path, None)
+        if child is not None:
+            self.flowbox.remove(child)
+            return
 
+        # fallback if dict not populated for some weird reason
+        child = self.flowbox.get_first_child()
         while child:
-            if hasattr(child, "media_index") and child.media_index == media_index:
+            next_child = child.get_next_sibling()
+            if getattr(child, "media_path", None) == media_path:
                 self.flowbox.remove(child)
                 break
-            child = child.get_next_sibling()
+            child = next_child
 
     def on_child_selected(self, flowbox):
         if self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
@@ -148,8 +168,17 @@ class GridView(Adw.NavigationPage):
             selected = flowbox.get_selected_children()
             if selected:  # Check if there are selected items
                 item = selected[0]
-                self.app.current_index = item.media_index
-                self.app.open_media_at_index(item.media_index)
+                path = getattr(item, "media_path", None)
+                if not path:
+                    return
+
+                try:
+                    media_index = self.app.media_paths.index(path)
+                except ValueError:
+                    return # item no longer exists
+
+                self.app.current_index = media_index
+                self.app.open_media_at_index(media_index)
             self.flowbox.unselect_all()
 
     def setup_flowbox_click_handlers(self):
