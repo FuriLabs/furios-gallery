@@ -298,46 +298,6 @@ def get_album_database_paths(conn, album_name):
     # Sort existing files by last modification time
     return sorted(valid_paths, key=lambda p: os.path.getmtime(p))
 
-def get_album_media_paths(conn, album_name):
-    """Example of specialized retrieval with fallback logic to pictures/videos."""
-    try:
-        cur = conn.cursor()
-        query = """
-            SELECT files.file_path
-            FROM files
-            JOIN file_albums ON files.file_id = file_albums.file_id
-            JOIN albums ON file_albums.album_id = albums.album_id
-            WHERE albums.album_name = ?
-        """
-        cur.execute(query, (album_name,))
-        rows = cur.fetchall()
-
-        media_paths = []
-        for row in rows:
-            # Skip SVG files and dotfiles during retrieval as well
-            if is_svg_file(row[0]) or should_skip_path(row[0]):
-                print(f"Skipping SVG or dotfile during retrieval: {row[0]}")
-                delete_from_albums(conn, row[0])
-                continue
-
-            if os.path.exists(row[0]):
-                media_paths.append(row[0])
-            else:
-                print(f"File not found, removing from database: {row[0]}")
-                delete_from_albums(conn, row[0])
-
-        # Optional logic to include "Pictures" or "Videos" from the "Recents" album
-        # (If the intention is to unify content between them, fine. Otherwise, remove this logic.)
-        if album_name.lower() in ['pictures', 'recents']:
-            media_paths.extend(get_album_database_paths(conn, "Pictures"))
-        if album_name.lower() in ['videos', 'recents']:
-            media_paths.extend(get_album_database_paths(conn, "Videos"))
-
-        return media_paths
-    except Exception as e:
-        print(f"Error retrieving media paths for album {album_name}: {e}")
-        return []
-
 def get_latest_media_path(conn, album_name):
     """Retrieve the most recently added media path in an album based on the highest file_id."""
     try:
