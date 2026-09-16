@@ -370,10 +370,17 @@ class GalleryWindow(Adw.ApplicationWindow):
                 return
 
             selected_children = flowbox.get_selected_children()
+            selected_media = []
 
             for child in selected_children:
-                media_index = child.media_index
-                media_path = self.media_paths[media_index]
+                if hasattr(child, "media_path"):
+                    media_path = child.media_path
+                else:
+                    media_path = self.media_paths[child.media_index]
+
+                selected_media.append((child, media_path))
+
+            for child, media_path in selected_media:
                 delete_from_albums(self.conn, media_path)
 
                 try:
@@ -382,7 +389,18 @@ class GalleryWindow(Adw.ApplicationWindow):
                 except Exception as e:
                     print(f"Error deleting file: {e}")
 
+                if media_path in self.media_paths:
+                    self.media_paths.remove(media_path)
+
                 flowbox.remove(child)
+
+            if isinstance(current_page, GridView):
+                current_page.refresh_media_indices()
+
+            if self.media_paths:
+                self.current_index = min(self.current_index, len(self.media_paths) - 1)
+            else:
+                self.current_index = 0
 
         self.toolbar_view.remove(self.selection_bar)
         self.toolbar_view.add_top_bar(self.header)

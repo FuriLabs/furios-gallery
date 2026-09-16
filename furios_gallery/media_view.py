@@ -127,16 +127,17 @@ class MediaView(Adw.NavigationPage):
 
     def delete_from_album(self, btn, dialog):
         media_to_delete_index = self.app.current_index
-        delete_file_from_album(self.app.conn, self.app.media_paths[media_to_delete_index], self.app.current_album)
+        media_to_delete_path = self.app.media_paths[media_to_delete_index]
+        delete_file_from_album(self.app.conn, media_to_delete_path, self.app.current_album)
         self.update_carousel()
 
         albums_view_page = self.app.navigation_view.find_page("albumsView")
         if albums_view_page:
             albums_view_page.update_all_album_thumbnails()
 
-        grid_view_page = self.app.navigation_view.find_page("gridView")
+        grid_view_page = self.app.navigation_view.find_page(f"gridView-{self.app.current_album}")
         if grid_view_page:
-            grid_view_page.delete_media_from_flowbox(media_to_delete_index)
+            grid_view_page.delete_media_from_flowbox(media_to_delete_path)
 
         dialog.destroy()
 
@@ -169,7 +170,7 @@ class MediaView(Adw.NavigationPage):
                     os.remove(file_path)
                     print(f"File deleted: {file_path}")
 
-                    media_to_delete_index = self.app.current_index
+                    media_to_delete_path = file_url
 
                     self.update_carousel()
 
@@ -177,9 +178,9 @@ class MediaView(Adw.NavigationPage):
                     if albums_view_page:
                         albums_view_page.update_all_album_thumbnails()
 
-                    grid_view_page = self.app.navigation_view.find_page("gridView")
+                    grid_view_page = self.app.navigation_view.find_page(f"gridView-{self.app.current_album}")
                     if grid_view_page:
-                        grid_view_page.delete_media_from_flowbox(media_to_delete_index)
+                        grid_view_page.delete_media_from_flowbox(media_to_delete_path)
 
                     return True
                 else:
@@ -202,6 +203,11 @@ class MediaView(Adw.NavigationPage):
                 self.app.current_index = max(0, len(self.app.media_paths) - 1)
 
             self.clear_carousel()
+
+            if not self.app.media_paths:
+                self.app.header.set_title_widget(Adw.WindowTitle(title="Media"))
+                return
+
             self.populate_carousel(self.carousel, self.app.current_index)
 
             self.update_date_label()

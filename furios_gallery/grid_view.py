@@ -113,6 +113,7 @@ class GridView(Adw.NavigationPage):
 
         if thumbnail_path:
             flowbox_child = Gtk.FlowBoxChild()
+            flowbox_child.media_path = media_path
             flowbox_child.media_index = media_index
             flowbox_child.set_size_request(50, 90)
 
@@ -130,14 +131,32 @@ class GridView(Adw.NavigationPage):
         gesture.connect("pressed", self.on_flowbox_child_clicked, child)
         child.add_controller(gesture)
 
-    def delete_media_from_flowbox(self, media_index):
+    def delete_media_from_flowbox(self, media_path):
         child = self.flowbox.get_first_child()
 
         while child:
-            if hasattr(child, "media_index") and child.media_index == media_index:
+            if hasattr(child, "media_path") and child.media_path == media_path:
                 self.flowbox.remove(child)
                 break
             child = child.get_next_sibling()
+
+        self.refresh_media_indices()
+
+    def refresh_media_indices(self):
+        child = self.flowbox.get_first_child()
+
+        while child:
+            next_child = child.get_next_sibling()
+
+            if hasattr(child, "media_path"):
+                try:
+                    child.media_index = self.app.media_paths.index(child.media_path)
+                except ValueError:
+                    self.flowbox.remove(child)
+
+            child = next_child
+
+        self.flowbox.invalidate_sort()
 
     def on_child_selected(self, flowbox):
         if self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
@@ -148,8 +167,16 @@ class GridView(Adw.NavigationPage):
             selected = flowbox.get_selected_children()
             if selected:  # Check if there are selected items
                 item = selected[0]
-                self.app.current_index = item.media_index
-                self.app.open_media_at_index(item.media_index)
+                try:
+                    media_index = self.app.media_paths.index(item.media_path)
+                except ValueError:
+                    self.flowbox.remove(item)
+                    self.flowbox.unselect_all()
+                    return
+
+                item.media_index = media_index
+                self.app.current_index = media_index
+                self.app.open_media_at_index(media_index)
             self.flowbox.unselect_all()
 
     def setup_flowbox_click_handlers(self):
