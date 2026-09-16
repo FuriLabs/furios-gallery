@@ -27,7 +27,8 @@ class MediaView(Adw.NavigationPage):
         super().__init__(title="Media")
         self.app = app
         self.carousel = None
-        self.previous_index = 0
+        self._updating_carousel = False
+        self._active_page = None
         self.setup_content()
 
     def setup_content(self):
@@ -41,7 +42,8 @@ class MediaView(Adw.NavigationPage):
         self.carousel = create_media_view_carousel(self.on_page_changed)
 
         # Populate the carousel
-        self.populate_carousel(self.carousel, self.app.current_index)
+        if self.app.media_paths:
+            self.populate_carousel(self.carousel, self.app.current_index)
 
         self.main_box.append(self.carousel)
 
@@ -158,151 +160,218 @@ class MediaView(Adw.NavigationPage):
     def on_delete_media(self, dialog, response):
         if response == "delete":
             try:
-                file_url = self.app.media_paths[self.app.current_index]
-                delete_from_albums(self.app.conn, file_url)
-                colon_index = file_url.find(':')
-                if colon_index != -1:
-                    file_path = file_url[colon_index + 1:]
+                media_to_delete_path = self.app.media_paths[self.app.current_index]
+                delete_from_albums(self.app.conn, media_to_delete_path)
+
+                if os.path.exists(media_to_delete_path):
+                    os.remove(media_to_delete_path)
+                    print(f"File deleted: {media_to_delete_path}")
                 else:
-                    file_path = file_url
+                    print(f"File not found: {media_to_delete_path}")
 
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                    print(f"File deleted: {file_path}")
+                self.update_carousel()
 
-                    media_to_delete_path = file_url
+                albums_view_page = self.app.navigation_view.find_page("albumsView")
+                if albums_view_page:
+                    albums_view_page.update_all_album_thumbnails()
 
-                    self.update_carousel()
-
-                    albums_view_page = self.app.navigation_view.find_page("albumsView")
-                    if albums_view_page:
-                        albums_view_page.update_all_album_thumbnails()
-
-                    grid_view_page = self.app.navigation_view.find_page(f"gridView-{self.app.current_album}")
-                    if grid_view_page:
-                        grid_view_page.delete_media_from_flowbox(media_to_delete_path)
-
-                    return True
-                else:
-                    print(f"File not found: {file_path}")
-                    return False
+                grid_view_page = self.app.navigation_view.find_page(f"gridView-{self.app.current_album}")
+                if grid_view_page:
+                    grid_view_page.delete_media_from_flowbox(media_to_delete_path)
             except Exception as e:
                 print(f"Error deleting file: {e}")
-                return False
+
         dialog.destroy()
 
     def update_carousel(self):
-        if 0 <= self.app.current_index < len(self.app.media_paths):
-            current_page = self.carousel.get_nth_page(self.carousel.get_position())
-            if current_page:
-                self.carousel.remove(current_page)
-
-            del self.app.media_paths[self.app.current_index]
-
-            if self.app.current_index >= len(self.app.media_paths):
-                self.app.current_index = max(0, len(self.app.media_paths) - 1)
-
-            self.clear_carousel()
-
-            if not self.app.media_paths:
-                self.app.header.set_title_widget(Adw.WindowTitle(title="Media"))
-                return
-
-            self.populate_carousel(self.carousel, self.app.current_index)
-
-            self.update_date_label()
-        else:
+        if not 0 <= self.app.current_index < len(self.app.media_paths):
             print("Error: Current index is out of range.")
+            return
+
+        deleted_index = self.app.current_index
+        del self.app.media_paths[deleted_index]
+
+        if not self.app.media_paths:
+            self.app.current_index = 0
+            self._updating_carousel = True
+            try:
+                self.clear_carousel()
+            finally:
+                self._updating_carousel = False
+            self._active_page = None
+            self.app.header.set_title_widget(Adw.WindowTitle(title="Media"))
+            self.update_navigation_buttons()
+            return
+
+        # Keep the same numeric index so the item that shifted into the deleted
+        # item's position is shown. If the last item was deleted, show the new last item.
+        self.app.current_index = min(deleted_index, len(self.app.media_paths) - 1)
+        self.rebuild_carousel()
+        self.update_date_label()
+        self.update_navigation_buttons()
+        self.app.update_properties_view()
 
     def update_date_label(self):
         if len(self.app.media_paths) > 0:
             new_date = get_file_creation_date(self.app.media_paths[self.app.current_index])
             self.app.header.set_title_widget(Adw.WindowTitle(title=new_date))
 
-    def populate_carousel(self, carousel, curr_index):
-        # 1.- First append the first chil from the first child
-        # 2.- Then determine one of the 3 scenarios:
-        # --> Media index is the first of the album (index = 0)
-        # --> Media index is the last of the album (index = len(self.app.media_paths))
-        # --> Media index is not either of the either cases (being careful with the length of the list)
+    def create_media_page(self, index):
+        if index < 0 or index >= len(self.app.media_paths):
+            return None
 
-        media_path = self.app.media_paths[curr_index]
+        media_path = self.app.media_paths[index]
+
         if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-            scrolled_win = Gtk.ScrolledWindow()
-            scrolled_win.set_hexpand(True)
-            scrolled_win.set_vexpand(True)
-            scrolled_win.set_halign(Gtk.Align.FILL)
-            scrolled_win.set_valign(Gtk.Align.FILL)
-            zoomable_image = ImageViewerWidget(media_path, self.app, scrolled_win)
+            page = Gtk.ScrolledWindow()
+            page.set_hexpand(True)
+            page.set_vexpand(True)
+            page.set_halign(Gtk.Align.FILL)
+            page.set_valign(Gtk.Align.FILL)
+            zoomable_image = ImageViewerWidget(media_path, self.app, page)
             zoomable_image.set_vexpand(True)
             zoomable_image.set_hexpand(True)
             zoomable_image.set_valign(Gtk.Align.CENTER)
             zoomable_image.set_halign(Gtk.Align.CENTER)
-            scrolled_win.set_child(zoomable_image)
+            page.set_child(zoomable_image)
             zoomable_image.init_gestures()
-            carousel.append(scrolled_win)
         elif media_path.endswith(('.mp4', '.mkv', '.avi')):
-            video_widget = VideoPlayerWidget(media_path)
-            video_widget.set_halign(Gtk.Align.CENTER)
-            video_widget.set_valign(Gtk.Align.CENTER)
-            carousel.append(video_widget)
-
-        if curr_index == 0:
-            # Load the last (if existant) 2 items and preappend to the carousel
-            self.add_media_to_carousel(curr_index + 1, True)
-            self.add_media_to_carousel(curr_index + 2, True)
-        elif curr_index == len(self.app.media_paths) -1:
-            # Load the next (if existant) 2 items and append to the carousel
-            self.add_media_to_carousel(curr_index - 1, False)
-            self.add_media_to_carousel(curr_index - 2, False)
+            page = VideoPlayerWidget(media_path)
+            page.set_halign(Gtk.Align.CENTER)
+            page.set_valign(Gtk.Align.CENTER)
         else:
-            # Load the next 2 and previous 2 (if existant) items and pre and append them accordingly
-            self.add_media_to_carousel(curr_index + 1, True)
-            self.add_media_to_carousel(curr_index - 1, False)
-            self.add_media_to_carousel(curr_index + 2, True)
-            self.add_media_to_carousel(curr_index - 2, False)
+            return None
 
-    def clear_carousel(self):
-        while child := self.carousel.get_first_child():
-            self.carousel.remove(child)
+        page.media_index = index
+        return page
 
-    def on_page_changed(self, carousel, index):
-        prev_page = self.carousel.get_nth_page(self.previous_index)
-        if isinstance(prev_page, VideoPlayerWidget):
-            prev_page.stop_video()
-
-        self.update_date_label()
-
-        if index > self.previous_index:  # Swiping left
-            self.app.current_index -= 1
-            if index == carousel.get_n_pages() - 1:
-                self.add_media_to_carousel(self.app.current_index - 1, False)
-        elif index < self.previous_index:  # Swiping right
-            self.app.current_index += 1
-            if index == carousel.get_n_pages() - 1:
-                self.add_media_to_carousel(self.app.current_index + 1, True)
-        else:
+    def populate_carousel(self, carousel, curr_index):
+        if not self.app.media_paths:
             return
 
-        self.app.update_properties_view()
+        curr_index = min(max(curr_index, 0), len(self.app.media_paths) - 1)
+        first_index = min(curr_index + 2, len(self.app.media_paths) - 1)
+        last_index = max(curr_index - 2, 0)
+        current_page = None
 
-        self.previous_index = index
+        old_updating_state = self._updating_carousel
+        self._updating_carousel = True
+        try:
+            for media_index in range(first_index, last_index - 1, -1):
+                page = self.create_media_page(media_index)
+                if page is None:
+                    continue
+
+                carousel.append(page)
+                if media_index == curr_index:
+                    current_page = page
+
+            if current_page is not None:
+                carousel.scroll_to(current_page, False)
+                self._active_page = current_page
+        finally:
+            self._updating_carousel = old_updating_state
+
+    def rebuild_carousel(self):
+        old_updating_state = self._updating_carousel
+        self._updating_carousel = True
+        try:
+            self.clear_carousel()
+            self.populate_carousel(self.carousel, self.app.current_index)
+        finally:
+            self._updating_carousel = old_updating_state
+
+    def clear_carousel(self):
+        child = self.carousel.get_first_child()
+        while child:
+            next_child = child.get_next_sibling()
+            if isinstance(child, VideoPlayerWidget):
+                child.stop_video()
+            self.carousel.remove(child)
+            child = next_child
+
+    def find_page_for_media_index(self, media_index):
+        for page_index in range(self.carousel.get_n_pages()):
+            page = self.carousel.get_nth_page(page_index)
+            if page is not None and page.media_index == media_index:
+                return page
+        return None
+
+    def on_page_changed(self, carousel, index):
+        if self._updating_carousel:
+            return
+
+        page_index = int(index)
+        page_count = carousel.get_n_pages()
+        if page_index < 0 or page_index >= page_count:
+            return
+
+        current_page = carousel.get_nth_page(page_index)
+        if current_page is None:
+            return
+
+        if self._active_page is not None and self._active_page is not current_page:
+            if isinstance(self._active_page, VideoPlayerWidget):
+                self._active_page.stop_video()
+
+        media_index = current_page.media_index
+        if media_index < 0 or media_index >= len(self.app.media_paths):
+            return
+
+        self._active_page = current_page
+        self.app.current_index = media_index
+
+        # Extend the carousel by one item when reaching either loaded edge.
+        if page_index == 0:
+            self.add_media_to_carousel(media_index + 1, True)
+        elif page_index == page_count - 1:
+            self.add_media_to_carousel(media_index - 1, False)
+
+        self.update_date_label()
+        self.update_navigation_buttons()
+        self.app.update_properties_view()
 
     def setup_buttons(self):
         buttons_box = create_media_navigation_buttons(self.update_media_left, self.update_media_right)
+        self.left_button = buttons_box.get_first_child()
+        self.right_button = buttons_box.get_last_child()
         self.overlay.add_overlay(buttons_box)
+        self.update_navigation_buttons()
+
+    def update_navigation_buttons(self):
+        if not self.app.media_paths:
+            self.left_button.set_sensitive(False)
+            self.right_button.set_sensitive(False)
+            return
+
+        # The carousel is ordered from higher media indexes on the left to lower
+        # media indexes on the right to preserve the existing navigation direction.
+        self.left_button.set_sensitive(self.app.current_index < len(self.app.media_paths) - 1)
+        self.right_button.set_sensitive(self.app.current_index > 0)
 
     def update_media_left(self, btn):
-        next_position = int(self.carousel.get_position()) - 1
-        if next_position >= 0 and self.app.current_index + 1 <= len(self.app.media_paths) - 1:
-            self.on_page_changed(self.carousel, next_position)
-            self.carousel.scroll_to(self.carousel.get_nth_page(next_position), True)
+        target_index = self.app.current_index + 1
+        if target_index >= len(self.app.media_paths):
+            return
+
+        target_page = self.find_page_for_media_index(target_index)
+        if target_page is None:
+            target_page = self.add_media_to_carousel(target_index, True)
+
+        if target_page is not None:
+            self.carousel.scroll_to(target_page, True)
 
     def update_media_right(self, btn):
-        next_position = int(self.carousel.get_position()) + 1
-        if next_position < len(self.app.media_paths) and next_position < self.carousel.get_n_pages():
-            self.on_page_changed(self.carousel, next_position)
-            self.carousel.scroll_to(self.carousel.get_nth_page(next_position), True)
+        target_index = self.app.current_index - 1
+        if target_index < 0:
+            return
+
+        target_page = self.find_page_for_media_index(target_index)
+        if target_page is None:
+            target_page = self.add_media_to_carousel(target_index, False)
+
+        if target_page is not None:
+            self.carousel.scroll_to(target_page, True)
 
     def add_touch_event_listener(self, widget):
         gesture = Gtk.GestureClick.new()
@@ -310,35 +379,30 @@ class MediaView(Adw.NavigationPage):
         widget.add_controller(gesture)
 
     def on_screen_touched(self, gesture, n_press, x, y):
-        if isinstance(self.carousel.get_first_child(), VideoPlayerWidget):
-            video_widget = self.carousel.get_first_child()
-            video_widget.on_video_clicked(None)
+        current_page = self.find_page_for_media_index(self.app.current_index)
+        if isinstance(current_page, VideoPlayerWidget):
+            current_page.on_video_clicked(None)
 
     def add_media_to_carousel(self, index, prepend=False):
-        if index > len(self.app.media_paths) -1 or index < 0:
-            return # Only append if its not out of boundaries
+        if index > len(self.app.media_paths) - 1 or index < 0:
+            return None
 
-        media_path = self.app.media_paths[index]
+        existing_page = self.find_page_for_media_index(index)
+        if existing_page is not None:
+            return existing_page
 
-        if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
-            scrolled_win = Gtk.ScrolledWindow()
-            zoomable_image = ImageViewerWidget(media_path, self.app, scrolled_win)
-            zoomable_image.set_vexpand(True)
-            zoomable_image.set_hexpand(True)
-            zoomable_image.set_valign(Gtk.Align.CENTER)
-            zoomable_image.set_halign(Gtk.Align.CENTER)
-            scrolled_win.set_child(zoomable_image)
-            zoomable_image.init_gestures()
+        page = self.create_media_page(index)
+        if page is None:
+            return None
 
+        old_updating_state = self._updating_carousel
+        self._updating_carousel = True
+        try:
             if prepend:
-                self.carousel.prepend(scrolled_win)
+                self.carousel.prepend(page)
             else:
-                self.carousel.append(scrolled_win)
-        elif media_path.endswith(('.mp4', '.mkv', '.avi')):
-            video_widget = VideoPlayerWidget(media_path)
-            video_widget.set_halign(Gtk.Align.CENTER)
-            video_widget.set_valign(Gtk.Align.CENTER)
-            if prepend:
-                self.carousel.prepend(video_widget)
-            else:
-                self.carousel.append(video_widget)
+                self.carousel.append(page)
+        finally:
+            self._updating_carousel = old_updating_state
+
+        return page
