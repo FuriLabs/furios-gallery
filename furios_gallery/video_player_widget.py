@@ -12,8 +12,8 @@ import os
 import time
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gst", "1.0")
-from gi.repository import Gtk, Gst, GLib, Adw
-from .ui import create_video_player_css, create_video_controls, create_video_overlay_and_button
+from gi.repository import Gtk, Gst, GLib
+from .ui import create_video_player_css, create_video_controls
 
 class VideoPlayerWidget(Gtk.Box):
     def __init__(self, file_path):
@@ -23,6 +23,7 @@ class VideoPlayerWidget(Gtk.Box):
         self.control_box = None
         self.controls_visible = True
         self.controls_revealer = None
+        self._eos = False
         self.init_ui()
 
     def init_ui(self):
@@ -97,19 +98,13 @@ class VideoPlayerWidget(Gtk.Box):
 
     def on_bus_message(self, bus, message):
         if message.type == Gst.MessageType.EOS:
+            self._eos = True
             self.play_pause_image.set_from_icon_name("view-refresh-symbolic")
-            self.play_pause_button.connect("clicked", self.restart_video)
 
     def stop_video(self):
         self.playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 0)
         self.playbin.set_state(Gst.State.PAUSED)
         self.play_pause_image.set_from_icon_name("media-playback-start-symbolic")
-
-    def restart_video(self, button):
-        self.playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 0)
-        self.playbin.set_state(Gst.State.PLAYING)
-        self.play_pause_image.set_from_icon_name("media-playback-pause-symbolic")
-        self.play_pause_button.connect("clicked", self.on_play_pause)
 
     def toggle_controls_visibility(self):
         if self.controls_visible:
@@ -127,6 +122,9 @@ class VideoPlayerWidget(Gtk.Box):
     def on_play_pause(self, button):
         state = self.playbin.get_state(0).state
         if state != Gst.State.PLAYING:
+            if self._eos:
+                self.playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, 0)
+                self._eos = False
             self.playbin.set_state(Gst.State.PLAYING)
             self.play_pause_image.set_from_icon_name("media-playback-pause-symbolic")
         else:
@@ -147,10 +145,10 @@ class VideoPlayerWidget(Gtk.Box):
         self.playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT, int(value * Gst.SECOND))
 
     def update_ui(self):
-        success, position = self.playbin.query_position(Gst.Format.TIME)
-        success, duration = self.playbin.query_duration(Gst.Format.TIME)
+        position_success, position = self.playbin.query_position(Gst.Format.TIME)
+        duration_success, duration = self.playbin.query_duration(Gst.Format.TIME)
 
-        if success:
+        if position_success and duration_success and duration > 0:
             self.seeker.handler_block_by_func(self.on_seek)
             self.seeker.set_range(0, duration / Gst.SECOND)
             self.seeker.set_value(position / Gst.SECOND)
