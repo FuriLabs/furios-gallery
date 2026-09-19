@@ -205,20 +205,21 @@ def rasterize_strokes_to_disk_cairo(image_path: str, strokes: list[dict], overwr
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
     ctx = cairo.Context(surface)
 
-    # Paint original image into surface
     Gdk.cairo_set_source_pixbuf(ctx, base, 0, 0)
     ctx.paint()
 
     ctx.set_line_cap(cairo.LINE_CAP_ROUND)
     ctx.set_line_join(cairo.LINE_JOIN_ROUND)
 
-    for s in strokes or []:
-        pts = s.get("pts") or []
+    for stroke in strokes or []:
+        pts = stroke.get("pts") or []
+
         if len(pts) < 2:
             continue
 
-        width = float(s.get("width_img", s.get("width", 4.0)))
-        color = s.get("color")
+        width = float(stroke.get("width_img", stroke.get("width", 4.0)))
+
+        color = stroke.get("color")
 
         r = float(getattr(color, "red", 0.0))
         g = float(getattr(color, "green", 0.0))
@@ -231,75 +232,62 @@ def rasterize_strokes_to_disk_cairo(image_path: str, strokes: list[dict], overwr
         ctx.new_path()
         x0, y0 = pts[0]
         ctx.move_to(float(x0), float(y0))
-        for (x, y) in pts[1:]:
+
+        for x, y in pts[1:]:
             ctx.line_to(float(x), float(y))
+
         ctx.stroke()
+
+    # Make sure Cairo has finished writing.
+    surface.flush()
 
     out_path = compute_output_path(image_path, overwrite=overwrite, out_path=out_path, suffix=suffix)
 
     ext = os.path.splitext(out_path)[1].lower()
 
-    # Convert cairo surface (BGRA premultiplied) -> RGBA straight alpha for Pixbuf
     stride = surface.get_stride()
-    src = surface.get_data()
-    rgba = bytearray(h * w * 4)
+    data = surface.get_data()
 
-    for y in range(h):
-        srow = y * stride
-        drow = y * (w * 4)
-        for x in range(w):
-            si = srow + x * 4
-            di = drow + x * 4
-
-            b0 = src[si + 0]
-            g0 = src[si + 1]
-            r0 = src[si + 2]
-            a0 = src[si + 3]
-
-            if a0:
-                # Un-premultiply for "straight alpha"
-                r1 = (r0 * 255 + a0 // 2) // a0
-                g1 = (g0 * 255 + a0 // 2) // a0
-                b1 = (b0 * 255 + a0 // 2) // a0
-            else:
-                r1 = g1 = b1 = 0
-
-            rgba[di + 0] = r1
-            rgba[di + 1] = g1
-            rgba[di + 2] = b1
-            rgba[di + 3] = a0
-
-    pix = GdkPixbuf.Pixbuf.new_from_data(bytes(rgba), GdkPixbuf.Colorspace.RGB, True, 8, w, h, w * 4, None, None,).copy()
+    # Cairo ARGB32 on little-endian -> BGRA memory.
+    im = Image.frombuffer("RGBA", (w, h), data, "raw", "BGRA", stride, 1)
 
     if ext in (".jpg", ".jpeg"):
-        fmt = "jpeg"
-        keys = ["quality"]
-        values = [str(int(jpeg_quality))]
-    elif ext == ".png":
-        fmt = "png"
-        keys, values = [], []
-    elif ext == ".webp":
-        fmt = "webp"
-        keys = ["quality"]
-        values = [str(int(jpeg_quality))]
-    elif ext in (".tif", ".tiff"):
-        fmt = "tiff"
-        keys, values = [], []
-    elif ext == ".bmp":
-        fmt = "bmp"
-        keys, values = [], []
-    else:
-        fmt = "png"
-        keys, values = [], []
-        if not out_path.lower().endswith(".png"):
-            out_path = os.path.splitext(out_path)[0] + ".png"
+        # JPEG doesn't support alpha.
+        rgb = im.convert("RGB")
 
-    if overwrite:
-        tmp = out_path + ".tmp"
-        pix.savev(tmp, fmt, keys, values)
-        os.replace(tmp, out_path)
+        if overwrite:
+            tmp = out_path + ".tmp"
+            rgb.save(tmp, format="JPEG", quality=jpeg_quality, subsampling=0)
+            os.replace(tmp, out_path)
+        else:
+            rgb.save(out_path, format="JPEG", quality=jpeg_quality, subsampling=0)
+
+    elif ext == ".png":
+        if overwrite:
+            tmp = out_path + ".tmp"
+            im.save(tmp, format="PNG")
+            os.replace(tmp, out_path)
+        else:
+            im.save(out_path, format="PNG")
+
+    elif ext == ".webp":
+        if overwrite:
+            tmp = out_path + ".tmp"
+            im.save(tmp, format="WEBP", quality=jpeg_quality)
+            os.replace(tmp, out_path)
+        else:
+            im.save(out_path, format="WEBP", quality=jpeg_quality)
+
     else:
-        pix.savev(out_path, fmt, keys, values)
+        # Fallback to PNG.
+        out_path = os.path.splitext(out_path)[0] + ".png"
+
+        if overwrite:
+            tmp = out_path + ".tmp"
+            im.save(tmp, format="PNG")
+            os.replace(tmp, out_path)
+        else:
+            im.save(out_path, format="PNG")
 
     return out_path
 
