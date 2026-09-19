@@ -18,7 +18,7 @@ from ..image_viewer_widget import ImageViewerWidget
 from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene, GLib
 from ..ui import (create_edit_view_main_box, create_edit_view_overlay)
 from .ui import (create_main_bar_body, create_confirmation_dialog, create_icon_btn)
-from .furios_media_tools import compute_output_path, crop_image_to_disk, bake_filter_to_file, rasterize_strokes_to_disk_cairo, rasterize_strokes_to_disk_cairo, crop_image_to_disk
+from .furios_media_tools import compute_output_path, crop_image_to_disk, bake_filter_to_file, rasterize_strokes_to_disk, crop_image_to_disk
 
 class EditView(Adw.NavigationPage):
     def __init__(self, app, media_path: str):
@@ -296,7 +296,7 @@ class EditView(Adw.NavigationPage):
             return
 
         def op(in_path: str, out_path: str, overwrite: bool):
-            return rasterize_strokes_to_disk_cairo(in_path, strokes, overwrite=overwrite, out_path=out_path, suffix="_drawn")
+            return rasterize_strokes_to_disk(in_path, strokes, overwrite=overwrite, out_path=out_path, suffix="_drawn")
 
         self.on_apply_btn_clicked(btn, "Save drawing?", "Do you want to overwrite the original file or save a new copy?", op, True)
 

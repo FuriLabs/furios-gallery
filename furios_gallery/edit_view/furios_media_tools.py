@@ -4,15 +4,13 @@
 # Authors:
 # Joaquin Philco <joaquin@furilabs.com>
 
-import cairo
 import gi, os
 import numpy as np
-from PIL import Image
-import time
 
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 
+from PIL import Image, ImageDraw
 from gi.repository import GdkPixbuf, Gdk, GLib
 
 class ColorSpaceStandards:
@@ -194,101 +192,60 @@ def compute_output_path(image_path: str, overwrite: bool = False, out_path: str 
 
     return os.path.join(base_dir, f"{stem}{suffix}{ext}")
 
-def rasterize_strokes_to_disk_cairo(image_path: str, strokes: list[dict], overwrite: bool = False, out_path: str | None = None, suffix: str = "_drawn", jpeg_quality: int = 95) -> str:
+def rasterize_strokes_to_disk(image_path: str, strokes: list[dict], overwrite: bool = False, out_path: str | None = None, suffix: str = "_drawn", jpeg_quality: int = 95) -> str:
     if not os.path.exists(image_path):
         raise FileNotFoundError(image_path)
-
-    base = GdkPixbuf.Pixbuf.new_from_file(image_path)
-    w, h = base.get_width(), base.get_height()
-
-    # Cairo surface: ARGB32 (premultiplied), memory layout on little-endian is BGRA
-    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h)
-    ctx = cairo.Context(surface)
-
-    Gdk.cairo_set_source_pixbuf(ctx, base, 0, 0)
-    ctx.paint()
-
-    ctx.set_line_cap(cairo.LINE_CAP_ROUND)
-    ctx.set_line_join(cairo.LINE_JOIN_ROUND)
-
-    for stroke in strokes or []:
-        pts = stroke.get("pts") or []
-
-        if len(pts) < 2:
-            continue
-
-        width = float(stroke.get("width_img", stroke.get("width", 4.0)))
-
-        color = stroke.get("color")
-
-        r = float(getattr(color, "red", 0.0))
-        g = float(getattr(color, "green", 0.0))
-        b = float(getattr(color, "blue", 0.0))
-        a = float(getattr(color, "alpha", 1.0))
-
-        ctx.set_source_rgba(r, g, b, a)
-        ctx.set_line_width(max(0.5, width))
-
-        ctx.new_path()
-        x0, y0 = pts[0]
-        ctx.move_to(float(x0), float(y0))
-
-        for x, y in pts[1:]:
-            ctx.line_to(float(x), float(y))
-
-        ctx.stroke()
-
-    # Make sure Cairo has finished writing.
-    surface.flush()
-
     out_path = compute_output_path(image_path, overwrite=overwrite, out_path=out_path, suffix=suffix)
-
     ext = os.path.splitext(out_path)[1].lower()
-
-    stride = surface.get_stride()
-    data = surface.get_data()
-
-    # Cairo ARGB32 on little-endian -> BGRA memory.
-    im = Image.frombuffer("RGBA", (w, h), data, "raw", "BGRA", stride, 1)
-
-    if ext in (".jpg", ".jpeg"):
-        # JPEG doesn't support alpha.
-        rgb = im.convert("RGB")
-
+    with Image.open(image_path) as src:
+        has_alpha = src.mode in ("RGBA", "LA") or "transparency" in src.info
+        image = src.convert("RGBA" if has_alpha else "RGB")
+        draw = ImageDraw.Draw(image, "RGBA" if has_alpha else None)
+        for stroke in strokes or []:
+            pts = stroke.get("pts") or []
+            if len(pts) < 2:
+                continue
+            width = max(1, round(float(stroke.get("width_img", stroke.get("width", 4.0)))))
+            color = stroke.get("color")
+            r = round(float(getattr(color, "red", 0.0)) * 255)
+            g = round(float(getattr(color, "green", 0.0)) * 255)
+            b = round(float(getattr(color, "blue", 0.0)) * 255)
+            a = round(float(getattr(color, "alpha", 1.0)) * 255)
+            points = [(round(x), round(y)) for x, y in pts]
+            fill = (r, g, b, a) if has_alpha else (r, g, b)
+            draw.line(points, fill=fill, width=width, joint="curve")
+            radius = width / 2
+            for px, py in (points[0], points[-1]):
+                draw.ellipse((px - radius, py - radius, px + radius, py + radius), fill=fill)
+        if ext in (".jpg", ".jpeg"):
+            if image.mode != "RGB":
+                background = Image.new("RGB", image.size, (255, 255, 255))
+                background.paste(image, mask=image.getchannel("A"))
+                image = background
+            save_format = "JPEG"
+            save_kwargs = {"quality": jpeg_quality, "subsampling": 0}
+        elif ext == ".png":
+            save_format = "PNG"
+            save_kwargs = {}
+        elif ext == ".webp":
+            save_format = "WEBP"
+            save_kwargs = {"quality": jpeg_quality}
+        elif ext in (".tif", ".tiff"):
+            save_format = "TIFF"
+            save_kwargs = {}
+        elif ext == ".bmp":
+            save_format = "BMP"
+            save_kwargs = {}
+        else:
+            out_path = os.path.splitext(out_path)[0] + ".png"
+            save_format = "PNG"
+            save_kwargs = {}
         if overwrite:
             tmp = out_path + ".tmp"
-            rgb.save(tmp, format="JPEG", quality=jpeg_quality, subsampling=0)
+            image.save(tmp, format=save_format, **save_kwargs)
             os.replace(tmp, out_path)
         else:
-            rgb.save(out_path, format="JPEG", quality=jpeg_quality, subsampling=0)
-
-    elif ext == ".png":
-        if overwrite:
-            tmp = out_path + ".tmp"
-            im.save(tmp, format="PNG")
-            os.replace(tmp, out_path)
-        else:
-            im.save(out_path, format="PNG")
-
-    elif ext == ".webp":
-        if overwrite:
-            tmp = out_path + ".tmp"
-            im.save(tmp, format="WEBP", quality=jpeg_quality)
-            os.replace(tmp, out_path)
-        else:
-            im.save(out_path, format="WEBP", quality=jpeg_quality)
-
-    else:
-        # Fallback to PNG.
-        out_path = os.path.splitext(out_path)[0] + ".png"
-
-        if overwrite:
-            tmp = out_path + ".tmp"
-            im.save(tmp, format="PNG")
-            os.replace(tmp, out_path)
-        else:
-            im.save(out_path, format="PNG")
-
+            image.save(out_path, format=save_format, **save_kwargs)
     return out_path
 
 def _get_unique_path(out_path: str) -> str:
