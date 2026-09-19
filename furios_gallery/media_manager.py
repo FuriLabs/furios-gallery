@@ -9,7 +9,6 @@
 
 import os, time, av
 from PIL import Image, ExifTags
-from datetime import datetime
 
 PICTURE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'webp']
 VIDEO_EXTENSIONS = ['mkv', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg']
@@ -20,21 +19,6 @@ def extract_extension(filepath: str) -> str:
     file_extension = file_extension.lstrip(".").lower()
 
     return file_extension
-
-def extract_file_date(filepath):
-    try:
-        if extract_extension(filepath) in ['jpg', 'jpeg']:
-            with Image.open(filepath) as img:
-                exif_data = img._getexif()
-                if exif_data:
-                    date_str = exif_data.get(36867)
-                    if date_str:
-                        return datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
-    except Exception as e:
-        print(f"Error reading EXIF data from {filepath}: {e}")
-
-    stat = os.stat(filepath)
-    return datetime.fromtimestamp(stat.st_mtime)
 
 def get_file_creation_date(file_path):
     if not os.path.exists(file_path):

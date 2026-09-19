@@ -11,7 +11,7 @@ import gi
 import threading
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
-from gi.repository import Gtk, Adw, GdkPixbuf, Pango, GLib
+from gi.repository import Gtk, Adw, GdkPixbuf, GLib
 
 from .database_manager import get_album_database_paths, list_database_albums, get_latest_media_path, create_connection
 from .thumbnail_generator import ThumbnailGenerator
@@ -53,7 +53,7 @@ class Albums(Adw.NavigationPage):
         self.app_window.present()
 
     def update_selected_count(self, flowbox):
-        if hasattr(self.app_window, 'selected_files_label') and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
+        if self.app_window.selected_files_label is not None and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
             self.app_window.selected_files_label.set_text(f"Selected Albums: {len(self.flowbox.get_selected_children())}")
 
     def load_albums(self):
@@ -119,7 +119,7 @@ class Albums(Adw.NavigationPage):
     def update_album_thumbnail_ui(self, album, thumbnail_path):
         try:
             for child in self.flowbox:
-                if hasattr(child, "album_name") and child.album_name == album:
+                if child.album_name == album:
                     album_box = child.get_child()
                     children = list(album_box)
                     if children:
@@ -208,12 +208,8 @@ class Albums(Adw.NavigationPage):
 
             picture.append(icon_box)
 
-            label = Gtk.Label(label=album)
-            label.set_wrap(False)
-            label.set_ellipsize(Pango.EllipsizeMode.END)
-
         for child in self.flowbox:
-            if hasattr(child, "album_name") and child.album_name == album:
+            if child.album_name == album:
                 album_box = child.get_child()
                 children = list(album_box)
                 if children:
@@ -222,6 +218,4 @@ class Albums(Adw.NavigationPage):
 
     def update_all_album_thumbnails(self):
         for child in self.flowbox:  # Iterate over all children in the FlowBox
-            if hasattr(child, "album_name"):
-                album_name = child.album_name
-                self.update_album_thumbnail(album_name)
+            self.update_album_thumbnail(child.album_name)

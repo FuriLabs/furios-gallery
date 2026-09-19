@@ -40,6 +40,7 @@ class GridView(Adw.NavigationPage):
         self.flowbox = None
 
         self._loading = False
+        self._next_index = len(self.app.media_paths) - 1
 
         # Async setup of widget
         asyncio.create_task(self.setup_widget())
@@ -49,7 +50,9 @@ class GridView(Adw.NavigationPage):
         GLib.idle_add(self._replace_placeholder_with_widget)
 
     def _replace_placeholder_with_widget(self):
-        self.main_grid_box.remove(self.placeholder)
+        if self.placeholder.get_parent() is self.main_grid_box:
+            self.main_grid_box.remove(self.placeholder)
+        return False
 
     async def create_widget(self):
         scrolled_window = create_grid_view_scrolled_window()
@@ -68,76 +71,61 @@ class GridView(Adw.NavigationPage):
         self.main_grid_box.append(scrolled_window)
 
     def update_selected_count(self, flowbox):
-        if hasattr(self.app, 'selected_files_label') and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
+        if self.app.selected_files_label is not None and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
             self.app.selected_files_label.set_text(f"Selected Files: {len(self.flowbox.get_selected_children())}")
 
     def on_scroll(self, adjustment):
         if adjustment.get_value() + adjustment.get_page_size() >= adjustment.get_upper() - 50:
-            if self.app.current_index < len(self.app.media_paths) - 1:
+            if self._next_index >= 0:
                 asyncio.create_task(self.load_more_items())
 
     async def load_more_items(self):
         # If we're already loading, do nothing.
         # Prevents repeated calls if the user keeps scrolling.
-        if self._loading == True:
+        if self._loading or self._next_index < 0:
             return
         self._loading = True
 
-        batch_size = 20
+        try:
+            batch_size = 20
+            start_index = self._next_index
+            end_index = max(start_index - self.items_per_load + 1, 0)
 
-        start_index = self.app.current_index
-        end_index = max(self.app.current_index - self.items_per_load, 0)
+            # Load from newest to oldest without repeating chunk boundaries.
+            chunk_start = start_index
+            while chunk_start >= end_index:
+                chunk_end = max(chunk_start - batch_size + 1, end_index)
+                tasks = []
 
-        # Handle the case in which there is only one item:
-        if len(self.app.media_paths) == 1 and start_index == end_index == 0:
-            media_path = self.app.media_paths[0]
+                for i in range(chunk_start, chunk_end - 1, -1):
+                    media_path = self.app.media_paths[i]
+                    tasks.append(asyncio.to_thread(self.generate_thumbnail_for_flowbox, media_path, i))
 
-            if not media_path:
-                return
+                await asyncio.gather(*tasks)
+                chunk_start = chunk_end - 1
 
-            self.add_media_to_flowbox(media_path, 0)
+            self._next_index = end_index - 1
+        finally:
+            self._loading = False
 
-        # We go from start_index down to end_index, in steps of batch_size
-        while start_index > end_index:
-            chunk_end = max(start_index - batch_size, end_index)
-            tasks = []
-
-            # Collect tasks for this chunk
-            for i in range(start_index, chunk_end -1, -1):
-
-                media_path = self.app.media_paths[i]
-                # Schedule the thumbnail work in a thread to avoid blocking the main loop
-                tasks.append(asyncio.to_thread(self.add_media_to_flowbox, media_path, i))
-
-            # Run all tasks in parallel
-            await asyncio.gather(*tasks)
-
-            # Update the start_index to move on to the next chunk
-            start_index = chunk_end
-
-        # We've now loaded up to end_index
-        self.app.current_index = end_index
-        self._loading = False
-
-    def add_media_to_flowbox(self, media_path, media_index):
+    def generate_thumbnail_for_flowbox(self, media_path, media_index):
         thumbnail_path = self.thumbnails.generate_thumbnail(media_path)
-
         if thumbnail_path:
-            flowbox_child = Gtk.FlowBoxChild()
-            flowbox_child.media_index = media_index
-            flowbox_child.media_path = media_path
-            flowbox_child.set_size_request(50, 90)
+            GLib.idle_add(self.add_media_to_flowbox, media_path, media_index, thumbnail_path)
 
-            GLib.idle_add(
-                self.thumbnails.update_ui_with_thumbnail,
-                flowbox_child,
-                thumbnail_path
-            )
+    def add_media_to_flowbox(self, media_path, media_index, thumbnail_path):
+        if self.flowbox is None:
+            return False
 
-            self.child_by_path[media_path] = flowbox_child
+        flowbox_child = Gtk.FlowBoxChild()
+        flowbox_child.media_path = media_path
+        flowbox_child.media_index = media_index
+        flowbox_child.set_size_request(50, 90)
 
-            GLib.idle_add(self.flowbox.append, flowbox_child)
-            GLib.idle_add(self.setup_single_child_click_handler, flowbox_child)
+        self.thumbnails.update_ui_with_thumbnail(flowbox_child, thumbnail_path)
+        self.flowbox.append(flowbox_child)
+        self.setup_single_child_click_handler(flowbox_child)
+        return False
 
     def setup_single_child_click_handler(self, child):
         gesture = Gtk.GestureClick.new()
@@ -145,19 +133,34 @@ class GridView(Adw.NavigationPage):
         child.add_controller(gesture)
 
     def delete_media_from_flowbox(self, media_path):
-        child = self.child_by_path.pop(media_path, None)
-        if child is not None:
-            self.flowbox.remove(child)
-            return
+        child = self.flowbox.get_first_child()
 
         # fallback if dict not populated for some weird reason
         child = self.flowbox.get_first_child()
         while child:
-            next_child = child.get_next_sibling()
-            if getattr(child, "media_path", None) == media_path:
+            if child.media_path == media_path:
                 self.flowbox.remove(child)
                 break
             child = next_child
+
+        self.refresh_media_indices()
+
+109
+
+    def refresh_media_indices(self):
+        child = self.flowbox.get_first_child()
+
+        while child:
+            next_child = child.get_next_sibling()
+
+            try:
+                child.media_index = self.app.media_paths.index(child.media_path)
+            except ValueError:
+                self.flowbox.remove(child)
+
+            child = next_child
+
+        self.flowbox.invalidate_sort()
 
     def on_child_selected(self, flowbox):
         if self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
@@ -168,15 +171,14 @@ class GridView(Adw.NavigationPage):
             selected = flowbox.get_selected_children()
             if selected:  # Check if there are selected items
                 item = selected[0]
-                path = getattr(item, "media_path", None)
-                if not path:
+                try:
+                    media_index = self.app.media_paths.index(item.media_path)
+                except ValueError:
+                    self.flowbox.remove(item)
+                    self.flowbox.unselect_all()
                     return
 
-                try:
-                    media_index = self.app.media_paths.index(path)
-                except ValueError:
-                    return # item no longer exists
-
+                item.media_index = media_index
                 self.app.current_index = media_index
                 self.app.open_media_at_index(media_index)
             self.flowbox.unselect_all()

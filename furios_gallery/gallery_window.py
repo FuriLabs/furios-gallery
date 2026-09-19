@@ -32,9 +32,10 @@ from .database_manager import (
     populate_database_async,
 )
 from .ui import (
-    create_gallery_header, create_main_window_layout, create_album_create_dialog,
-    create_selection_header_bar, create_delete_confirmation_dialog, create_map_page,
-    clear_flowbox, create_rename_dialog, create_header_btn
+    create_gallery_header, create_album_button, create_info_button, create_media_options_button,
+    create_delete_media_button, create_return_button, create_main_window_layout,
+    create_album_create_dialog, create_selection_header_bar, create_delete_confirmation_dialog,
+    create_map_page
 )
 
 class GalleryWindow(Adw.ApplicationWindow):
@@ -65,6 +66,10 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         # Create toast overlay for notifications
         self.toast_overlay, self.toolbar_view, self.bottom_sheet, self.navigation_view = create_main_window_layout()
+
+        # Selection UI state
+        self.selection_bar = None
+        self.selected_files_label = None
 
         # Header bar setup
         self.header = create_gallery_header()
@@ -125,21 +130,11 @@ class GalleryWindow(Adw.ApplicationWindow):
 
             # Refresh the albums view if it's currently visible
             current_page = self.navigation_view.get_visible_page()
-            if hasattr(current_page, 'load_albums_async'):
+            if isinstance(current_page, Albums):
                 GLib.idle_add(current_page.load_albums_async)
-            elif hasattr(current_page, 'load_albums'):
-                GLib.idle_add(current_page.load_albums)
 
         # Start the background loading
         populate_database_async(db_file, completion_callback=on_completion)
-
-    def on_page_popped(self, navigation_view, page):
-        # If it has a FlowBox, remove each child
-        if hasattr(page, "flowbox"):
-            clear_flowbox(page.flowbox)
-
-        # Finally unparent the page itself from the nav‐view
-        navigation_view.remove(page)
 
     def on_navigation_changed(self, navigation_view, page=None):
         visible_page = navigation_view.get_visible_page()
@@ -270,7 +265,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         return edit_view
 
     def create_grid_view_page(self, album_name=None):
-        media_grid_view = GridView(self, self.thumbnails)
+        media_grid_view = GridView(self, self.thumbnails, album_name or "Media")
         media_grid_view.set_halign(Gtk.Align.FILL)
         media_grid_view.set_valign(Gtk.Align.FILL)
         media_grid_view.set_hexpand(True)
@@ -280,17 +275,6 @@ class GalleryWindow(Adw.ApplicationWindow):
         media_grid_view.set_tag(f"gridView-{album_name}")
 
         return media_grid_view
-
-    def show_toast(self, message, duration=3):
-        toast = Adw.Toast(title=message)
-        self.toast_overlay.add_toast(toast)
-        print(message)
-
-        def dismiss_toast():
-            toast.dismiss()
-            return False
-
-        GLib.timeout_add_seconds(duration, dismiss_toast)
 
     def open_media_at_index(self, media_index):
         self.current_index = media_index
@@ -325,7 +309,7 @@ class GalleryWindow(Adw.ApplicationWindow):
 
                         # Refresh the current albums view
                         current_page = self.navigation_view.get_visible_page()
-                        if hasattr(current_page, 'load_albums'):
+                        if isinstance(current_page, Albums):
                             current_page.load_albums()
                     else:
                         print(f"Album '{album_name}' already exists in the database.")
@@ -344,7 +328,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             elif isinstance(visible_page, MediaView):
                 visible_page.open_delete_popup(btn)
                 return
-            elif visible_page.get_title() == "Albums":
+            elif isinstance(visible_page, Albums):
                 flowbox = visible_page.flowbox
                 label_text = f"Selected Albums: {len(flowbox.get_selected_children())}"
             else:
@@ -369,7 +353,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             flowbox = current_page.flowbox
         elif isinstance(current_page, MediaView):
             return
-        elif current_page.get_title() == "Albums":
+        elif isinstance(current_page, Albums):
             flowbox = current_page.flowbox
         else:
             print("Unsupported view type")
@@ -381,6 +365,8 @@ class GalleryWindow(Adw.ApplicationWindow):
         # Restore original header
         self.toolbar_view.remove(self.selection_bar)
         self.toolbar_view.add_top_bar(self.header)
+        self.selection_bar = None
+        self.selected_files_label = None
 
     def on_delete_confirmation(self, btn):
         current_page = self.navigation_view.get_visible_page()
@@ -393,7 +379,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         elif isinstance(current_page, MediaView):
             current_page.open_delete_popup(btn)
             return
-        elif current_page.get_title() == "Albums":
+        elif isinstance(current_page, Albums):
             flowbox = current_page.flowbox
             heading = "Delete Albums?"
             body = f"This will permanently delete the {len(flowbox.get_selected_children())} selected albums"
@@ -410,21 +396,20 @@ class GalleryWindow(Adw.ApplicationWindow):
         if response == "delete":
             current_page = self.navigation_view.get_visible_page()
 
-            if isinstance(current_page, GridView):
-                flowbox = current_page.flowbox
-            elif isinstance(current_page, MediaView):
-                return
-            elif current_page.get_title() == "Albums":
-                flowbox = current_page.flowbox
-            else:
+            if not isinstance(current_page, GridView):
                 print("Unsupported view type for delete")
+                dialog.destroy()
                 return
+
+            flowbox = current_page.flowbox
 
             selected_children = flowbox.get_selected_children()
+            selected_media = []
 
             for child in selected_children:
-                media_index = child.media_index
-                media_path = self.media_paths[media_index]
+                selected_media.append((child, child.media_path))
+
+            for child, media_path in selected_media:
                 delete_from_albums(self.conn, media_path)
 
                 try:
@@ -433,61 +418,65 @@ class GalleryWindow(Adw.ApplicationWindow):
                 except Exception as e:
                     print(f"Error deleting file: {e}")
 
+                if media_path in self.media_paths:
+                    self.media_paths.remove(media_path)
+
                 flowbox.remove(child)
+
+            if isinstance(current_page, GridView):
+                current_page.refresh_media_indices()
+
+            if self.media_paths:
+                self.current_index = min(self.current_index, len(self.media_paths) - 1)
+            else:
+                self.current_index = 0
 
         self.toolbar_view.remove(self.selection_bar)
         self.toolbar_view.add_top_bar(self.header)
+        self.selection_bar = None
+        self.selected_files_label = None
 
         current_page = self.navigation_view.get_visible_page()
-
         if isinstance(current_page, GridView):
-            flowbox = current_page.flowbox
-        elif isinstance(current_page, MediaView):
-            return
-        elif current_page.get_title() == "Albums":
-            flowbox = current_page.flowbox
-        else:
-            print("Unsupported view type for selection mode reset")
-            return
+            current_page.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
 
-        flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         dialog.destroy()
 
     def on_delete_albums(self, dialog, response):
-        if response == "delete":
-            current_page = self.navigation_view.get_visible_page()
+        current_page = self.navigation_view.get_visible_page()
 
-            if current_page.get_title() == "Albums":
-                flowbox = current_page.flowbox
-                selected_children = flowbox.get_selected_children()
+        if response == "delete" and isinstance(current_page, Albums):
+            flowbox = current_page.flowbox
+            selected_children = flowbox.get_selected_children()
 
-                for child in selected_children:
-                    album_name = child.album_name
+            for child in selected_children:
+                album_name = child.album_name
 
-                    # Skip default albums
-                    if album_name.lower() in ['recents', 'pictures', 'videos']:
-                        continue
+                # Skip default albums
+                if album_name.lower() in ['recents', 'pictures', 'videos']:
+                    continue
 
-                    try:
-                        # Delete album from database
-                        cur = self.conn.cursor()
-                        cur.execute("DELETE FROM file_albums WHERE album_id IN (SELECT album_id FROM albums WHERE album_name = ?)", (album_name,))
-                        cur.execute("DELETE FROM albums WHERE album_name = ?", (album_name,))
-                        self.conn.commit()
+                try:
+                    # Delete album from database
+                    cur = self.conn.cursor()
+                    cur.execute("DELETE FROM file_albums WHERE album_id IN (SELECT album_id FROM albums WHERE album_name = ?)", (album_name,))
+                    cur.execute("DELETE FROM albums WHERE album_name = ?", (album_name,))
+                    self.conn.commit()
+                except Exception as e:
+                    print(f"Error deleting album {album_name}: {e}")
 
-                        # Remove from UI
-                        flowbox.remove(child)
-                    except Exception as e:
-                        print(f"Error deleting album {album_name}: {e}")
-
-                # Refresh albums view
-                current_page.load_albums()
+            # Refresh albums view
+            current_page.load_albums()
 
         # Restore original header
         self.toolbar_view.remove(self.selection_bar)
         self.toolbar_view.add_top_bar(self.header)
+        self.selection_bar = None
+        self.selected_files_label = None
 
-        current_page.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        if isinstance(current_page, Albums):
+            current_page.flowbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+
         dialog.destroy()
 
     def change_file_name(self, _button):

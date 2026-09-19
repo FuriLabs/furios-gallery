@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="innerPhotoClip">
+      <rect x="30" y="30" width="180" height="180" rx="32" ry="32"/>
+    </clipPath>
+
+    <!-- Diagonal sunset gradient -->
+    <linearGradient id="sunsetGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8ec7ff"/>
+      <stop offset="50%" stop-color="#f58fb0"/>
+      <stop offset="100%" stop-color="#f6a24b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Back card (cyan) -->
+  <rect x="38" y="38" width="210" height="210" rx="40" ry="40"
+        fill="#8ec7ff" stroke="#241f31" stroke-width="4"/>
+
+  <!-- Middle card (blue) -->
+  <rect x="26" y="26" width="210" height="210" rx="40" ry="40"
+        fill="#4c8bf5" stroke="#241f31" stroke-width="4"/>
+
+  <!-- Front card (purple) -->
+  <rect x="14" y="14" width="210" height="210" rx="40" ry="40"
+        fill="#7a6ff0" stroke="#241f31" stroke-width="4"/>
+
+  <!-- Inner photo -->
+  <rect x="30" y="30" width="180" height="180" rx="32" ry="32"
+        fill="url(#sunsetGradient)"/>
+
+  <!-- Photo content -->
+  <g clip-path="url(#innerPhotoClip)">
+
+    <!-- Sun glow -->
+    <circle cx="150" cy="78" r="22" fill="#ffffff" opacity="0.12"/>
+
+    <!-- Sun -->
+    <circle cx="150" cy="78" r="12" fill="#ffffff" opacity="0.6"/>
+
+    <!-- Mountains -->
+    <path d="M30 210
+             L30 188
+             L82 146
+             Q88 140 94 146
+             L126 174
+             Q132 180 138 174
+             L172 138
+             Q178 132 184 138
+             L210 162
+             L210 210
+             Z"
+          fill="#ffffff" opacity="0.65"/>
+  </g>
+</svg>

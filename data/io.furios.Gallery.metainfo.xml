@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <component type="desktop-application">
-  <id>io.FuriOS.Gallery</id>
+  <id>io.furios.Gallery</id>
   <name>FuriOS Gallery</name>
   <summary>View your Photos and Videos</summary>
   <description>
@@ -11,7 +11,7 @@
   <url type="homepage">https://github.com/FuriLabs/furios-gallery</url>
   <url type="bugtracker">https://github.com/FuriLabs/furios-gallery/issues</url>
   <url type="vcs-browser">https://github.com/FuriLabs/furios-gallery</url>
-  <launchable type="desktop-id">io.FuriOS.Gallery.desktop</launchable>
+  <launchable type="desktop-id">io.furios.Gallery.desktop</launchable>
   <categories>
     <category>GTK</category>
     <category>GNOME</category>

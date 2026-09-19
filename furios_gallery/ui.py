@@ -588,16 +588,6 @@ def create_video_controls() -> tuple[Gtk.Box, Gtk.Button, Gtk.Image, Gtk.Label, 
 
     return control_box, play_pause_button, play_pause_image, duration_label, mute_button, mute_image, seeker
 
-def create_video_overlay_and_button() -> tuple[Gtk.Overlay, Gtk.Button]:
-    """Create video overlay and click button."""
-    overlay = Gtk.Overlay()
-
-    video_click_button = Gtk.Button()
-    video_click_button.set_opacity(0)
-    video_click_button.set_can_focus(False)
-
-    return overlay, video_click_button
-
 def create_main_window_layout() -> tuple[Adw.ToastOverlay, Adw.ToolbarView, Adw.BottomSheet, Adw.NavigationView]:
     """Create the main window layout structure."""
     toast_overlay = Adw.ToastOverlay()

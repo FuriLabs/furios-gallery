@@ -51,7 +51,7 @@ A modern GTK4/Adw-based media gallery for FuriOS, featuring real-time indexing, 
 * **Packaging**:
 
   * **Debian**: `debian/` folder with `control`, `rules`, `install`, `links`.
-  * **Flatpak**: `io.FuriOS.Gallery.yml` manifest.
+  * **Flatpak**: `io.furios.Gallery.yml` manifest.
 
 
 ## Installation
@@ -60,7 +60,7 @@ A modern GTK4/Adw-based media gallery for FuriOS, featuring real-time indexing, 
 
 ```bash
 # Build & install from manifest
-flatpak-builder --user --install-deps-from=flathub --install --force-clean build-dir io.FuriOS.Gallery.yml
+flatpak-builder --user --install-deps-from=flathub --install --force-clean build-dir io.furios.Gallery.yml
 ```
 
 ## Configuration & Data Locations
