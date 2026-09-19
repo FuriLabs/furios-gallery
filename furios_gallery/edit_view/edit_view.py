@@ -236,7 +236,7 @@ class EditView(Adw.NavigationPage):
         self.filters_overlay = FiltersOverlay(target_widget, media_path=self.media_path, thumbnails=self.app.thumbnails)
 
         self.filters_overlay.on_cancel = lambda: self.on_filters_cancel_clicked(btn)
-        self.filters_overlay.on_apply  = lambda selected: self.on_filters_apply_clicked(btn)
+        self.filters_overlay.on_apply = lambda selected: self.on_filters_apply_clicked(btn)
 
         self.overlay.add_overlay(self.filters_overlay.get_bar_widget())
 
@@ -259,13 +259,7 @@ class EditView(Adw.NavigationPage):
         def op(in_path: str, out_path: str, overwrite: bool):
             return FuriOSMediaTools.bake_filter_to_file(in_path, out_path, css_class)
 
-        self.on_apply_btn_clicked(
-            btn=btn,
-            title="Save filtered image?",
-            body="Do you want to overwrite the original file or save a new copy?",
-            operation=op,
-            reload_after=True,
-        )
+        self.on_apply_btn_clicked(btn, "Save filtered image?", "Do you want to overwrite the original file or save a new copy?", op, True)
 
         self.on_filters_cancel_clicked(btn)
 

@@ -338,9 +338,32 @@ class FuriOSMediaTools:
         return out_path
 
     @staticmethod
+    def _get_unique_path(out_path: str) -> str:
+        if not os.path.exists(out_path):
+            return out_path
+
+        directory = os.path.dirname(out_path)
+        filename = os.path.basename(out_path)
+
+        stem, ext = os.path.splitext(filename)
+
+        counter = 2
+
+        while True:
+            candidate = os.path.join(directory, f"{stem}_{counter}{ext}")
+
+            if not os.path.exists(candidate):
+                return candidate
+
+            counter += 1
+
+    @staticmethod
     def save_rgb_numpy(rgb: np.ndarray, out_path: str) -> None:
         if rgb.dtype != np.uint8 or rgb.ndim != 3 or rgb.shape[2] != 3:
             raise ValueError(f"Expected uint8 (H,W,3), got {rgb.dtype} {rgb.shape}")
+
+        # Prevent accidental overwrite
+        out_path = FuriOSMediaTools._get_unique_path(out_path)
 
         ext = os.path.splitext(out_path)[1].lower()
         im = Image.fromarray(rgb, mode="RGB")
