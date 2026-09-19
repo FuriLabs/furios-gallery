@@ -21,6 +21,7 @@ class GridView(Adw.NavigationPage):
         self.app = app
         self.thumbnails = thumbnails
         self.items_per_load = items_per_load
+        self.child_by_path = {}
 
         # Main box to hold the grid view
         self.main_grid_box = create_grid_view_main_box()
@@ -134,13 +135,17 @@ class GridView(Adw.NavigationPage):
     def delete_media_from_flowbox(self, media_path):
         child = self.flowbox.get_first_child()
 
+        # fallback if dict not populated for some weird reason
+        child = self.flowbox.get_first_child()
         while child:
             if child.media_path == media_path:
                 self.flowbox.remove(child)
                 break
-            child = child.get_next_sibling()
+            child = next_child
 
         self.refresh_media_indices()
+
+109
 
     def refresh_media_indices(self):
         child = self.flowbox.get_first_child()
