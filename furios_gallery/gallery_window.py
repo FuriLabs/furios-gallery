@@ -17,7 +17,6 @@ from gi.repository import Gtk, Gdk, Adw, GLib
 from os.path import expanduser
 from pathlib import Path
 
-from .edit_view.furios_media_tools import FuriOSMediaTools
 from .media_view import MediaView
 from .edit_view.edit_view import EditView
 from .grid_view import GridView
@@ -25,6 +24,7 @@ from .albums_view import Albums
 from .media_watcher import MediaWatcher
 from .thumbnail_generator import ThumbnailGenerator
 from .media_properties_view import MediaPropertiesView
+from .edit_view.furios_media_tools import basename_without_ext, change_file_name
 from .database_manager import (
     get_album_database_paths,
     create_tables, create_connection,
@@ -94,7 +94,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.header.pack_start(self.return_btn)
 
         # Create change Name button (initially hidden)
-        self.create_change_name_btn = create_header_btn(self.change_file_name, "text-editor-symbolic", False)
+        self.create_change_name_btn = create_header_btn(self.on_change_file_name, "text-editor-symbolic", False)
         self.header.pack_start(self.create_change_name_btn)
 
         # Create initial albums page
@@ -478,22 +478,16 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         dialog.destroy()
 
-    def change_file_name(self, _button):
+    def on_change_file_name(self, _button):
         curr_file_path = self.media_paths[self.current_index]
-        initial = FuriOSMediaTools._basename_without_ext(curr_file_path)
+        initial = basename_without_ext(curr_file_path)
 
-        dlg, entry, error_label, rename_btn, cancel_btn = create_rename_dialog(
-            self.get_root(),
-            initial
-        )
+        dlg, entry, error_label, rename_btn, cancel_btn = create_rename_dialog(self.get_root(), initial)
 
         entry.connect("changed", lambda *_: error_label.set_visible(False))
 
         def do_rename():
-            success, text = FuriOSMediaTools.change_file_name(
-                curr_file_path,
-                entry.get_text().strip()
-            )
+            success, text = change_file_name(curr_file_path, entry.get_text().strip())
             if not success:
                 error_label.set_text(text)
                 error_label.set_visible(True)

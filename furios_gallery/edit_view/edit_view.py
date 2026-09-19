@@ -14,11 +14,11 @@ gi.require_version("GdkPixbuf", "2.0")
 from .draw_overlay import DrawOverlay
 from .crop_overlay import CropOverlay
 from .filters_overlay import FiltersOverlay
-from .furios_media_tools import FuriOSMediaTools
 from ..image_viewer_widget import ImageViewerWidget
 from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene, GLib
 from ..ui import (create_edit_view_main_box, create_edit_view_overlay)
 from .ui import (create_main_bar_body, create_confirmation_dialog, create_icon_btn)
+from .furios_media_tools import compute_output_path, crop_image_to_disk, bake_filter_to_file, rasterize_strokes_to_disk_cairo, rasterize_strokes_to_disk_cairo, crop_image_to_disk
 
 class EditView(Adw.NavigationPage):
     def __init__(self, app, media_path: str):
@@ -103,12 +103,7 @@ class EditView(Adw.NavigationPage):
 
             overwrite = (response_id == "overwrite")
 
-            out_path = FuriOSMediaTools.compute_output_path(
-                self.media_path,
-                overwrite=overwrite,
-                out_path=None,
-                suffix="_copy",
-            )
+            out_path = compute_output_path(self.media_path, overwrite=overwrite, out_path=None, suffix="_copy")
 
             try:
                 maybe_written = operation(self.media_path, out_path, overwrite)
@@ -199,20 +194,9 @@ class EditView(Adw.NavigationPage):
         x, y, w, h = self.crop_overlay.get_crop_in_image_pixels()
 
         def op(in_path: str, out_path: str, overwrite: bool):
-            return FuriOSMediaTools.crop_image_to_disk(
-                in_path, x, y, w, h,
-                overwrite=overwrite,
-                out_path=out_path,
-                suffix="_cropped",
-            )
+            return crop_image_to_disk(in_path, x, y, w, h, overwrite=overwrite, out_path=out_path, suffix="_cropped")
 
-        self.on_apply_btn_clicked(
-            btn=btn,
-            title="Save cropped image?",
-            body="Do you want to overwrite the original file or save a new copy?",
-            operation=op,
-            reload_after=True,
-        )
+        self.on_apply_btn_clicked(btn, "Save cropped image?", "Do you want to overwrite the original file or save a new copy?", operation=op, reload_after=True)
 
         self.on_crop_cancel_clicked(btn)
 
@@ -257,7 +241,7 @@ class EditView(Adw.NavigationPage):
         css_class = getattr(overlay, "selected_filter", "filter-original")
 
         def op(in_path: str, out_path: str, overwrite: bool):
-            return FuriOSMediaTools.bake_filter_to_file(in_path, out_path, css_class)
+            return bake_filter_to_file(in_path, out_path, css_class)
 
         self.on_apply_btn_clicked(btn, "Save filtered image?", "Do you want to overwrite the original file or save a new copy?", op, True)
 
@@ -312,21 +296,9 @@ class EditView(Adw.NavigationPage):
             return
 
         def op(in_path: str, out_path: str, overwrite: bool):
-            return FuriOSMediaTools.rasterize_strokes_to_disk_cairo(
-                in_path,
-                strokes,
-                overwrite=overwrite,
-                out_path=out_path,
-                suffix="_drawn",
-            )
+            return rasterize_strokes_to_disk_cairo(in_path, strokes, overwrite=overwrite, out_path=out_path, suffix="_drawn")
 
-        self.on_apply_btn_clicked(
-            btn=btn,
-            title="Save drawing?",
-            body="Do you want to overwrite the original file or save a new copy?",
-            operation=op,
-            reload_after=True,
-        )
+        self.on_apply_btn_clicked(btn, "Save drawing?", "Do you want to overwrite the original file or save a new copy?", op, True)
 
         self.on_drawing_cancel_clicked(btn)
 
