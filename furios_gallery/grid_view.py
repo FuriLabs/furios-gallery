@@ -133,19 +133,16 @@ class GridView(Adw.NavigationPage):
         child.add_controller(gesture)
 
     def delete_media_from_flowbox(self, media_path):
-        child = self.flowbox.get_first_child()
-
         # fallback if dict not populated for some weird reason
         child = self.flowbox.get_first_child()
         while child:
+            next_child = child.get_next_sibling()
             if child.media_path == media_path:
                 self.flowbox.remove(child)
                 break
             child = next_child
 
         self.refresh_media_indices()
-
-109
 
     def refresh_media_indices(self):
         child = self.flowbox.get_first_child()

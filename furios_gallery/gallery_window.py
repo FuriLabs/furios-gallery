@@ -32,8 +32,7 @@ from .database_manager import (
     populate_database_async,
 )
 from .ui import (
-    create_gallery_header, create_album_button, create_info_button, create_media_options_button,
-    create_delete_media_button, create_return_button, create_main_window_layout,
+    create_gallery_header, create_main_window_layout, create_header_btn, create_rename_dialog,
     create_album_create_dialog, create_selection_header_bar, create_delete_confirmation_dialog,
     create_map_page
 )
@@ -516,5 +515,8 @@ class GalleryWindow(Adw.ApplicationWindow):
         #Update albums thumbnails
         self.albums_page.update_all_album_thumbnails()
 
-        #Update grid view
-        self.grid_view_page.add_media_to_flowbox(new_media_path, len(self.media_paths) - 1)
+        thumbnail_path = self.thumbnails.generate_thumbnail(new_media_path)
+
+        if thumbnail_path:
+            #Update grid view
+            self.grid_view_page.add_media_to_flowbox(new_media_path, len(self.media_paths) - 1, thumbnail_path)
