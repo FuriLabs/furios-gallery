@@ -46,9 +46,6 @@ class CropOverlay(Gtk.Widget):
         return self.bar
 
     def build_crop_bar(self):
-        if getattr(self, "crop_bar", None):
-            return
-
         bar = create_main_bar_body(12, 12, 12, 12, 6, "horizontal")
 
         cancel = create_cancel_btn(self.on_cancel_clicked)

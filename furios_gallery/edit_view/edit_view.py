@@ -308,4 +308,3 @@ class EditView(Adw.NavigationPage):
         self.on_apply_btn_clicked(btn, "Save drawing?", "Do you want to overwrite the original file or save a new copy?", op, True)
 
         self.on_drawing_cancel_clicked(btn)
-
