@@ -125,15 +125,15 @@ def rasterize_strokes_to_disk(image_path: str, strokes: list[dict], overwrite: b
         image = src.convert("RGBA" if has_alpha else "RGB")
         draw = ImageDraw.Draw(image, "RGBA" if has_alpha else None)
         for stroke in strokes or []:
-            pts = stroke.get("pts") or []
+            pts = stroke.get("pts")
             if len(pts) < 2:
                 continue
-            width = max(1, round(float(stroke.get("width_img", stroke.get("width", 4.0)))))
-            color = stroke.get("color")
-            r = round(float(getattr(color, "red", 0.0)) * 255)
-            g = round(float(getattr(color, "green", 0.0)) * 255)
-            b = round(float(getattr(color, "blue", 0.0)) * 255)
-            a = round(float(getattr(color, "alpha", 1.0)) * 255)
+            width = max(1, round(float(stroke["width_img"])))
+            color = stroke["color"]
+            r = round(float(color.red) * 255)
+            g = round(float(color.green) * 255)
+            b = round(float(color.blue) * 255)
+            a = round(float(color.alpha) * 255)
             points = [(round(x), round(y)) for x, y in pts]
             fill = (r, g, b, a) if has_alpha else (r, g, b)
             draw.line(points, fill=fill, width=width, joint="curve")

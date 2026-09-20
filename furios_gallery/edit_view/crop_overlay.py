@@ -33,6 +33,9 @@ class CropOverlay(Gtk.Widget):
         self.drag_start = (0.0, 0.0)
         self.rect_start = None
 
+        self.on_cancel = None
+        self.on_apply = None
+
         drag = Gtk.GestureDrag.new()
         drag.connect("drag-begin", self.on_drag_begin)
         drag.connect("drag-update", self.on_drag_update)
@@ -58,13 +61,13 @@ class CropOverlay(Gtk.Widget):
 
         return bar
 
-    def on_cancel_clicked(self, btn=None):
-        if callable(getattr(self, "on_cancel", None)):
+    def on_cancel_clicked(self, _btn=None):
+        if callable(self.on_cancel):
             self.on_cancel()
 
-    def on_apply_clicked(self, btn=None):
-        if callable(getattr(self, "on_apply", None)):
-            self.on_apply(getattr(self, "selected_filter", "filter-original"))
+    def on_apply_clicked(self, _btn=None):
+        if callable(self.on_apply):
+            self.on_apply()
 
     def image_rect_in_widget(self) -> tuple[float, float, float, float]:
         w = float(self.get_allocated_width())

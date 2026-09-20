@@ -20,6 +20,9 @@ class DrawOverlay(Gtk.Widget):
         self.line_width = float(line_width)
         self.min_point_dist2 = float(min_point_dist) ** 2
 
+        self.on_cancel = None
+        self.on_apply = None
+
         self.color = Gdk.RGBA()
         self.color.parse(color_rgba)
 
@@ -54,12 +57,12 @@ class DrawOverlay(Gtk.Widget):
     def get_bar_widget(self) -> Gtk.Widget:
         return self.bar
 
-    def on_cancel_clicked(self, btn=None):
-        if callable(getattr(self, "on_cancel", None)):
+    def on_cancel_clicked(self, _btn=None):
+        if callable(self.on_cancel):
             self.on_cancel()
 
     def on_apply_clicked(self, _btn=None):
-        if callable(getattr(self, "on_apply", None)):
+        if callable(self.on_apply):
             self.on_apply()
 
     '''

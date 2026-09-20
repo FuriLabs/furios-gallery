@@ -41,6 +41,8 @@ class FiltersOverlay(Gtk.Widget):
         self.picture_widget = picture_widget
         self.media_path = media_path
         self.thumbnails = thumbnails
+        self.on_cancel = None
+        self.on_apply = None
         self.selected_filter = "filter-original"
         self.set_hexpand(True)
         self.set_vexpand(True)
@@ -130,14 +132,13 @@ class FiltersOverlay(Gtk.Widget):
     def on_cancel_clicked(self, _btn):
         self.clear_preview()
         self.selected_filter = "filter-original"
-        if callable(getattr(self, "on_cancel", None)):
+        if callable(self.on_cancel):
             self.on_cancel()
 
     def on_apply_clicked(self, _btn):
-        selected_filter = self.selected_filter
         self.clear_preview()
-        if callable(getattr(self, "on_apply", None)):
-            self.on_apply(selected_filter)
+        if callable(self.on_apply):
+            self.on_apply()
 
     def get_bar_widget(self) -> Gtk.Widget:
         return self.bar
@@ -149,12 +150,7 @@ class FiltersOverlay(Gtk.Widget):
         if css_class == "filter-soft":
             display_width = self.picture_widget.get_allocated_width()
             display_height = self.picture_widget.get_allocated_height()
-            sigma = soft_preview_sigma(
-                self.image_width,
-                self.image_height,
-                display_width,
-                display_height
-            )
+            sigma = soft_preview_sigma(self.image_width, self.image_height, display_width, display_height)
             css = f".filter-soft-preview {{ filter: blur({sigma:.3f}px) brightness({SOFT_BRIGHTNESS}); }}"
             self.soft_preview_provider.load_from_data(css.encode())
             self.picture_widget.add_css_class("filter-soft-preview")

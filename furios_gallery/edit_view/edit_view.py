@@ -29,7 +29,11 @@ class EditView(Adw.NavigationPage):
         self.zoomable_image = None
         self.texture: Gdk.Texture | None = None
         self.picture: Gtk.ScrolledWindow | None = None
+
+        self.filters_overlay = None
+        self.draw_overlay = None
         self.crop_overlay = None
+        self.edit_bar = None
         self.setup_content()
 
     def setup_content(self):
@@ -153,7 +157,7 @@ class EditView(Adw.NavigationPage):
         self.edit_bar = bar
 
     def set_edit_bar_visible(self, visible: bool):
-        if getattr(self, "edit_bar", None):
+        if self.edit_bar:
             self.edit_bar.set_visible(visible)
             self.edit_bar.set_can_target(visible)
 
@@ -177,12 +181,12 @@ class EditView(Adw.NavigationPage):
         self.overlay.add_overlay(self.crop_overlay)
 
         self.crop_overlay.on_cancel = lambda: self.on_crop_cancel_clicked(btn)
-        self.crop_overlay.on_apply = lambda selected: self.on_crop_apply_clicked(btn)
+        self.crop_overlay.on_apply = lambda: self.on_crop_apply_clicked(btn)
 
         self.overlay.add_overlay(self.crop_overlay.get_bar_widget())
 
     def on_crop_cancel_clicked(self, btn=None):
-        crop = getattr(self, "crop_overlay", None)
+        crop = self.crop_overlay
         if crop:
             self.overlay.remove_overlay(crop)
             bar = crop.get_bar_widget()
@@ -195,7 +199,7 @@ class EditView(Adw.NavigationPage):
         self.zoomable_image.set_zoom_enabled(True)
 
     def on_crop_apply_clicked(self, btn=None):
-        if not getattr(self, "crop_overlay", None):
+        if not self.crop_overlay:
             return
 
         x, y, w, h = self.crop_overlay.get_crop_in_image_pixels()
@@ -218,21 +222,21 @@ class EditView(Adw.NavigationPage):
         self.zoomable_image.set_zoom_enabled(False)
         self.set_edit_bar_visible(False)
 
-        if getattr(self, "filters_overlay", None):
+        if self.filters_overlay:
             self.overlay.remove_overlay(self.filters_overlay.get_bar_widget())
             self.filters_overlay = None
 
-        target_widget = getattr(self.zoomable_image, "picture", self.zoomable_image)
+        target_widget = self.zoomable_image
 
         self.filters_overlay = FiltersOverlay(target_widget, media_path=self.media_path, thumbnails=self.app.thumbnails)
 
         self.filters_overlay.on_cancel = lambda: self.on_filters_cancel_clicked(btn)
-        self.filters_overlay.on_apply = lambda selected: self.on_filters_apply_clicked(btn)
+        self.filters_overlay.on_apply = lambda: self.on_filters_apply_clicked(btn)
 
         self.overlay.add_overlay(self.filters_overlay.get_bar_widget())
 
     def on_filters_cancel_clicked(self, btn=None):
-        if getattr(self, "filters_overlay", None):
+        if self.filters_overlay:
             self.overlay.remove_overlay(self.filters_overlay.get_bar_widget())
             self.filters_overlay = None
 
@@ -240,12 +244,12 @@ class EditView(Adw.NavigationPage):
         self.zoomable_image.set_zoom_enabled(True)
 
     def on_filters_apply_clicked(self, btn=None):
-        overlay = getattr(self, "filters_overlay", None)
+        overlay = self.filters_overlay
         if not overlay:
             self.on_filters_cancel_clicked(btn)
             return
 
-        css_class = getattr(overlay, "selected_filter", "filter-original")
+        css_class = overlay.selected_filter
 
         def op(in_path: str, out_path: str, overwrite: bool):
             return bake_filter_to_file(in_path, out_path, css_class, overwrite=overwrite)
@@ -262,7 +266,7 @@ class EditView(Adw.NavigationPage):
         self.zoomable_image.set_zoom_enabled(False)
         self.set_edit_bar_visible(False)
 
-        if getattr(self, "draw_overlay", None):
+        if self.draw_overlay:
             self.overlay.remove_overlay(self.draw_overlay.get_bar_widget())
             self.draw_overlay = None
 
@@ -279,7 +283,7 @@ class EditView(Adw.NavigationPage):
         self.draw_overlay.queue_draw()
 
     def on_drawing_cancel_clicked(self, _btn=None):
-        draw = getattr(self, "draw_overlay", None)
+        draw = self.draw_overlay
         if draw:
             bar = draw.get_bar_widget()
             if bar:
@@ -292,12 +296,12 @@ class EditView(Adw.NavigationPage):
         self.zoomable_image.set_zoom_enabled(True)
 
     def on_drawing_apply_clicked(self, btn=None):
-        draw = getattr(self, "draw_overlay", None)
+        draw = self.draw_overlay
         if not draw:
             self.on_drawing_cancel_clicked(btn)
             return
 
-        strokes = getattr(draw, "strokes", None) or []
+        strokes = draw.strokes or []
         if not strokes:
             self.on_drawing_cancel_clicked(btn)
             return
