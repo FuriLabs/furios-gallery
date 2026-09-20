@@ -10,7 +10,7 @@ import numpy as np
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 from gi.repository import GdkPixbuf, Gdk, GLib
 
 class ColorSpaceStandards:
@@ -343,41 +343,17 @@ def apply_luma_brightness(rgb_img, brightness):
 def grayscale_transform():
     return np.tile(LUMA, (3, 1)), ZERO.copy()
 
-def gaussian_kernel1d(sigma: float, radius: int | None = None) -> np.ndarray:
-    if sigma <= 0:
-        raise ValueError("sigma must be > 0")
+SOFT_BLUR_FRACTION = 0.005
+SOFT_BRIGHTNESS = 1.02
 
-    if radius is None:
-        radius = int(np.ceil(3.0 * sigma))
+def soft_blur_sigma(image_width: int, image_height: int) -> float:
+    return SOFT_BLUR_FRACTION * max(image_width, image_height)
 
-    if radius < 0:
-        raise ValueError("radius must be >= 0")
-
-    x = np.arange(-radius, radius + 1, dtype=np.float32)
-    kernel = np.exp(-(x * x) / (2.0 * sigma * sigma)).astype(np.float32)
-    kernel /= kernel.sum()
-
-    return kernel
-
-def convolve1d_axis(img: np.ndarray, kernel: np.ndarray, axis: int):
-    kernel = np.asarray(kernel, dtype=np.float32)
-    radius = kernel.size // 2
-
-    pad_width = [(0, 0)] * img.ndim
-    pad_width[axis] = (radius, radius)
-    padded = np.pad(img.astype(np.float32, copy=False), pad_width, mode="edge")
-
-    out = np.zeros_like(img, dtype=np.float32)
-
-    base = [slice(None)] * img.ndim
-    n = img.shape[axis]
-
-    # Loop only over kernel taps (K), not pixels
-    for i, k in enumerate(kernel):
-        base[axis] = slice(i, i + n)
-        out += k * padded[tuple(base)]
-
-    return out
+def soft_preview_sigma(image_width: int, image_height: int, display_width: int, display_height: int) -> float:
+    if image_width <= 0 or image_height <= 0 or display_width <= 0 or display_height <= 0:
+        return 0.0
+    scale = min(display_width / image_width, display_height / image_height)
+    return soft_blur_sigma(image_width, image_height) * scale
 
 def apply_gaussian_blur(img: np.ndarray, sigma: float) -> np.ndarray:
     if not isinstance(img, np.ndarray):
@@ -385,15 +361,9 @@ def apply_gaussian_blur(img: np.ndarray, sigma: float) -> np.ndarray:
 
     if sigma <= 0:
         return img.copy()
-
-    x = img.astype(np.float32, copy=False)
-
-    kernel = gaussian_kernel1d(sigma)
-
-    x = convolve1d_axis(x, kernel, axis=1)
-    x = convolve1d_axis(x, kernel, axis=0)
-
-    return np.clip(x, 0.0, 255.0).astype(np.uint8)
+    pil_img = Image.fromarray(img, mode="RGB")
+    blurred = pil_img.filter(ImageFilter.GaussianBlur(radius=float(sigma)))
+    return np.asarray(blurred, dtype=np.uint8).copy()
 
 def invert_transform(amount: float = 1.0):
     a = float(amount)
@@ -457,8 +427,9 @@ def apply_filter_to_rgb(rgb: np.ndarray, css_class: str) -> np.ndarray:
         return apply_affine_rgb(rgb, M, b)
 
     if css_class == "filter-soft":
-        x = apply_gaussian_blur(rgb, sigma=0.7)
-        M, b = brightness_transform(1.02)
+        h, w = rgb.shape[:2]
+        x = apply_gaussian_blur(rgb, soft_blur_sigma(w, h))
+        M, b = brightness_transform(SOFT_BRIGHTNESS)
         return apply_affine_rgb(x, M, b)
 
     return rgb

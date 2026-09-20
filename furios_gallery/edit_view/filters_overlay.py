@@ -8,7 +8,9 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 
+from PIL import Image
 from gi.repository import Gtk, Gdk
+from .furios_media_tools import soft_preview_sigma, SOFT_BRIGHTNESS
 from .ui import (create_main_bar_body, create_cancel_btn, create_apply_btn)
 
 FILTERS = [
@@ -45,6 +47,12 @@ class FiltersOverlay(Gtk.Widget):
         self.set_halign(Gtk.Align.FILL)
         self.set_valign(Gtk.Align.FILL)
 
+        with Image.open(self.media_path) as im:
+            self.image_width, self.image_height = im.size
+
+        self.soft_preview_provider = Gtk.CssProvider()
+        Gtk.StyleContext.add_provider_for_display(self.get_display(), self.soft_preview_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
+
         self.ensure_css_loaded()
 
         self.bar = self.build_bar()
@@ -57,6 +65,11 @@ class FiltersOverlay(Gtk.Widget):
         prov.load_from_data(CSS)
         Gtk.StyleContext.add_provider_for_display(display, prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         display._filters_css_loaded = True
+
+    def clear_preview(self):
+        for c in ALL_FILTER_CLASSES:
+            self.picture_widget.remove_css_class(c)
+        self.picture_widget.remove_css_class("filter-soft-preview")
 
     def make_filter_button(self, label: str, css_class: str, texture: Gdk.Texture) -> Gtk.Button:
         btn = Gtk.Button()
@@ -115,19 +128,14 @@ class FiltersOverlay(Gtk.Widget):
         return filters_bar
 
     def on_cancel_clicked(self, _btn):
-        for c in ALL_FILTER_CLASSES:
-            self.picture_widget.remove_css_class(c)
+        self.clear_preview()
         self.selected_filter = "filter-original"
-
         if callable(getattr(self, "on_cancel", None)):
             self.on_cancel()
 
     def on_apply_clicked(self, _btn):
         selected_filter = self.selected_filter
-
-        for c in ALL_FILTER_CLASSES:
-            self.picture_widget.remove_css_class(c)
-
+        self.clear_preview()
         if callable(getattr(self, "on_apply", None)):
             self.on_apply(selected_filter)
 
@@ -136,6 +144,19 @@ class FiltersOverlay(Gtk.Widget):
 
     def on_filter_clicked(self, _button: Gtk.Button, css_class: str):
         self.selected_filter = css_class
-        for c in ALL_FILTER_CLASSES:
-            self.picture_widget.remove_css_class(c)
-        self.picture_widget.add_css_class(css_class)
+        self.clear_preview()
+
+        if css_class == "filter-soft":
+            display_width = self.picture_widget.get_allocated_width()
+            display_height = self.picture_widget.get_allocated_height()
+            sigma = soft_preview_sigma(
+                self.image_width,
+                self.image_height,
+                display_width,
+                display_height
+            )
+            css = f".filter-soft-preview {{ filter: blur({sigma:.3f}px) brightness({SOFT_BRIGHTNESS}); }}"
+            self.soft_preview_provider.load_from_data(css.encode())
+            self.picture_widget.add_css_class("filter-soft-preview")
+        else:
+            self.picture_widget.add_css_class(css_class)
