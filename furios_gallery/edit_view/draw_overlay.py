@@ -22,6 +22,7 @@ class DrawOverlay(Gtk.Widget):
 
         self.on_cancel = None
         self.on_apply = None
+        self.drag_begin_widget = None
 
         self.color = Gdk.RGBA()
         self.color.parse(color_rgba)
@@ -69,7 +70,7 @@ class DrawOverlay(Gtk.Widget):
     * Public Helpers *
     '''
     def set_color(self, rgba: Gdk.RGBA):
-        self.color = rgba.copy() if hasattr(rgba, "copy") else rgba
+        self.color = rgba.copy()
         self.queue_draw()
 
     def set_line_width(self, width: float):
@@ -172,7 +173,7 @@ class DrawOverlay(Gtk.Widget):
         # We need current widget point first, then convert to image.
         # We can reconstruct current widget point from the begin point:
         # BUT we stored image begin point, so we must keep the begin widget point too.
-        if not hasattr(self, "drag_begin_widget"):
+        if self.drag_begin_widget is None:
             return
 
         xw0, yw0 = self.drag_begin_widget
@@ -204,15 +205,10 @@ class DrawOverlay(Gtk.Widget):
             scale = self.image_scale_in_widget()
             width_img = (self.line_width / scale) if scale > 0 else self.line_width
 
-            self.strokes.append({
-                "pts": self.current_pts, # image coords
-                "width_img": float(width_img), # image-pixel width
-                "color": self.color.copy() if hasattr(self.color, "copy") else self.color,
-            })
+            self.strokes.append({"pts": self.current_pts, "width_img": float(width_img), "color": self.color.copy()})
 
         self.current_pts = None
-        if hasattr(self, "drag_begin_widget"):
-            delattr(self, "drag_begin_widget")
+        self.drag_begin_widget = None
         self.queue_draw()
 
     '''

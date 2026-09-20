@@ -271,5 +271,3 @@ def create_drawing_bar(
     bar.append(done)
 
     return bar
-
-

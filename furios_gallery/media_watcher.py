@@ -64,9 +64,7 @@ class MediaWatcher():
 
         if event_type == Gio.FileMonitorEvent.CHANGES_DONE_HINT:
             GLib.idle_add(self.handle_new_media_path, path)
-            return
-        else:
-            return
+        return
 
     def handle_new_media_path(self, file_path: str):
         try:
