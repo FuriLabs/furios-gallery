@@ -16,13 +16,10 @@ class CropOverlay(Gtk.Widget):
     HIT = 18
     MIN_SIZE = 32
 
-    def __init__(self, picture_widget: Gtk.Widget, texture: Gdk.Texture):
+    def __init__(self, image_width: int, image_height: int):
         super().__init__()
-        self.picture_widget = picture_widget
-        self.texture = texture
-
-        self.initial_h = self.texture.get_height()
-        self.initial_w = self.texture.get_width()
+        self.image_width = image_width
+        self.image_height = image_height
 
         self.set_hexpand(True)
         self.set_vexpand(True)
@@ -76,8 +73,8 @@ class CropOverlay(Gtk.Widget):
         w = float(self.get_allocated_width())
         h = float(self.get_allocated_height())
 
-        tw = float(self.texture.get_width())
-        th = float(self.texture.get_height())
+        tw = float(self.image_width)
+        th = float(self.image_height)
 
         if w <= 0 or h <= 0 or tw <= 0 or th <= 0:
             return (0.0, 0.0, w, h)
@@ -248,8 +245,8 @@ class CropOverlay(Gtk.Widget):
         nw = w / iw
         nh = h / ih
 
-        tw = self.texture.get_width()
-        th = self.texture.get_height()
+        tw = self.image_width
+        th = self.image_height
 
         x_px = int(nx * tw)
         y_px = int(ny * th)

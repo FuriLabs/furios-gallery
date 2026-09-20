@@ -11,6 +11,7 @@ gi.require_version('Gtk', '4.0')
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
 
+from PIL import Image
 from .draw_overlay import DrawOverlay
 from .crop_overlay import CropOverlay
 from .filters_overlay import FiltersOverlay
@@ -154,25 +155,25 @@ class EditView(Adw.NavigationPage):
     * Crop Feature *
     '''
     def on_crop_clicked(self, btn):
-            if not self.texture or not self.picture:
-                return
+        # Return image to original size
+        self.zoomable_image.reset_view_fit()
 
-            # Return image to original size
-            self.zoomable_image.reset_view_fit()
+        # Disable zoom
+        self.zoomable_image.set_zoom_enabled(not self.zoomable_image.zoom_enabled)
 
-            # Disable zoom
-            self.zoomable_image.set_zoom_enabled(not self.zoomable_image.zoom_enabled)
+        # Hide the edit bar
+        self.set_edit_bar_visible(False)
 
-            # Hide the edit bar
-            self.set_edit_bar_visible(False)
+        with Image.open(self.media_path) as im:
+            image_width, image_height = im.size
 
-            self.crop_overlay = CropOverlay(self.picture, self.texture)
-            self.overlay.add_overlay(self.crop_overlay)
+        self.crop_overlay = CropOverlay(image_width, image_height)
+        self.overlay.add_overlay(self.crop_overlay)
 
-            self.crop_overlay.on_cancel = lambda: self.on_crop_cancel_clicked(btn)
-            self.crop_overlay.on_apply  = lambda selected: self.on_crop_apply_clicked(btn)
+        self.crop_overlay.on_cancel = lambda: self.on_crop_cancel_clicked(btn)
+        self.crop_overlay.on_apply = lambda selected: self.on_crop_apply_clicked(btn)
 
-            self.overlay.add_overlay(self.crop_overlay.get_bar_widget())
+        self.overlay.add_overlay(self.crop_overlay.get_bar_widget())
 
     def on_crop_cancel_clicked(self, btn=None):
         crop = getattr(self, "crop_overlay", None)
