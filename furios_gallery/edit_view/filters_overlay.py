@@ -8,7 +8,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk
 from .ui import (create_main_bar_body, create_cancel_btn, create_apply_btn)
 
 FILTERS = [
@@ -34,12 +34,12 @@ CSS = b"""
     """
 
 class FiltersOverlay(Gtk.Widget):
-    def __init__( self, picture_widget: Gtk.Widget, media_path: str, thumbnails):
+    def __init__(self, picture_widget: Gtk.Widget, media_path: str, thumbnails):
         super().__init__()
         self.picture_widget = picture_widget
         self.media_path = media_path
         self.thumbnails = thumbnails
-
+        self.selected_filter = "filter-original"
         self.set_hexpand(True)
         self.set_vexpand(True)
         self.set_halign(Gtk.Align.FILL)
@@ -55,20 +55,10 @@ class FiltersOverlay(Gtk.Widget):
             return
         prov = Gtk.CssProvider()
         prov.load_from_data(CSS)
-        Gtk.StyleContext.add_provider_for_display(
-            display, prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
+        Gtk.StyleContext.add_provider_for_display(display, prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         display._filters_css_loaded = True
 
-    def set_picture_from_file(self, picture: Gtk.Picture, path: str):
-        try:
-            tex = Gdk.Texture.new_from_filename(path)
-            picture.set_paintable(tex)
-        except Exception as e:
-            print("Failed to load filter thumbnail:", e)
-        return False
-
-    def make_filter_button(self, label: str, css_class: str, thumb_path: str) -> Gtk.Button:
+    def make_filter_button(self, label: str, css_class: str, texture: Gdk.Texture) -> Gtk.Button:
         btn = Gtk.Button()
         btn.add_css_class("flat")
 
@@ -79,8 +69,7 @@ class FiltersOverlay(Gtk.Widget):
         thumb.set_content_fit(Gtk.ContentFit.COVER)
         thumb.set_size_request(56, 74)
         thumb.add_css_class(css_class)
-        GLib.idle_add(self.set_picture_from_file, thumb, thumb_path)
-
+        thumb.set_paintable(texture)
         lab = Gtk.Label(label=label)
         lab.set_halign(Gtk.Align.CENTER)
 
@@ -105,9 +94,12 @@ class FiltersOverlay(Gtk.Widget):
 
         thumb_path = self.thumbnails.generate_thumbnail(self.media_path)
         if thumb_path:
-            for label, css_class in FILTERS:
-                row.append(self.make_filter_button(label, css_class, thumb_path))
-
+            try:
+                texture = Gdk.Texture.new_from_filename(thumb_path)
+                for label, css_class in FILTERS:
+                    row.append(self.make_filter_button(label, css_class, texture))
+            except Exception as e:
+                print("Failed to load filter thumbnail:", e)
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         actions.set_hexpand(True)
 
@@ -128,12 +120,12 @@ class FiltersOverlay(Gtk.Widget):
 
     def on_apply_clicked(self, _btn):
         if callable(getattr(self, "on_apply", None)):
-            self.on_apply(getattr(self, "selected_filter", "filter-original"))
+            self.on_apply(self.selected_filter)
 
     def get_bar_widget(self) -> Gtk.Widget:
         return self.bar
 
-    def on_filter_clicked(self, button: Gtk.Button, css_class: str):
+    def on_filter_clicked(self, _button: Gtk.Button, css_class: str):
         self.selected_filter = css_class
         for c in ALL_FILTER_CLASSES:
             self.picture_widget.remove_css_class(c)
