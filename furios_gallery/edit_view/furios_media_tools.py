@@ -24,9 +24,9 @@ class ColorSpaceStandards:
 
     # RGB -> Y (luma) coefficients
     # Contribution of each RGB channel to perceived brightness
-    Y_R = 0.2990 # Red contribution to luma
-    Y_G = 0.5870 # Green contribution to luma (dominant for human vision)
-    Y_B = 0.1140 # Blue contribution to luma
+    Y_R = 0.2126 # Red contribution to luma
+    Y_G = 0.7152 # Green contribution to luma (dominant for human vision)
+    Y_B = 0.0722 # Blue contribution to luma
 
     # RGB -> Cb coefficients
     # Blue-difference chroma channel
