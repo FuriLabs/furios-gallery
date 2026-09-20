@@ -345,12 +345,12 @@ def apply_custom_filters(in_path: str, out_path: str, brightness: float | None, 
 
     save_rgb_numpy(out_rgb, out_path)
 
-def bake_filter_to_file(in_path: str, out_path: str, css_class: str):
+def bake_filter_to_file(in_path: str, out_path: str, css_class: str, overwrite: bool = False) -> str:
     with Image.open(in_path) as im:
         rgb = np.array(im.convert("RGB"), dtype=np.uint8)
 
     out_rgb = apply_filter_to_rgb(rgb, css_class)
-    save_rgb_numpy(out_rgb, out_path)
+    return save_rgb_numpy(out_rgb, out_path, overwrite=overwrite)
 
 # *********************************** #
 # * Computational Imaging Functions * #

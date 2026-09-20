@@ -91,6 +91,15 @@ class EditView(Adw.NavigationPage):
 
         return scrolled
 
+    def release_current_image(self):
+        if self.picture:
+            if self.picture.get_parent() is self.main_box:
+                self.main_box.remove(self.picture)
+            self.picture.set_child(None)
+        self.zoomable_image = None
+        self.texture = None
+        self.picture = None
+
     '''
     * Editing Bar *
     '''
@@ -111,10 +120,7 @@ class EditView(Adw.NavigationPage):
 
                 if reload_after:
                     new_path = maybe_written or out_path
-
-                    if self.picture:
-                        self.main_box.remove(self.picture)
-
+                    self.release_current_image()
                     self.media_path = new_path
                     self.picture = self.setup_picture_to_edit(new_path)
                     self.main_box.append(self.picture)
@@ -242,7 +248,7 @@ class EditView(Adw.NavigationPage):
         css_class = getattr(overlay, "selected_filter", "filter-original")
 
         def op(in_path: str, out_path: str, overwrite: bool):
-            return bake_filter_to_file(in_path, out_path, css_class)
+            return bake_filter_to_file(in_path, out_path, css_class, overwrite=overwrite)
 
         self.on_apply_btn_clicked(btn, "Save filtered image?", "Do you want to overwrite the original file or save a new copy?", op, True)
 
