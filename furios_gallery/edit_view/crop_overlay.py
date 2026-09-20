@@ -151,8 +151,10 @@ class CropOverlay(Gtk.Widget):
 
         x, y, rw, rh = self.rect
 
-        dim = Gdk.RGBA(); dim.parse("rgba(0,0,0,0.45)")
-        white = Gdk.RGBA(); white.parse("rgba(255,255,255,0.90)")
+        dim = Gdk.RGBA()
+        dim.parse("rgba(0,0,0,0.45)")
+        white = Gdk.RGBA()
+        white.parse("rgba(255,255,255,0.90)")
 
         # dim around crop rect
         snapshot.append_color(dim, Graphene.Rect().init(0, 0, w, y))
