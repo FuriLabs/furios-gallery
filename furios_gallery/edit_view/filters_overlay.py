@@ -115,12 +115,21 @@ class FiltersOverlay(Gtk.Widget):
         return filters_bar
 
     def on_cancel_clicked(self, _btn):
+        for c in ALL_FILTER_CLASSES:
+            self.picture_widget.remove_css_class(c)
+        self.selected_filter = "filter-original"
+
         if callable(getattr(self, "on_cancel", None)):
             self.on_cancel()
 
     def on_apply_clicked(self, _btn):
+        selected_filter = self.selected_filter
+
+        for c in ALL_FILTER_CLASSES:
+            self.picture_widget.remove_css_class(c)
+
         if callable(getattr(self, "on_apply", None)):
-            self.on_apply(self.selected_filter)
+            self.on_apply(selected_filter)
 
     def get_bar_widget(self) -> Gtk.Widget:
         return self.bar
