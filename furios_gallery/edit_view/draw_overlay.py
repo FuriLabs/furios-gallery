@@ -34,6 +34,7 @@ class DrawOverlay(Gtk.Widget):
         self.set_can_target(True)
 
         drag = Gtk.GestureDrag.new()
+        drag.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
         drag.connect("drag-begin", self.on_drag_begin)
         drag.connect("drag-update", self.on_drag_update)
         drag.connect("drag-end", self.on_drag_end)
@@ -142,6 +143,7 @@ class DrawOverlay(Gtk.Widget):
         return (ix <= x <= ix + iw) and (iy <= y <= iy + ih)
 
     def on_drag_begin(self, gesture: Gtk.GestureDrag, start_x: float, start_y: float):
+        gesture.set_state(Gtk.EventSequenceState.CLAIMED)
         xw = float(start_x)
         yw = float(start_y)
 
