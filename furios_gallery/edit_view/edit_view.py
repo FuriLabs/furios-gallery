@@ -258,9 +258,6 @@ class EditView(Adw.NavigationPage):
     * Drawing Feature *
     '''
     def on_drawing_clicked(self, btn):
-        if not self.texture or not self.picture:
-            return
-
         self.zoomable_image.reset_view_fit()
         self.zoomable_image.set_zoom_enabled(False)
         self.set_edit_bar_visible(False)
@@ -269,10 +266,13 @@ class EditView(Adw.NavigationPage):
             self.overlay.remove_overlay(self.draw_overlay.get_bar_widget())
             self.draw_overlay = None
 
-        self.draw_overlay = DrawOverlay(self.picture, self.texture, clamp_to_image=True)
+        with Image.open(self.media_path) as im:
+            image_width, image_height = im.size
+
+        self.draw_overlay = DrawOverlay(image_width, image_height)
 
         self.draw_overlay.on_cancel = lambda: self.on_drawing_cancel_clicked(btn)
-        self.draw_overlay.on_apply  = lambda payload=None: self.on_drawing_apply_clicked(btn)
+        self.draw_overlay.on_apply = lambda: self.on_drawing_apply_clicked(btn)
 
         self.overlay.add_overlay(self.draw_overlay)
         self.overlay.add_overlay(self.draw_overlay.get_bar_widget())

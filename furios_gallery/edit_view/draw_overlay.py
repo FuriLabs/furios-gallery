@@ -11,19 +11,10 @@ from gi.repository import Gtk, Gdk, Gsk
 from .ui import create_drawing_bar
 
 class DrawOverlay(Gtk.Widget):
-    def __init__(
-        self,
-        picture_widget: Gtk.Widget,
-        texture: Gdk.Texture,
-        *,
-        clamp_to_image: bool = True,
-        line_width: float = 4.0,
-        color_rgba: str = "rgba(0, 140, 255, 0.95)",
-        min_point_dist: float = 1.5,
-    ):
+    def __init__(self, image_width: int, image_height: int, clamp_to_image: bool = True, line_width: float = 4.0, color_rgba: str = "rgba(0, 140, 255, 0.95)", min_point_dist: float = 1.5):
         super().__init__()
-        self.picture_widget = picture_widget
-        self.texture = texture
+        self.image_width = image_width
+        self.image_height = image_height
 
         self.clamp_to_image = clamp_to_image
         self.line_width = float(line_width)
@@ -66,9 +57,9 @@ class DrawOverlay(Gtk.Widget):
         if callable(getattr(self, "on_cancel", None)):
             self.on_cancel()
 
-    def on_apply_clicked(self, btn=None):
+    def on_apply_clicked(self, _btn=None):
         if callable(getattr(self, "on_apply", None)):
-            self.on_apply(getattr(self, "selected_filter", "filter-original"))
+            self.on_apply()
 
     '''
     * Public Helpers *
@@ -95,8 +86,8 @@ class DrawOverlay(Gtk.Widget):
         w = float(self.get_allocated_width())
         h = float(self.get_allocated_height())
 
-        tw = float(self.texture.get_width())
-        th = float(self.texture.get_height())
+        tw = float(self.image_width)
+        th = float(self.image_height)
 
         if w <= 0 or h <= 0 or tw <= 0 or th <= 0:
             return (0.0, 0.0, w, h)
@@ -120,10 +111,7 @@ class DrawOverlay(Gtk.Widget):
         if self.current_pts and len(self.current_pts) >= 2:
             self.snapshot_stroke(snapshot, self.current_pts, self.line_width, self.color)
 
-    def snapshot_stroke(self, snapshot: Gtk.Snapshot,
-                         pts: list[tuple[float, float]],
-                         width: float,
-                         color: Gdk.RGBA):
+    def snapshot_stroke(self, snapshot: Gtk.Snapshot, pts: list[tuple[float, float]], width: float, color: Gdk.RGBA):
         if len(pts) < 2:
             return
 
@@ -228,14 +216,14 @@ class DrawOverlay(Gtk.Widget):
     def image_scale_in_widget(self) -> float:
         # widget pixels per image pixel (same in x/y for "contain")
         _, _, iw, _ = self.image_rect_in_widget()
-        tw = float(self.texture.get_width())
+        tw = float(self.image_width)
         return (iw / tw) if tw else 1.0
 
     # Since we are using Gsk Path builder and this one uses widget coordinates, we need to transform into image coordiiantes:
     def widget_to_image(self, xw: float, yw: float) -> tuple[float, float] | None:
         ix, iy, iw, ih = self.image_rect_in_widget()
-        tw = float(self.texture.get_width())
-        th = float(self.texture.get_height())
+        tw = float(self.image_width)
+        th = float(self.image_height)
 
         if iw <= 0 or ih <= 0 or tw <= 0 or th <= 0:
             return None
@@ -254,8 +242,8 @@ class DrawOverlay(Gtk.Widget):
 
     def image_to_widget(self, xi: float, yi: float) -> tuple[float, float]:
         ix, iy, iw, ih = self.image_rect_in_widget()
-        tw = float(self.texture.get_width())
-        th = float(self.texture.get_height())
+        tw = float(self.image_width)
+        th = float(self.image_height)
 
         u = xi / tw if tw else 0.0
         v = yi / th if th else 0.0
