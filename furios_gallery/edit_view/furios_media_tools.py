@@ -267,18 +267,18 @@ def _get_unique_path(out_path: str) -> str:
 
         counter += 1
 
-def save_rgb_numpy(rgb: np.ndarray, out_path: str) -> None:
+def save_rgb_numpy(rgb: np.ndarray, out_path: str, overwrite: bool = False) -> str:
     if rgb.dtype != np.uint8 or rgb.ndim != 3 or rgb.shape[2] != 3:
         raise ValueError(f"Expected uint8 (H,W,3), got {rgb.dtype} {rgb.shape}")
 
-    # Prevent accidental overwrite
-    out_path = _get_unique_path(out_path)
+    if not overwrite:
+        out_path = _get_unique_path(out_path)
 
     ext = os.path.splitext(out_path)[1].lower()
     im = Image.fromarray(rgb, mode="RGB")
 
     if ext in [".jpg", ".jpeg"]:
-        im.save(out_path, format="JPEG", quality=95)
+        im.save(out_path, format="JPEG", quality=95, subsampling=0)
     elif ext == ".png":
         im.save(out_path, format="PNG")
     elif ext == ".webp":
@@ -286,63 +286,29 @@ def save_rgb_numpy(rgb: np.ndarray, out_path: str) -> None:
     else:
         im.save(out_path, format="PNG")
 
-def apply_filter_to_rgb(rgb: np.ndarray, css_class: str) -> np.ndarray:
-    css_class = (css_class or "filter-original").strip()
+    return out_path
 
-    if css_class == "filter-original":
-        return rgb.copy()
-
-    if css_class == "filter-bw":
-        return grayscale(rgb)
-
-    if css_class == "filter-invert":
-        return apply_invert(rgb, amount=1.0)
-
-    if css_class == "filter-vivid":
-        x = apply_saturate(rgb, 1.7)
-        x = apply_luma_contrast(x, contrast=1.15, reference_intensity=128.0)
-        return x
-
-    if css_class == "filter-warm":
-        x = apply_sepia(rgb, amount=0.35)
-        x = apply_saturate(x, 1.3)
-        x = apply_brightness(x, 1.05)
-        return x
-
-    if css_class == "filter-soft":
-        x = apply_gaussian_blur(rgb, sigma=0.7)
-        x = apply_brightness(x, 1.02)
-        return x
-
-    return rgb
+def apply_custom_color_filters(rgb: np.ndarray, brightness: float, contrast: float, saturation: float, sepia: float) -> np.ndarray:
+    transforms = []
+    if brightness != 1.0:
+        transforms.append(brightness_transform(brightness))
+    if contrast != 1.0:
+        transforms.append(contrast_transform(contrast, 128.0))
+    if saturation != 1.0:
+        transforms.append(saturation_transform(saturation))
+    if sepia != 0.0:
+        transforms.append(sepia_transform(sepia))
+    if not transforms:
+        return rgb
+    M, b = compose_transforms(*transforms)
+    return apply_affine_rgb(rgb, M, b)
 
 def apply_custom_filters(in_path: str, out_path: str, brightness: float | None, contrast: float | None, saturation: float | None, sepia: float | None, blur: float | None):
     with Image.open(in_path) as im:
         rgb = np.array(im.convert("RGB"), dtype=np.uint8)
-
-    out_rgb = rgb
-
-    if not brightness == 1.0:
-        out_rgb =  apply_brightness(out_rgb, brightness)
-        print(f"applied brigthness: {brightness}")
-
-    if not contrast == 1.0:
-        out_rgb = apply_luma_contrast(out_rgb, contrast, 128)
-        print(f"applied contrast: {contrast}")
-
-    if not saturation == 1.0:
-        out_rgb = apply_saturate(out_rgb, saturation)
-        print(f"applied saturation: {saturation}")
-
-    if not sepia == 0.0:
-        out_rgb = apply_sepia(out_rgb, sepia)
-        print(f"applied temperature: {sepia}")
-
-    if not blur == 0.0:
-        blur = min(blur * 2.2, 10.0)
-        print(f"applied blur: {blur}")
-        out_rgb = apply_gaussian_blur(out_rgb, blur)
-
+    out_rgb = apply_custom_color_filters(rgb, brightness, contrast, saturation, sepia)
+    if blur != 0.0:
+        out_rgb = apply_gaussian_blur(out_rgb, min(blur * 2.2, 10.0))
     save_rgb_numpy(out_rgb, out_path)
 
 def bake_filter_to_file(in_path: str, out_path: str, css_class: str, overwrite: bool = False) -> str:
@@ -355,39 +321,18 @@ def bake_filter_to_file(in_path: str, out_path: str, css_class: str, overwrite: 
 # *********************************** #
 # * Computational Imaging Functions * #
 # *********************************** #
-def apply_linear_contrast(rgb, contrast, reference_intensity):
-    r = ((rgb[0] - reference_intensity) * contrast) + reference_intensity
-    g = ((rgb[1] - reference_intensity) * contrast) + reference_intensity
-    b = ((rgb[2] - reference_intensity) * contrast) + reference_intensity
+IDENTITY = np.eye(3, dtype=np.float32)
+ZERO = np.zeros(3, dtype=np.float32)
+LUMA = np.array([ColorSpaceStandards.Y_R, ColorSpaceStandards.Y_G, ColorSpaceStandards.Y_B], dtype=np.float32)
 
-    r = max(0, min(255, r))
-    g = max(0, min(255, g))
-    b = max(0, min(255, b))
+def contrast_transform(contrast: float, reference_intensity: float = 128.0):
+    c = float(contrast)
+    M = IDENTITY + (c - 1.0) * np.outer(np.ones(3, dtype=np.float32), LUMA)
+    b = (1.0 - c) * float(reference_intensity) * np.ones(3, dtype=np.float32)
+    return M, b
 
-    return (int(round(r)), int(round(g)), int(round(b)))
-
-def apply_luma_contrast(rgb, contrast, reference_intensity):
-    if not isinstance(rgb, np.ndarray):
-        raise TypeError("rgb must be a numpy ndarray")
-    if rgb.ndim != 3 or rgb.shape[-1] != 3:
-        raise ValueError(f"rgb must have shape (H, W, 3); got {rgb.shape}")
-
-    # RGB -> YCbCr
-    Y, Cb, Cr = ColorSpaceStandards.rgb_to_ycbcr(rgb)
-
-    # Apply contrast ONLY to luma
-    Y = contrast * (Y - reference_intensity) + reference_intensity
-
-    # YCbCr -> RGB
-    out = ColorSpaceStandards.ycbcr_to_rgb(Y, Cb, Cr)
-
-    # Clip + convert for output
-    return np.clip(out, 0.0, 255.0).astype(np.uint8)
-
-def apply_brightness(rgb: np.ndarray, brightness: float):
-    x = rgb.astype(np.float32) * float(brightness)
-    x = np.clip(x, 0, 255)
-    return x.astype(np.uint8)
+def brightness_transform(amount: float):
+    return IDENTITY * float(amount), ZERO.copy()
 
 def apply_luma_brightness(rgb_img, brightness):
     Y, Cb, Cr = ColorSpaceStandards.rgb_to_ycbcr(rgb_img)
@@ -395,14 +340,8 @@ def apply_luma_brightness(rgb_img, brightness):
     out = ColorSpaceStandards.ycbcr_to_rgb(Y, Cb, Cr)
     return np.clip(out, 0.0, 255.0).astype(np.uint8)
 
-def grayscale(rgb: np.ndarray, *, three_channel: bool = True):
-    Y, _, _ = ColorSpaceStandards.rgb_to_ycbcr(rgb)
-
-    Y8 = np.clip(Y, 0.0, 255.0).astype(np.uint8)
-
-    if three_channel:
-        return np.stack([Y8, Y8, Y8], axis=-1)
-    return Y8
+def grayscale_transform():
+    return np.tile(LUMA, (3, 1)), ZERO.copy()
 
 def gaussian_kernel1d(sigma: float, radius: int | None = None) -> np.ndarray:
     if sigma <= 0:
@@ -456,48 +395,70 @@ def apply_gaussian_blur(img: np.ndarray, sigma: float) -> np.ndarray:
 
     return np.clip(x, 0.0, 255.0).astype(np.uint8)
 
-def apply_invert(img: np.ndarray, amount: float = 1.0):
-    if not (0.0 <= amount <= 1.0):
-        raise ValueError("amount must be in range [0, 1]")
+def invert_transform(amount: float = 1.0):
+    a = float(amount)
+    M = (1.0 - 2.0 * a) * IDENTITY
+    b = 255.0 * a * np.ones(3, dtype=np.float32)
+    return M, b
 
-    x = img.astype(np.float32, copy=False)
+def sepia_transform(amount: float):
+    a = float(amount)
+    M = (1.0 - a) * IDENTITY + a * ColorSpaceStandards.SEPIA_MATRIX
+    return M, ZERO.copy()
 
-    inverted = 255.0 - x
-    out = (1.0 - amount) * x + amount * inverted
-
-    return np.clip(out, 0.0, 255.0).astype(np.uint8)
-
-def apply_sepia(rgb: np.ndarray, amount: float = 1.0) -> np.ndarray:
-    if not (0.0 <= amount <= 1.0):
-        raise ValueError("amount must be in [0, 1]")
-
-    x = rgb.astype(np.float32, copy=False)
-    sepia = x @ ColorSpaceStandards.SEPIA_MATRIX.T
-
-    out = (1.0 - amount) * x + amount * sepia
-    return np.clip(out, 0.0, 255.0).astype(np.uint8)
-
-def apply_saturate(rgb: np.ndarray, amount: float) -> np.ndarray:
-    if not isinstance(rgb, np.ndarray):
-        raise TypeError("rgb must be a numpy ndarray")
-    if rgb.ndim != 3 or rgb.shape[-1] != 3:
-        raise ValueError("rgb must have shape (H, W, 3)")
-
-    x = rgb.astype(np.float32, copy=False)
-
-    s = amount
+def saturation_transform(amount: float):
+    s = float(amount)
     inv = 1.0 - s
-
-    lr = ColorSpaceStandards.Y_R
-    lg = ColorSpaceStandards.Y_G
-    lb = ColorSpaceStandards.Y_B
-
-    # Saturation Matrix
+    lr, lg, lb = LUMA
     M = np.array([
-        [inv * lr + s, inv * lg,       inv * lb      ],
-        [inv * lr,     inv * lg + s,   inv * lb      ],
-        [inv * lr,     inv * lg,       inv * lb + s  ],
+        [inv * lr + s, inv * lg, inv * lb],
+        [inv * lr, inv * lg + s, inv * lb],
+        [inv * lr, inv * lg, inv * lb + s],
     ], dtype=np.float32)
+    return M, ZERO.copy()
 
-    out = x @ M.T
-    return np.clip(out, 0.0, 255.0).astype(np.uint8)
+def compose_transforms(*transforms):
+    M = IDENTITY.copy()
+    b = ZERO.copy()
+    for A, offset in transforms:
+        b = A @ b + offset
+        M = A @ M
+    return M, b
+
+def apply_affine_rgb(rgb: np.ndarray, M: np.ndarray, b: np.ndarray) -> np.ndarray:
+    if rgb.dtype != np.uint8 or rgb.ndim != 3 or rgb.shape[-1] != 3:
+        raise ValueError(f"Expected uint8 (H,W,3), got {rgb.dtype} {rgb.shape}")
+    out = rgb @ M.T
+    out += b
+    np.clip(out, 0.0, 255.0, out=out)
+    np.rint(out, out=out)
+    return out.astype(np.uint8)
+
+def apply_filter_to_rgb(rgb: np.ndarray, css_class: str) -> np.ndarray:
+    css_class = (css_class or "filter-original").strip()
+
+    if css_class == "filter-original":
+        return rgb.copy()
+
+    if css_class == "filter-bw":
+        M, b = grayscale_transform()
+        return apply_affine_rgb(rgb, M, b)
+
+    if css_class == "filter-invert":
+        M, b = invert_transform(1.0)
+        return apply_affine_rgb(rgb, M, b)
+
+    if css_class == "filter-vivid":
+        M, b = compose_transforms(saturation_transform(1.7), contrast_transform(1.15, 128.0))
+        return apply_affine_rgb(rgb, M, b)
+
+    if css_class == "filter-warm":
+        M, b = compose_transforms(sepia_transform(0.35), saturation_transform(1.3), brightness_transform(1.05))
+        return apply_affine_rgb(rgb, M, b)
+
+    if css_class == "filter-soft":
+        x = apply_gaussian_blur(rgb, sigma=0.7)
+        M, b = brightness_transform(1.02)
+        return apply_affine_rgb(x, M, b)
+
+    return rgb
