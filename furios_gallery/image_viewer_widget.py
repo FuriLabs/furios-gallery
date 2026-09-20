@@ -16,8 +16,7 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, Graphene
 class ImageViewerWidget(Gtk.Widget):
     def __init__(self, path, win, scrolled_win, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
-        self.pixbuf = GdkPixbuf.Pixbuf.apply_embedded_orientation(self.pixbuf)
+        self.pixbuf = GdkPixbuf.Pixbuf.apply_embedded_orientation(GdkPixbuf.Pixbuf.new_from_file(path))
         self.texture = Gdk.Texture.new_for_pixbuf(self.pixbuf)
         self.min_scale = 0
         self.scale = 1.0
