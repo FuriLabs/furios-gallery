@@ -39,7 +39,7 @@ class MediaWatcher():
 
         gfile = Gio.File.new_for_path(key)
         try:
-            mon = gfile.monitor_directory(Gio.FileMonitorFlags.NONE, None)
+            mon = gfile.monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, None)
         except Exception as e:
             print(f"Failed to monitor {directory}: {e}")
             return
