@@ -397,11 +397,32 @@ class MediaView(Adw.NavigationPage):
 
         old_updating_state = self._updating_carousel
         self._updating_carousel = True
+
         try:
             if prepend:
                 self.carousel.prepend(page)
+
+                # Remove from the opposite end
+                if self.carousel.get_n_pages() > 7:
+                    last_page = self.carousel.get_nth_page(self.carousel.get_n_pages() - 1)
+
+                    if isinstance(last_page, VideoPlayerWidget):
+                        last_page.stop_video()
+
+                    self.carousel.remove(last_page)
+
             else:
                 self.carousel.append(page)
+
+                # Remove from the opposite end
+                if self.carousel.get_n_pages() > 7:
+                    first_page = self.carousel.get_nth_page(0)
+
+                    if isinstance(first_page, VideoPlayerWidget):
+                        first_page.stop_video()
+
+                    self.carousel.remove(first_page)
+
         finally:
             self._updating_carousel = old_updating_state
 
