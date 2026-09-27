@@ -61,12 +61,10 @@ class FiltersOverlay(Gtk.Widget):
 
     def ensure_css_loaded(self):
         display = self.get_display()
-        if getattr(display, "_filters_css_loaded", False):
-            return
+
         prov = Gtk.CssProvider()
         prov.load_from_data(CSS)
         Gtk.StyleContext.add_provider_for_display(display, prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-        display._filters_css_loaded = True
 
     def clear_preview(self):
         for c in ALL_FILTER_CLASSES:
