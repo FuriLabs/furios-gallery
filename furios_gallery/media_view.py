@@ -82,6 +82,18 @@ class MediaView(Adw.NavigationPage):
         remove_from_album_btn = create_option_button("Remove from Album", self.delete_from_album, dialog)
         media_options.append(remove_from_album_btn)
 
+        media_path = self.app.media_paths[self.app.current_index]
+        if media_path.endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            edit_medit_btn = create_option_button(
+                "Edit Media",
+                lambda _btn: (
+                    dialog.close(),
+                    self.app.open_media_edit(self.app.current_index, self.app.media_paths[self.app.current_index])
+                )
+            )
+
+            media_options.append(edit_medit_btn)
+
         close_media_options_btn = create_option_button("Cancel", self.on_close_media_options, dialog)
         media_options.append(close_media_options_btn)
 
@@ -397,11 +409,32 @@ class MediaView(Adw.NavigationPage):
 
         old_updating_state = self._updating_carousel
         self._updating_carousel = True
+
         try:
             if prepend:
                 self.carousel.prepend(page)
+
+                # Remove from the opposite end
+                if self.carousel.get_n_pages() > 7:
+                    last_page = self.carousel.get_nth_page(self.carousel.get_n_pages() - 1)
+
+                    if isinstance(last_page, VideoPlayerWidget):
+                        last_page.stop_video()
+
+                    self.carousel.remove(last_page)
+
             else:
                 self.carousel.append(page)
+
+                # Remove from the opposite end
+                if self.carousel.get_n_pages() > 7:
+                    first_page = self.carousel.get_nth_page(0)
+
+                    if isinstance(first_page, VideoPlayerWidget):
+                        first_page.stop_video()
+
+                    self.carousel.remove(first_page)
+
         finally:
             self._updating_carousel = old_updating_state
 

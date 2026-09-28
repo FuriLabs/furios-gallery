@@ -17,7 +17,11 @@ class GalleryApp(Adw.Application):
     def __init__(self):
         super().__init__(application_id='io.furios.Gallery')
         self.connect('activate', self.on_activate)
+        self.win = None
 
     def on_activate(self, app):
-        self.win = GalleryWindow(application=app)
+        if self.win is None:
+            self.win = GalleryWindow(application=app)
+            app.add_window(self.win)
+
         self.win.present()

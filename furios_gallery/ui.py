@@ -18,40 +18,14 @@ def create_gallery_header() -> Adw.HeaderBar:
     """Create the main gallery header bar."""
     header = Adw.HeaderBar()
     header.set_title_widget(Adw.WindowTitle(title="Gallery"))
+    header.add_css_class("osd")
+    header.set_margin_bottom(10)
     return header
 
-def create_album_button(callback: Callable) -> Gtk.Button:
-    """Create album button for header."""
-    button = Gtk.Button(icon_name="folder-new-symbolic")
+def create_header_btn(callback: Callable, icon_name: str, visible: bool = True) -> Gtk.Button:
+    button = Gtk.Button(icon_name=icon_name)
+    button.set_visible(visible)
     button.connect("clicked", callback)
-    return button
-
-def create_info_button(callback: Callable) -> Gtk.Button:
-    """Create info button for header."""
-    button = Gtk.Button(icon_name="help-about-symbolic")
-    button.connect("clicked", callback)
-    button.set_visible(False)
-    return button
-
-def create_media_options_button(callback: Callable) -> Gtk.Button:
-    """Create media options button for header."""
-    button = Gtk.Button(icon_name="view-more-symbolic")
-    button.connect("clicked", callback)
-    button.set_visible(False)
-    return button
-
-def create_delete_media_button(callback: Callable) -> Gtk.Button:
-    """Create delete media button for header."""
-    button = Gtk.Button(icon_name="user-trash-symbolic")
-    button.connect("clicked", callback)
-    button.add_css_class("delete-btn")
-    return button
-
-def create_return_button(callback: Callable) -> Gtk.Button:
-    """Create return button for header."""
-    button = Gtk.Button(icon_name="go-previous-symbolic")
-    button.connect("clicked", callback)
-    button.set_visible(False)
     return button
 
 def create_albums_content_box() -> Gtk.Box:
@@ -84,6 +58,52 @@ def create_albums_flowbox(selection_callback: Callable, update_callback: Callabl
     if update_callback:
         flowbox.connect("selected-children-changed", update_callback)
     return flowbox
+
+def create_rename_dialog(parent, initial_name: str):
+    entry = Gtk.Entry()
+    entry.set_hexpand(True)
+    entry.set_text(initial_name)
+    entry.set_activates_default(True)
+
+    hint = Gtk.Label(label="Only the file name will change, not the extension.")
+    hint.set_halign(Gtk.Align.START)
+    hint.set_wrap(True)
+    hint.add_css_class("dim-label")
+
+    error_label = Gtk.Label()
+    error_label.set_halign(Gtk.Align.START)
+    error_label.set_wrap(True)
+    error_label.set_visible(False)
+    error_label.add_css_class("error")
+
+    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+    content.set_margin_top(12)
+    content.set_margin_bottom(12)
+    content.set_margin_start(12)
+    content.set_margin_end(12)
+    content.append(entry)
+    content.append(hint)
+    content.append(error_label)
+
+    cancel_btn = Gtk.Button(label="Cancel")
+    rename_btn = Gtk.Button(label="Rename")
+    rename_btn.add_css_class("suggested-action")
+
+    entry.connect("activate", lambda _e: rename_btn.emit("clicked"))
+
+    header = Adw.HeaderBar()
+    header.pack_start(cancel_btn)
+    header.pack_end(rename_btn)
+
+    toolbar = Adw.ToolbarView()
+    toolbar.add_top_bar(header)
+    toolbar.set_content(content)
+
+    dlg = Adw.Dialog()
+    dlg.set_title("Rename file")
+    dlg.set_child(toolbar)
+
+    return dlg, entry, error_label, rename_btn, cancel_btn
 
 def create_album_item(album_name: str, thumbnail_path: str = None) -> Gtk.FlowBoxChild:
     """Create an album item for the flowbox."""
@@ -168,6 +188,7 @@ def create_grid_view_flowbox(selection_callback: Callable, update_callback: Call
     """Create flowbox for grid view."""
     flowbox = Gtk.FlowBox()
     flowbox.set_valign(Gtk.Align.START)
+    flowbox.add_css_class("furios-tight-grid")
     flowbox.set_column_spacing(0)
     flowbox.set_row_spacing(0)
     flowbox.set_max_children_per_line(5)
@@ -186,9 +207,44 @@ def setup_grid_view_css():
     .delete-btn {
         padding: 5px;
     }
+
+    .furios-tight-grid flowboxchild {
+        padding: 0px;
+        margin: 1px;
+        border: 0px;
+        min-width: 0px;
+        min-height: 0px;
+    }
+
+    .furios-tight-grid frame,
+    .furios-tight-grid button {
+        padding: 0px;
+        margin: 0px;
+        border: 0px;
+        box-shadow: none;
+    }
     """)
+
     display = Gdk.Display.get_default()
     Gtk.StyleContext.add_provider_for_display(display, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+def create_edit_view_main_box() -> Gtk.Box:
+    """Create main content box for edit view."""
+    main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    main_box.set_halign(Gtk.Align.FILL)
+    main_box.set_valign(Gtk.Align.FILL)
+    main_box.set_hexpand(True)
+    main_box.set_vexpand(True)
+    return main_box
+
+def create_edit_view_overlay() -> Gtk.Overlay:
+    """Create overlay for edit view."""
+    overlay = Gtk.Overlay()
+    overlay.set_halign(Gtk.Align.FILL)
+    overlay.set_valign(Gtk.Align.FILL)
+    overlay.set_hexpand(True)
+    overlay.set_vexpand(True)
+    return overlay
 
 def create_media_view_main_box() -> Gtk.Box:
     """Create main content box for media view."""

@@ -157,10 +157,10 @@ class Albums(Adw.NavigationPage):
                 self.app_window.header.set_title_widget(Adw.WindowTitle(title=album_name))
 
                 # Create grid view page for the album
-                grid_view_page = self.app_window.create_grid_view_page(album_name)
+                self.app_window.grid_view_page = self.app_window.create_grid_view_page(album_name)
 
                 # Push grid view to navigation view
-                self.app_window.navigation_view.push(grid_view_page)
+                self.app_window.navigation_view.push(self.app_window.grid_view_page)
 
             self.flowbox.unselect_all()
 
