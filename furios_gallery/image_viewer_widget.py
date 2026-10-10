@@ -8,16 +8,21 @@
 # Luis Garcia <git@luigi311.com>
 
 import gi
+import weakref
+
+from .preview_loader import get_preview_loader
+
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gtk, Gdk, GdkPixbuf, Graphene
+from gi.repository import Gtk, Gdk, GdkPixbuf, Graphene, GLib
 
 class ImageViewerWidget(Gtk.Widget):
-    def __init__(self, path, win, scrolled_win, *args, **kwargs):
+    def __init__(self, path, win, scrolled_win, *args,
+                 max_dimension=None, async_loading=False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.pixbuf = GdkPixbuf.Pixbuf.apply_embedded_orientation(GdkPixbuf.Pixbuf.new_from_file(path))
-        self.texture = Gdk.Texture.new_for_pixbuf(self.pixbuf)
+        self.pixbuf = None
+        self.texture = None
         self.min_scale = 0
         self.scale = 1.0
         self.scale_at_start = 1.0
@@ -25,11 +30,63 @@ class ImageViewerWidget(Gtk.Widget):
         self.scrolled_win = scrolled_win
         self.win = win
         self.zoom_gesture = None
+        self._zoom_handler_ids = []
+        self._released = False
+        self._preview_path = None
 
-        # Calculate the initial scale to fit the image within the window
+        if async_loading:
+            viewer_ref = weakref.ref(self)
+
+            def ready(decoded):
+                viewer = viewer_ref()
+                if viewer is not None and not viewer._released:
+                    viewer.set_preview(*decoded)
+                return GLib.SOURCE_REMOVE
+
+            self._preview_path = path
+            self._preview_size = max_dimension or 1600
+            get_preview_loader().request(path, self._preview_size, ready, priority=0)
+        else:
+            self.set_pixbuf(self.load_pixbuf(path, max_dimension))
+
+    def load_pixbuf(self, path, max_dimension):
+        if max_dimension is None:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+        else:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                path, max_dimension, max_dimension, True
+            )
+        return GdkPixbuf.Pixbuf.apply_embedded_orientation(pixbuf)
+
+    def prioritize(self):
+        if not self._released and self.texture is None and self._preview_path is not None:
+            get_preview_loader().request(self._preview_path, self._preview_size, priority=0)
+
+    def set_preview(self, width, height, pixels):
+        if self._released:
+            return
+        data = GLib.Bytes.new(pixels)
+        self.texture = Gdk.MemoryTexture.new(
+            width, height, Gdk.MemoryFormat.R8G8B8A8, data, width * 4
+        )
         self.calculate_initial_scale()
+        self.scale_at_start = self.scale
+        self.queue_resize()
+        self.queue_draw()
+
+    def set_pixbuf(self, pixbuf):
+        if self._released:
+            return
+        self.pixbuf = pixbuf
+        self.texture = Gdk.Texture.new_for_pixbuf(pixbuf)
+        self.calculate_initial_scale()
+        self.scale_at_start = self.scale
+        self.queue_resize()
+        self.queue_draw()
 
     def reset_view_fit(self, center=True):
+        if self._released or self.texture is None or self.scrolled_win is None:
+            return
         self.calculate_initial_scale()
         self.scale_at_start = self.scale
 
@@ -58,10 +115,12 @@ class ImageViewerWidget(Gtk.Widget):
             self.zoom_gesture.reset()
 
     def calculate_initial_scale(self):
-        win_width = self.win.get_width()
-        win_height = self.win.get_height()
-        img_width = self.pixbuf.get_width()
-        img_height = self.pixbuf.get_height()
+        if self.texture is None or self.win is None:
+            return
+        win_width = max(1, self.win.get_width())
+        win_height = max(1, self.win.get_height())
+        img_width = self.texture.get_width()
+        img_height = self.texture.get_height()
 
         # Calculate the scale to fit the image within the window
         scale_width = win_width / img_width
@@ -69,6 +128,8 @@ class ImageViewerWidget(Gtk.Widget):
         self.min_scale = self.scale = min(scale_width, scale_height)
 
     def do_snapshot(self, snapshot):
+        if self.texture is None:
+            return
         width = self.texture.get_intrinsic_width() * self.scale
         height = self.texture.get_intrinsic_height() * self.scale
         self.texture.snapshot(snapshot, width, height)
@@ -77,6 +138,8 @@ class ImageViewerWidget(Gtk.Widget):
         return Gtk.SizeRequestMode.CONSTANT_SIZE
 
     def do_measure(self, orientation, for_size):
+        if self.texture is None:
+            return (0, 0, -1, -1)
         if orientation == Gtk.Orientation.HORIZONTAL:
             width = self.texture.get_intrinsic_width() * self.scale
             return (width, width, -1, -1)
@@ -86,17 +149,35 @@ class ImageViewerWidget(Gtk.Widget):
 
     def init_gestures(self):
         self.zoom_gesture = Gtk.GestureZoom.new()
-        self.zoom_gesture.connect("begin", self.on_zoom_begin)
-        self.zoom_gesture.connect("scale-changed", self.on_zoom)
+        self._zoom_handler_ids = [
+            self.zoom_gesture.connect("begin", self.on_zoom_begin),
+            self.zoom_gesture.connect("scale-changed", self.on_zoom),
+        ]
         self.scrolled_win.add_controller(self.zoom_gesture)
 
+    def release(self):
+        if self.zoom_gesture is not None:
+            for handler_id in self._zoom_handler_ids:
+                self.zoom_gesture.disconnect(handler_id)
+            self._zoom_handler_ids.clear()
+            self.zoom_gesture.reset()
+            if self.scrolled_win is not None:
+                self.scrolled_win.remove_controller(self.zoom_gesture)
+            self.zoom_gesture = None
+
+        self._released = True
+        self.texture = None
+        self.pixbuf = None
+        self.scrolled_win = None
+        self.win = None
+
     def on_zoom_begin(self, gesture, sequence):
-        if not self.zoom_enabled:
+        if not self.zoom_enabled or self.texture is None or self.scrolled_win is None:
             return
         self.scale_at_start = self.scale
 
     def on_zoom(self, gesture, scale_delta):
-        if not self.zoom_enabled:
+        if not self.zoom_enabled or self.texture is None or self.scrolled_win is None:
             return
         zoom_factor = (scale_delta * self.scale_at_start) / self.scale
         self.queue_resize()
