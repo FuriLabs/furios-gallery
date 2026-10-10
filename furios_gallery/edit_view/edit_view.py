@@ -27,7 +27,6 @@ class EditView(Adw.NavigationPage):
         self.app = app
         self.media_path = media_path
         self.zoomable_image = None
-        self.texture: Gdk.Texture | None = None
         self.picture: Gtk.ScrolledWindow | None = None
 
         self.filters_overlay = None
@@ -35,6 +34,7 @@ class EditView(Adw.NavigationPage):
         self.crop_overlay = None
         self.edit_bar = None
         self.setup_content()
+        self._popped_handler = self.app.navigation_view.connect("popped", self.on_page_popped)
 
     def setup_content(self):
         self.main_box = create_edit_view_main_box()
@@ -66,23 +66,14 @@ class EditView(Adw.NavigationPage):
             empty.set_valign(Gtk.Align.CENTER)
             return empty
 
-        try:
-            self.texture = Gdk.Texture.new_from_filename(media_path)
-        except GLib.Error:
-            error = Gtk.Label(label="Failed to load image.")
-            error.set_hexpand(True)
-            error.set_vexpand(True)
-            error.set_halign(Gtk.Align.CENTER)
-            error.set_valign(Gtk.Align.CENTER)
-            return error
-
         scrolled = Gtk.ScrolledWindow()
         scrolled.set_hexpand(True)
         scrolled.set_vexpand(True)
         scrolled.set_halign(Gtk.Align.FILL)
         scrolled.set_valign(Gtk.Align.FILL)
 
-        self.zoomable_image = ImageViewerWidget(media_path, self.app, scrolled)
+        self.zoomable_image = ImageViewerWidget(media_path, self.app, scrolled,
+                                                max_dimension=1600, async_loading=True)
         self.zoomable_image.set_hexpand(True)
         self.zoomable_image.set_vexpand(True)
         self.zoomable_image.set_halign(Gtk.Align.CENTER)
@@ -96,13 +87,19 @@ class EditView(Adw.NavigationPage):
         return scrolled
 
     def release_current_image(self):
-        if self.picture:
+        if self.zoomable_image is not None:
+            self.zoomable_image.release()
+        if self.picture is not None:
             if self.picture.get_parent() is self.main_box:
                 self.main_box.remove(self.picture)
             self.picture.set_child(None)
         self.zoomable_image = None
-        self.texture = None
         self.picture = None
+
+    def on_page_popped(self, navigation_view, page):
+        if page is self:
+            navigation_view.disconnect(self._popped_handler)
+            self.release_current_image()
 
     '''
     * Editing Bar *
@@ -133,7 +130,8 @@ class EditView(Adw.NavigationPage):
                 print("Failed to apply drawing:", e)
 
             self.set_edit_bar_visible(True)
-            self.zoomable_image.set_zoom_enabled(True)
+            if self.zoomable_image is not None:
+                self.zoomable_image.set_zoom_enabled(True)
 
             dlg.close()
 
@@ -215,7 +213,7 @@ class EditView(Adw.NavigationPage):
     * Filters Feature *
     '''
     def on_filters_clicked(self, btn):
-        if not self.texture or not self.zoomable_image:
+        if not self.zoomable_image or not self.zoomable_image.texture:
             return
 
         self.zoomable_image.reset_view_fit()
