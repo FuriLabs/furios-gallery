@@ -48,9 +48,6 @@ class MediaView(Adw.NavigationPage):
 
         self.main_box.append(self.carousel)
 
-        # Add touch event listener
-        self.add_touch_event_listener(self.overlay)
-
         # Setup navigation and overlay buttons
         self.setup_buttons()
 
@@ -425,16 +422,6 @@ class MediaView(Adw.NavigationPage):
 
         if target_page is not None:
             self.carousel.scroll_to(target_page, True)
-
-    def add_touch_event_listener(self, widget):
-        gesture = Gtk.GestureClick.new()
-        gesture.connect("pressed", self.on_screen_touched)
-        widget.add_controller(gesture)
-
-    def on_screen_touched(self, gesture, n_press, x, y):
-        current_page = self.find_page_for_media_index(self.app.current_index)
-        if isinstance(current_page, VideoPlayerWidget):
-            current_page.on_video_clicked(None)
 
     def add_media_to_carousel(self, index, prepend=False):
         if index > len(self.app.media_paths) - 1 or index < 0:
