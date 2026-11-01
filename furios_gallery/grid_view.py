@@ -51,6 +51,9 @@ class GridView(Adw.NavigationPage):
         self.flowbox = create_grid_view_flowbox(self.on_child_selected, self.update_selected_count)
         scrolled_window.set_child(self.flowbox)
 
+        self.flowbox.set_hadjustment(scrolled_window.get_hadjustment())
+        self.flowbox.set_vadjustment(scrolled_window.get_vadjustment())
+
         adjustment = scrolled_window.get_vadjustment()
         adjustment.connect("value-changed", self.on_scroll)
         self.main_grid_box.append(scrolled_window)
