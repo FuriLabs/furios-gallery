@@ -28,7 +28,7 @@ class ImageViewerWidget(Gtk.Widget):
         self.scale_at_start = 1.0
         self.zoom_enabled = True
         self.scrolled_win = scrolled_win
-        self.win = win
+        self.win = win.win
         self.zoom_gesture = None
         self._zoom_handler_ids = []
         self._released = False
