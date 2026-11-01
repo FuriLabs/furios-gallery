@@ -7,7 +7,8 @@
 # Jesús Higueras <jesus@furilabs.com>
 # Luis Garcia <git@luigi311.com>
 
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import threading
 from gi.repository import Gtk, GLib, Adw
 from .ui import (
     create_grid_view_main_box, create_grid_view_placeholder, create_grid_view_scrolled_window,
@@ -42,33 +43,22 @@ class GridView(Adw.NavigationPage):
         self._loading = False
         self._next_index = len(self.app.media_paths) - 1
 
-        # Async setup of widget
-        asyncio.create_task(self.setup_widget())
+        # Initialize the widget
+        self.create_widget()
 
-    async def setup_widget(self):
-        await self.create_widget()
-        GLib.idle_add(self._replace_placeholder_with_widget)
-
-    def _replace_placeholder_with_widget(self):
-        if self.placeholder.get_parent() is self.main_grid_box:
-            self.main_grid_box.remove(self.placeholder)
-        return False
-
-    async def create_widget(self):
+    def create_widget(self):
         scrolled_window = create_grid_view_scrolled_window()
-
         self.flowbox = create_grid_view_flowbox(self.on_child_selected, self.update_selected_count)
-
         scrolled_window.set_child(self.flowbox)
 
-        # Load initial items
-        asyncio.create_task(self.load_more_items())
-
-        # Connect scroll event
         adjustment = scrolled_window.get_vadjustment()
         adjustment.connect("value-changed", self.on_scroll)
-
         self.main_grid_box.append(scrolled_window)
+
+        if self.placeholder.get_parent() is self.main_grid_box:
+            self.main_grid_box.remove(self.placeholder)
+
+        self.load_more_items()
 
     def update_selected_count(self, flowbox):
         if self.app.selected_files_label is not None and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
@@ -77,36 +67,39 @@ class GridView(Adw.NavigationPage):
     def on_scroll(self, adjustment):
         if adjustment.get_value() + adjustment.get_page_size() >= adjustment.get_upper() - 50:
             if self._next_index >= 0:
-                asyncio.create_task(self.load_more_items())
+                self.load_more_items()
 
-    async def load_more_items(self):
-        # If we're already loading, do nothing.
-        # Prevents repeated calls if the user keeps scrolling.
+    def load_more_items(self):
         if self._loading or self._next_index < 0:
             return
+
         self._loading = True
+        start_index = self._next_index
+        end_index = max(start_index - self.items_per_load + 1, 0)
+        items = [(self.app.media_paths[i], i)
+                 for i in range(start_index, end_index - 1, -1)]
 
-        try:
-            batch_size = 20
-            start_index = self._next_index
-            end_index = max(start_index - self.items_per_load + 1, 0)
+        def worker():
+            try:
+                with ThreadPoolExecutor(max_workers=8) as pool:
+                    for offset in range(0, len(items), 20):
+                        batch = items[offset:offset + 20]
+                        list(pool.map(lambda item: self.generate_thumbnail_for_flowbox(*item), batch))
+            except Exception as error:
+                print(f"Error loading thumbnails: {error}")
+            finally:
+                GLib.idle_add(finish)
 
-            # Load from newest to oldest without repeating chunk boundaries.
-            chunk_start = start_index
-            while chunk_start >= end_index:
-                chunk_end = max(chunk_start - batch_size + 1, end_index)
-                tasks = []
-
-                for i in range(chunk_start, chunk_end - 1, -1):
-                    media_path = self.app.media_paths[i]
-                    tasks.append(asyncio.to_thread(self.generate_thumbnail_for_flowbox, media_path, i))
-
-                await asyncio.gather(*tasks)
-                chunk_start = chunk_end - 1
-
+        def finish():
             self._next_index = end_index - 1
-        finally:
             self._loading = False
+            if self.flowbox is not None:
+                adjustment = self.flowbox.get_parent().get_vadjustment()
+                if adjustment.get_value() + adjustment.get_page_size() >= adjustment.get_upper() - 50:
+                    self.load_more_items()
+            return GLib.SOURCE_REMOVE
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def generate_thumbnail_for_flowbox(self, media_path, media_index):
         thumbnail_path = self.thumbnails.generate_thumbnail(media_path)
