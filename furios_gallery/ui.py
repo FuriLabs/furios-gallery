@@ -216,6 +216,13 @@ def setup_grid_view_css():
         min-height: 0px;
     }
 
+    .furios-tight-grid flowboxchild:selected {
+        outline: 3px solid @accent_color;
+        outline-offset: -3px;
+        background-color: alpha(@accent_bg_color, 0.25);
+        border-radius: 4px;
+    }
+
     .furios-tight-grid frame,
     .furios-tight-grid button {
         padding: 0px;
