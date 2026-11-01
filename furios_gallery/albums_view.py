@@ -49,8 +49,6 @@ class Albums(Adw.NavigationPage):
         # Load albums
         self.load_albums()
 
-        # Give focus to the album_view page
-        self.app_window.present()
 
     def update_selected_count(self, flowbox):
         if self.app_window.selected_files_label is not None and self.flowbox.get_selection_mode() == Gtk.SelectionMode.MULTIPLE:
