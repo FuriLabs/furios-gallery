@@ -1,3 +1,9 @@
-from .furios_gallery import GalleryApp
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2026 Furi Labs
+#
+# Authors:
+# Bardia Moshiri <bardia@furilabs.com>
 
-__all__ = ['GalleryApp']
+from .gallery import Gallery
+
+__all__ = ['Gallery']

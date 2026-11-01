@@ -37,14 +37,22 @@ from .ui import (
     create_map_page
 )
 
-class GalleryWindow(Adw.ApplicationWindow):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.connect("close-request", lambda _: exit(0))
+class Gallery(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id='io.furios.Gallery')
+        self.connect('activate', self.on_activate)
+        self.win = None
 
-        self.set_default_size(400, 600)
-        self.set_hexpand(True)
-        self.set_vexpand(True)
+    def on_activate(self, app):
+        if self.win is not None:
+            self.win.present()
+            return
+
+        self.win = Adw.ApplicationWindow(application=app)
+        self.win.connect('destroy', self.on_window_destroy)
+        self.win.set_default_size(400, 600)
+        self.win.set_hexpand(True)
+        self.win.set_vexpand(True)
 
         # Set up application directory
         app_dir = Path(expanduser("~/.local/share/io.FuriOS.Gallery"))
@@ -108,13 +116,13 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.toolbar_view.add_top_bar(self.header)
 
         # Set toast overlay as main content
-        self.set_content(self.toast_overlay)
+        self.win.set_content(self.toast_overlay)
 
         # Navigation view state changes
         self.navigation_view.connect('popped', self.on_navigation_changed)
         self.navigation_view.connect('pushed', self.on_navigation_changed)
 
-        self.present()
+        self.win.present()
 
         # Start Directory Watcher
         self.media_watcher = MediaWatcher(self.conn, self)
@@ -122,6 +130,10 @@ class GalleryWindow(Adw.ApplicationWindow):
 
         # Start background database population AFTER window is shown
         self.start_background_loading(str(app_dir / "gallery-albums.db"))
+
+    def on_window_destroy(self, window):
+        if self.win is window:
+            self.win = None
 
     def start_background_loading(self, db_file):
         def on_completion():
@@ -286,7 +298,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         self.navigation_view.push(edit_page)
 
     def create_album(self, button):
-        dialog, entry = create_album_create_dialog(self)
+        dialog, entry = create_album_create_dialog(self.win)
 
         dialog.connect("response", lambda dialog, response: self.on_album_create_response(dialog, response, entry))
 
@@ -387,7 +399,7 @@ class GalleryWindow(Adw.ApplicationWindow):
             print("Unsupported view type for delete confirmation")
             return
 
-        dialog = create_delete_confirmation_dialog(self, heading, body)
+        dialog = create_delete_confirmation_dialog(self.win, heading, body)
         dialog.connect("response", response_handler)
         dialog.present()
 
@@ -482,7 +494,7 @@ class GalleryWindow(Adw.ApplicationWindow):
         curr_file_path = self.media_paths[self.current_index]
         initial = basename_without_ext(curr_file_path)
 
-        dlg, entry, error_label, rename_btn, cancel_btn = create_rename_dialog(self.get_root(), initial)
+        dlg, entry, error_label, rename_btn, cancel_btn = create_rename_dialog(self.win, initial)
 
         entry.connect("changed", lambda *_: error_label.set_visible(False))
 
@@ -501,16 +513,16 @@ class GalleryWindow(Adw.ApplicationWindow):
         rename_btn.connect("clicked", lambda _b: do_rename())
         cancel_btn.connect("clicked", lambda _b: dlg.close())
 
-        dlg.present(self.get_root())
+        dlg.present(self.win)
         entry.grab_focus()
         entry.select_region(0, -1)
 
     def on_new_file_created(self, new_media_path: str):
-        #Update albums thumbnails
+        # Update albums thumbnails
         self.albums_page.update_all_album_thumbnails()
 
         thumbnail_path = self.thumbnails.generate_thumbnail(new_media_path)
 
         if thumbnail_path:
-            #Update grid view
+            # Update grid view
             self.grid_view_page.add_media_to_flowbox(new_media_path, len(self.media_paths) - 1, thumbnail_path)

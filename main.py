@@ -13,8 +13,8 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('Adw', '1')
 
-from furios_gallery import GalleryApp
+from furios_gallery import Gallery
 
 if __name__ == '__main__':
-    app = GalleryApp()
+    app = Gallery()
     app.run()
