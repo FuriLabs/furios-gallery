@@ -10,7 +10,7 @@ gi.require_version("Gdk", "4.0")
 
 from PIL import Image
 from gi.repository import Gtk, Gdk
-from .furios_media_tools import soft_preview_sigma, SOFT_BRIGHTNESS
+from .furios_media_tools import SOFT_BRIGHTNESS, SOFT_BLUR_FRACTION, preview_sigma, blur_sigma 
 from .ui import (create_main_bar_body, create_cancel_btn, create_apply_btn)
 
 FILTERS = [
@@ -148,7 +148,9 @@ class FiltersOverlay(Gtk.Widget):
         if css_class == "filter-soft":
             display_width = self.picture_widget.get_allocated_width()
             display_height = self.picture_widget.get_allocated_height()
-            sigma = soft_preview_sigma(self.image_width, self.image_height, display_width, display_height)
+            full_sigma = blur_sigma(SOFT_BLUR_FRACTION, self.image_width, self.image_height)
+            sigma = preview_sigma(full_sigma, self.image_width, self.image_height, display_width, display_height)
+            # print(f"soft: image={self.image_width}x{self.image_height} display={display_width}x{display_height} full={full_sigma:.2f} preview={sigma:.2f}")
             css = f".filter-soft-preview {{ filter: blur({sigma:.3f}px) brightness({SOFT_BRIGHTNESS}); }}"
             self.soft_preview_provider.load_from_data(css.encode())
             self.picture_widget.add_css_class("filter-soft-preview")

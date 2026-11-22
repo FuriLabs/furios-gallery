@@ -226,13 +226,13 @@ def apply_custom_color_filters(rgb: np.ndarray, brightness: float, contrast: flo
     M, b = compose_transforms(*transforms)
     return apply_affine_rgb(rgb, M, b)
 
-def apply_custom_filters(in_path: str, out_path: str, brightness: float | None, contrast: float | None, saturation: float | None, sepia: float | None, blur: float | None):
+def apply_custom_filters(in_path: str, out_path: str, brightness: float, contrast: float, saturation: float, sepia: float, blur: float, overwrite: bool = False) -> str:
     with Image.open(in_path) as im:
         rgb = np.array(im.convert("RGB"), dtype=np.uint8)
     out_rgb = apply_custom_color_filters(rgb, brightness, contrast, saturation, sepia)
-    if blur != 0.0:
-        out_rgb = apply_gaussian_blur(out_rgb, min(blur * 2.2, 10.0))
-    save_rgb_numpy(out_rgb, out_path)
+    if blur > 0.0:
+        out_rgb = apply_gaussian_blur(out_rgb, blur)  # blur is already the full-res sigma
+    return save_rgb_numpy(out_rgb, out_path, overwrite=overwrite)
 
 def bake_filter_to_file(in_path: str, out_path: str, css_class: str, overwrite: bool = False) -> str:
     with Image.open(in_path) as im:
@@ -266,17 +266,20 @@ def apply_luma_brightness(rgb_img, brightness):
 def grayscale_transform():
     return np.tile(LUMA, (3, 1)), ZERO.copy()
 
-SOFT_BLUR_FRACTION = 0.005
+# Gaussian Blur 
 SOFT_BRIGHTNESS = 1.02
+SOFT_BLUR_FRACTION = 0.005 # Soft filter strength
+BLUR_FRACTION_PER_UNIT = 0.002 # Fine tunes: fraction added per slider unit
 
-def soft_blur_sigma(image_width: int, image_height: int) -> float:
-    return SOFT_BLUR_FRACTION * max(image_width, image_height)
+def blur_sigma(fraction: float, image_width: int, image_height: int) -> float:
+    # Blur strength as a fraction of the longest side --> sigma in full-res pixels.
+    return max(0.0, fraction) * max(image_width, image_height)
 
-def soft_preview_sigma(image_width: int, image_height: int, display_width: int, display_height: int) -> float:
+def preview_sigma(full_sigma: float, image_width: int, image_height: int, display_width: int, display_height: int) -> float:
+    # Full-res sigma --> on-screen sigma for CSS blur().
     if image_width <= 0 or image_height <= 0 or display_width <= 0 or display_height <= 0:
         return 0.0
-    scale = min(display_width / image_width, display_height / image_height)
-    return soft_blur_sigma(image_width, image_height) * scale
+    return full_sigma * min(display_width / image_width, display_height / image_height)
 
 def apply_gaussian_blur(img: np.ndarray, sigma: float) -> np.ndarray:
     if not isinstance(img, np.ndarray):
@@ -351,7 +354,7 @@ def apply_filter_to_rgb(rgb: np.ndarray, css_class: str) -> np.ndarray:
 
     if css_class == "filter-soft":
         h, w = rgb.shape[:2]
-        x = apply_gaussian_blur(rgb, soft_blur_sigma(w, h))
+        x = apply_gaussian_blur(rgb, blur_sigma(SOFT_BLUR_FRACTION, w, h))
         M, b = brightness_transform(SOFT_BRIGHTNESS)
         return apply_affine_rgb(x, M, b)
 

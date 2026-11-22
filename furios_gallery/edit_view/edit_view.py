@@ -16,10 +16,11 @@ from .draw_overlay import DrawOverlay
 from .crop_overlay import CropOverlay
 from .filters_overlay import FiltersOverlay
 from ..image_viewer_widget import ImageViewerWidget
-from gi.repository import Adw, Gtk, Gdk, GdkPixbuf, Graphene, GLib
+from .image_transformations_overlay import ImageTransformationsOverlay
+from gi.repository import Adw, Gtk
 from ..ui import (create_edit_view_main_box, create_edit_view_overlay)
 from .ui import (create_main_bar_body, create_confirmation_dialog, create_icon_btn)
-from .furios_media_tools import compute_output_path, crop_image_to_disk, bake_filter_to_file, rasterize_strokes_to_disk, crop_image_to_disk
+from .furios_media_tools import compute_output_path, crop_image_to_disk, bake_filter_to_file, rasterize_strokes_to_disk, apply_custom_filters
 
 class EditView(Adw.NavigationPage):
     def __init__(self, app, media_path: str):
@@ -32,6 +33,7 @@ class EditView(Adw.NavigationPage):
         self.filters_overlay = None
         self.draw_overlay = None
         self.crop_overlay = None
+        self.image_transformations_overlay = None
         self.edit_bar = None
         self.setup_content()
         self._popped_handler = self.app.navigation_view.connect("popped", self.on_page_popped)
@@ -126,8 +128,9 @@ class EditView(Adw.NavigationPage):
                     self.picture = self.setup_picture_to_edit(new_path)
                     self.main_box.append(self.picture)
 
-            except Exception as e:
-                print("Failed to apply drawing:", e)
+            except Exception:
+                print(f"Failed to apply edit ({title}):")
+                traceback.print_exc()
 
             self.set_edit_bar_visible(True)
             if self.zoomable_image is not None:
@@ -144,8 +147,9 @@ class EditView(Adw.NavigationPage):
         crop_btn = create_icon_btn("zoom-fit-best", "Crop", self.on_crop_clicked)
         filters_btn = create_icon_btn("color-select", "Filters", self.on_filters_clicked)
         drawing_btn = create_icon_btn("document-edit", "Drawing", self.on_drawing_clicked)
+        fine_tunes_btn = create_icon_btn("preferences-system", "Fine tunes", self.on_fine_tunes_clicked)
 
-        for b in (crop_btn, filters_btn, drawing_btn):
+        for b in (crop_btn, filters_btn, fine_tunes_btn, drawing_btn):
             b.set_hexpand(True)
             b.set_halign(Gtk.Align.CENTER)
             bar.append(b)
@@ -310,3 +314,50 @@ class EditView(Adw.NavigationPage):
         self.on_apply_btn_clicked(btn, "Save drawing?", "Do you want to overwrite the original file or save a new copy?", op, True)
 
         self.on_drawing_cancel_clicked(btn)
+
+    '''
+    * Image Transformations Feature *
+    '''
+    def on_fine_tunes_clicked(self, btn):
+        if not self.zoomable_image or not self.zoomable_image.texture:
+            return
+
+        self.zoomable_image.reset_view_fit()
+        self.zoomable_image.set_zoom_enabled(False)
+        self.set_edit_bar_visible(False)
+
+        if self.image_transformations_overlay:
+            self.overlay.remove_overlay(self.image_transformations_overlay.get_bar_widget())
+            self.image_transformations_overlay = None
+
+        target_widget = self.zoomable_image
+
+        self.image_transformations_overlay = ImageTransformationsOverlay(target_widget, media_path=self.media_path)
+
+        self.image_transformations_overlay.on_cancel = lambda: self.on_it_cancel_clicked(btn)
+        self.image_transformations_overlay.on_apply = lambda: self.on_it_apply_clicked(btn)
+
+        self.overlay.add_overlay(self.image_transformations_overlay.get_bar_widget())
+
+    def on_it_cancel_clicked(self, btn=None):
+        if self.image_transformations_overlay:
+            self.overlay.remove_overlay(self.image_transformations_overlay.get_bar_widget())
+            self.image_transformations_overlay = None
+
+        self.set_edit_bar_visible(True)
+        self.zoomable_image.set_zoom_enabled(True)
+
+    def on_it_apply_clicked(self, btn=None):
+        overlay = self.image_transformations_overlay
+        if not overlay:
+            self.on_it_cancel_clicked(btn)
+            return
+
+        params = overlay.get_export_params()
+
+        def op(in_path: str, out_path: str, overwrite: bool):
+            return apply_custom_filters(in_path=in_path, out_path=out_path, overwrite=overwrite, **params)
+
+        self.on_apply_btn_clicked(btn, "Save edited image?", "Do you want to overwrite the original file or save a new copy?", op, True)
+
+        self.on_it_cancel_clicked(btn)
